@@ -39,6 +39,90 @@ def log_with(tmp_path: Path, *stamps: str) -> Path:
     return target
 
 
+def log_of(tmp_path: Path, *records: dict[str, Any]) -> Path:
+    target = tmp_path / "tools.jsonl"
+    target.write_text("".join(json.dumps(r) + "\n" for r in records), encoding="utf-8")
+    return target
+
+
+def test_release_line_frees_the_directory_however_young(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Ревизия конца этапа пишет release — и следующий этап стартует встык, а не через десять минут.
+
+    Оплачено запуском: draft остановился, потому что за 72 секунды до него research закончил
+    собственной ревизией, и замок прочитал её как чужую работу.
+    """
+    log = log_of(
+        tmp_path,
+        {"at": "2026-08-16T15:20:00+03:00", "tool": "gate", "ok": True},
+        {"at": "2026-08-16T15:29:00+03:00", "tool": "listing", "ok": True, "release": True},
+    )
+    report, code = run(capsys, monkeypatch, "--file", str(log), "--now", NOW)
+    assert report["busy"] is False
+    assert report["measures"]["released"] is True
+    assert code == 0
+
+
+def test_work_after_a_release_is_busy_again(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """release — это конец ТОГО прогона; расписка после него значит, что начался следующий."""
+    log = log_of(
+        tmp_path,
+        {"at": "2026-08-16T15:20:00+03:00", "tool": "listing", "ok": True, "release": True},
+        {"at": "2026-08-16T15:29:00+03:00", "tool": "gate", "ok": True},
+    )
+    report, _ = run(capsys, monkeypatch, "--file", str(log), "--now", NOW)
+    assert report["busy"] is True
+
+
+def test_own_receipts_are_not_activity(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Вопрос «занято ли» — не работа в каталоге: замок не должен запираться своей же расписки."""
+    log = log_of(
+        tmp_path,
+        {"at": "2026-08-16T15:00:00+03:00", "tool": "gate", "ok": True},
+        {"at": "2026-08-16T15:29:30+03:00", "tool": "busy", "ok": False},
+    )
+    report, _ = run(capsys, monkeypatch, "--file", str(log), "--now", NOW)
+    assert report["busy"] is False
+    assert report["measures"]["last_activity"] == "2026-08-16T15:00:00+03:00"
+
+
+def test_log_release_flag_writes_the_marker(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Флаг --log-release у любого инструмента кладёт release в его расписку."""
+    receipt = tmp_path / "receipts.jsonl"
+    run(
+        capsys,
+        monkeypatch,
+        "--file",
+        str(tmp_path / "нет.jsonl"),
+        "--now",
+        NOW,
+        "--log",
+        str(receipt),
+        "--log-release",
+    )
+    line = json.loads(receipt.read_text(encoding="utf-8").splitlines()[-1])
+    assert line["release"] is True
+    plain = tmp_path / "plain.jsonl"
+    run(
+        capsys,
+        monkeypatch,
+        "--file",
+        str(tmp_path / "нет.jsonl"),
+        "--now",
+        NOW,
+        "--log",
+        str(plain),
+    )
+    assert "release" not in json.loads(plain.read_text(encoding="utf-8").splitlines()[-1])
+
+
 def test_missing_log_is_free(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

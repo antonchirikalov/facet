@@ -144,7 +144,7 @@ def main() -> int:
         "measures": {"rounds": len(rounds), "last_round": last, "counts": counts},
         "rounds": emitted,
     }
-    toollog.append(args.log, "rounds", report, args.log_note)
+    toollog.append(args.log, "rounds", report, args.log_note, release=args.log_release)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 1 if (problems and args.strict) else 0
 

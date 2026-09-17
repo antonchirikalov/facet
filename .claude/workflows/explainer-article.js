@@ -789,7 +789,7 @@ async function recordHandoff() {
 }
 
 async function auditRun() {
-  const audit = await call(commands([`${LISTING_TOOL} --dir ${run} --ext "" --recursive ${noted('audit: anything produced and never read')}`]), {
+  const audit = await call(commands([`${LISTING_TOOL} --dir ${run} --ext "" --recursive --log-release ${noted('audit: anything produced and never read')}`]), {
     agentType: 'gate-runner',
     model: MODELS.gate,
     label: 'audit',

@@ -25,8 +25,18 @@ from pathlib import Path
 from typing import Any
 
 
-def append(log: Path | None, tool: str, report: dict[str, Any], note: str | None = None) -> None:
+def append(
+    log: Path | None,
+    tool: str,
+    report: dict[str, Any],
+    note: str | None = None,
+    release: bool = False,
+) -> None:
     """Append one JSON line describing this call. Never raises: a log is not worth a run.
+
+    `release` marks the receipt that closes a run: the directory is free after it, however
+    young it is. Only the final audit of a stage says so — a crashed run never gets there, and
+    its log ages into "free" by the idle window as before.
 
     A failure to write the receipt must not fail the measurement — the caller is branching on
     the numbers, and losing a run because a directory was read-only would be a worse outcome
@@ -48,6 +58,8 @@ def append(log: Path | None, tool: str, report: dict[str, Any], note: str | None
         "measures": report.get("measures", {}),
         "problems": report.get("problems", []),
     }
+    if release:
+        line["release"] = True
     try:
         log.parent.mkdir(parents=True, exist_ok=True)
         with log.open("a", encoding="utf-8") as fh:
@@ -69,4 +81,9 @@ def add_argument(parser: Any) -> None:
         default=None,
         metavar="TEXT",
         help="what this call is for; goes into the log line beside the verdict",
+    )
+    parser.add_argument(
+        "--log-release",
+        action="store_true",
+        help="this call closes the run: the directory counts as free after it (busy.py)",
     )

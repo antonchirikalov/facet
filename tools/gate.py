@@ -291,7 +291,7 @@ def main() -> int:
                 problems.append(f"min_entries {args.min_entries} not met (got {len(entries)})")
 
     report = {"ok": not problems, "problems": problems, "measures": measures}
-    toollog.append(args.log, "gate", report, args.log_note)
+    toollog.append(args.log, "gate", report, args.log_note, release=args.log_release)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 1 if (problems and args.strict) else 0
 

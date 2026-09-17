@@ -87,7 +87,7 @@ def main() -> int:
         "measures": {"files": len(files)},
         "files": files,
     }
-    toollog.append(args.log, "listing", report, args.log_note)
+    toollog.append(args.log, "listing", report, args.log_note, release=args.log_release)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 1 if (problems and args.strict) else 0
 

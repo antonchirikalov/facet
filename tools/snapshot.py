@@ -67,7 +67,7 @@ def main() -> int:
             "bytes": args.to.stat().st_size if args.to.is_file() else 0,
         },
     }
-    toollog.append(args.log, "snapshot", report, args.log_note)
+    toollog.append(args.log, "snapshot", report, args.log_note, release=args.log_release)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 1 if (problems and args.strict) else 0
 

@@ -22,9 +22,18 @@ when now is. Same reason the run directory is minted outside and passed in.
 The output envelope is gate.py's, so the agent that carries deterministic checks carries this
 one too.
 
-One caveat by construction: the check writes its own receipt into the same log, so asking twice
-about the same directory answers "busy" the second time — the occupant it found is the first
-question. It is asked once, at the start of a run, before anything else has been spent.
+Two refinements, both paid for by a launch that stopped for nothing.
+
+The final audit of a stage writes its receipt with `release: true`, and a log whose last
+working line is a release is free however young it is. Stages are launched back to back — a
+human reads the research output and starts the draft two minutes later — and without the
+marker the draft's lock read the research's own closing audit as "someone is working here".
+A crashed run never reaches its audit, so it still has to age out through the window.
+
+And this check's own receipts do not count as activity: asking whether a directory is busy is
+not working in it. Without that, a launch that failed for another reason right after asking
+left a fresh "busy" line behind, and the relaunch a minute later was locked out by its own
+question.
 """
 
 from __future__ import annotations
@@ -37,33 +46,41 @@ from pathlib import Path
 
 import toollog
 
+OWN_TOOL = "busy"
 
-def last_activity(log: Path) -> tuple[datetime | None, list[str]]:
-    """When the tool log was last appended to, by its own timestamps rather than by mtime.
+
+def last_activity(log: Path) -> tuple[datetime | None, bool, list[str]]:
+    """When the tool log was last worked in, by its own timestamps rather than by mtime.
 
     Not mtime: a copy, a checkout or a sync rewrites it, and the answer would then be about the
     filesystem rather than about the run. The line carries the time it was written, so that is
     what is read — the last parseable one, scanning backwards, because a truncated final line
     is exactly what a half-written log looks like.
+
+    Returns the time, whether that line released the directory, and any problems reading. The
+    check's own receipts are skipped: a question about the directory is not work in it.
     """
     if not log.is_file():
-        return None, []
+        return None, False, []
     problems: list[str] = []
     lines = log.read_text(encoding="utf-8", errors="replace").splitlines()
     for line in reversed(lines):
         if not line.strip():
             continue
         try:
-            at = json.loads(line).get("at")
+            record = json.loads(line)
         except json.JSONDecodeError:
             continue
+        if not isinstance(record, dict) or record.get("tool") == OWN_TOOL:
+            continue
+        at = record.get("at")
         if not isinstance(at, str):
             continue
         try:
-            return datetime.fromisoformat(at), problems
+            return datetime.fromisoformat(at), record.get("release") is True, problems
         except ValueError:
             problems.append(f"unreadable timestamp in log: {at}")
-    return None, problems
+    return None, False, problems
 
 
 def main() -> int:
@@ -94,17 +111,23 @@ def main() -> int:
             "measures": measures,
             "busy": True,
         }
-        toollog.append(args.log, "busy", report, args.log_note)
+        toollog.append(args.log, "busy", report, args.log_note, release=args.log_release)
         print(json.dumps(report, ensure_ascii=False, indent=2))
         return 1 if args.strict else 0
 
-    at, read_problems = last_activity(args.target)
+    at, released, read_problems = last_activity(args.target)
     problems.extend(read_problems)
 
     if at is None:
         # No log at all is the normal state of a fresh directory, and of a directory whose run
         # never got as far as a measurement. Free either way.
         measures["last_activity"] = None
+        busy = False
+    elif released:
+        # The last thing done here was a stage's closing audit. Whoever did it has finished,
+        # however recently — the marker exists so that stages can be launched back to back.
+        measures["last_activity"] = at.isoformat(timespec="seconds")
+        measures["released"] = True
         busy = False
     else:
         if at.tzinfo is None or now.tzinfo is None:
@@ -122,7 +145,7 @@ def main() -> int:
             )
 
     report = {"ok": not problems, "problems": problems, "measures": measures, "busy": busy}
-    toollog.append(args.log, "busy", report, args.log_note)
+    toollog.append(args.log, "busy", report, args.log_note, release=args.log_release)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 1 if (busy and args.strict) else 0
 
