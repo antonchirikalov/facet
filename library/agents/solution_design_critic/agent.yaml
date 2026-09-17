@@ -10,5 +10,8 @@ consumes:
 produces:
   - { port: verdict, type: verdict@v1 }
 needs: [read, edit]
+# The solution-design profile (facet SPEC §6): the designer and the critic of this document
+# type read ONE contract, preloaded at spawn, instead of two copies in two prompts.
+skills: [solution-design-profile]
 defaults:
   timeout_s: 1800

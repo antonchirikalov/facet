@@ -23,7 +23,7 @@
 ## Команды
 
 ```bash
-uv run python -c "from pathlib import Path; from collimator.emit_agents import emit_all; print([p.name for p in emit_all(Path('library/agents'), Path('.claude/agents'))])"   # агенты из библиотеки
+uv run python -c "from pathlib import Path; from collimator.emit_agents import emit_all; print([p.name for p in emit_all(Path('library/agents'), Path('.claude/agents'), Path('.claude/skills'))])"   # агенты из библиотеки; падает, если названный профиль не лежит в .claude/skills
 uv run pytest                                          # тесты, без сети и без LLM
 uv run ruff check --fix . && uv run ruff format .
 uv run mypy collimator                                 # strict
@@ -88,7 +88,11 @@ python -X utf8 tools/confluence_publish.py --draft <файл> --parent-id <id> -
   `d_k ** 0.5` это степень, а `**важно**` это жирный, и что имелось в виду, знает только
   вызывающий. `--no-empty-sections` называет заголовки, под которыми ничего нет;
 - `.claude/agents/`, `.claude/workflows/` — **генерируются**, но коммитятся: тогда diff
-  показывает, что именно поменялось в оркестрации после правки YAML.
+  показывает, что именно поменялось в оркестрации после правки YAML;
+- `.claude/skills/<тип>-profile/SKILL.md` — профили типов документов (SPEC §6). Данные,
+  правятся руками; в агента приезжают полем `skills:` из `agent.yaml`. Несуществующий
+  профиль рантайм пропускает **молча**, поэтому `emit_all` с третьим аргументом проверяет
+  каждый на диске и падает. Читает профиль агент — значит, он по-английски.
 
 ## Что переехало из инвариантов refract
 

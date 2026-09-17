@@ -19,20 +19,35 @@ from collimator.emit_agents import (
     emit_all,
     load_agent,
     mcp_servers_of,
+    missing_skills,
     render_agent,
     slug_of,
     tools_of,
 )
 from collimator.models.agent import AgentSpec
 
-LIBRARY_AGENTS = Path(__file__).resolve().parent.parent / "library" / "agents"
+ROOT = Path(__file__).resolve().parent.parent
+LIBRARY_AGENTS = ROOT / "library" / "agents"
+SKILLS = ROOT / ".claude" / "skills"
+
+# Кто читает какой профиль (SPEC §6): писатель, корректор и критик одного типа — один профиль.
+PROFILE_AGENTS = {
+    "requirements-profile": {
+        "requirements_writer",
+        "requirements_fact_checker",
+        "requirements_critic",
+    },
+    "solution-design-profile": {"solution_designer", "solution_design_critic"},
+}
 
 # Кто требует MCP по состоянию библиотеки: три Tavily, один pdf-reader, source_finder оба.
 TAVILY_AGENTS = {"arch_probe", "requirements_writer", "solution_designer", "source_finder"}
 PDF_AGENTS = {"source_processor", "source_finder"}
 
 
-def spec_of(needs: list[str], name: str = "some_agent") -> AgentSpec:
+def spec_of(
+    needs: list[str], name: str = "some_agent", skills: list[str] | None = None
+) -> AgentSpec:
     return AgentSpec.model_validate(
         {
             "name": name,
@@ -40,6 +55,7 @@ def spec_of(needs: list[str], name: str = "some_agent") -> AgentSpec:
             "description": "Описание агента.",
             "produces": [{"port": "out", "type": "brief@v1"}],
             "needs": needs,
+            "skills": skills or [],
         }
     )
 
@@ -353,6 +369,88 @@ def test_generated_agent_prompts_are_english(tmp_path: Path) -> None:
         if hits:
             offenders[path.name] = hits[:3]
     assert not offenders, f"кириллица в промпте агента: {offenders}"
+
+
+# --- профили типов документов: поле `skills:` -------------------------------------------
+#
+# Рантайм подгружает `.claude/skills/<имя>/SKILL.md` в контекст агента при запуске, а
+# несуществующий профиль ПРОПУСКАЕТ МОЛЧА — предупреждение только в debug-журнале. Агент без
+# контракта стартует и работает, и прогон этого не покажет. Значит существование профиля —
+# дело сборки, а не рантайма.
+
+
+def test_frontmatter_lists_skills_when_contract_names_them() -> None:
+    spec = spec_of(["read"], skills=["requirements-profile"])
+    head = frontmatter_of(render_agent(spec, "Тело."))
+    assert head["skills"] == ["requirements-profile"]
+
+
+def test_no_skills_means_no_skills_key() -> None:
+    head = frontmatter_of(render_agent(spec_of(["read"]), "Тело."))
+    assert "skills" not in head
+
+
+def test_model_rejects_malformed_or_duplicate_skill() -> None:
+    with pytest.raises(ValueError, match="invalid skill name"):
+        spec_of(["read"], skills=["Requirements Profile"])
+    with pytest.raises(ValueError, match="duplicate skill"):
+        spec_of(["read"], skills=["a-profile", "a-profile"])
+
+
+def test_missing_skill_breaks_the_build(tmp_path: Path) -> None:
+    """Профиль, которого нет на диске, — ошибка сборки, а не агент без контракта."""
+    agent_dir = tmp_path / "lib" / "some_agent"
+    agent_dir.mkdir(parents=True)
+    (agent_dir / "agent.yaml").write_text(
+        "name: some_agent\nversion: 1\nproduces: [{port: out, type: brief@v1}]\n"
+        "needs: [read]\nskills: [ghost-profile]\n",
+        encoding="utf-8",
+    )
+    (agent_dir / "prompt.md").write_text("Body.", encoding="utf-8")
+    skills = tmp_path / "skills"
+    skills.mkdir()
+    with pytest.raises(FileNotFoundError, match="ghost-profile"):
+        emit_agent(agent_dir, tmp_path / "out", skills)
+    assert not (tmp_path / "out" / "some-agent.md").exists()
+    # без каталога профилей проверка не делается — так собирает тест на чужой библиотеке
+    assert emit_agent(agent_dir, tmp_path / "out").is_file()
+
+
+def test_missing_skills_names_exactly_the_absent_ones(tmp_path: Path) -> None:
+    (tmp_path / "present-profile").mkdir()
+    (tmp_path / "present-profile" / "SKILL.md").write_text("---\nname: x\n---\n", encoding="utf-8")
+    spec = spec_of(["read"], skills=["present-profile", "absent-profile"])
+    assert missing_skills(spec, tmp_path) == ["absent-profile"]
+
+
+def test_every_skill_the_library_names_exists(tmp_path: Path) -> None:
+    """Сборка настоящей библиотеки против настоящего каталога профилей."""
+    emit_all(LIBRARY_AGENTS, tmp_path, SKILLS)
+
+
+def test_writer_and_critic_of_a_type_read_the_same_profile(tmp_path: Path) -> None:
+    """Критерий SPEC §10 шага 3 в его механической части: один профиль на тип, а не копии."""
+    emit_all(LIBRARY_AGENTS, tmp_path)
+    readers: dict[str, set[str]] = {}
+    for path in tmp_path.glob("*.md"):
+        head = frontmatter_of(path.read_text(encoding="utf-8"))
+        for skill in head.get("skills", []):
+            readers.setdefault(skill, set()).add(path.stem.replace("-", "_"))
+    assert readers == PROFILE_AGENTS
+
+
+def test_profiles_are_preloadable_and_english() -> None:
+    """`disable-model-invocation: true` рантайм не подгружает; профиль читает агент — по-английски."""
+    profiles = sorted(SKILLS.glob("*/SKILL.md"))
+    assert {p.parent.name for p in profiles} >= set(PROFILE_AGENTS)
+    for path in profiles:
+        text = path.read_text(encoding="utf-8")
+        head = frontmatter_of(text)
+        assert head["name"] == path.parent.name, f"{path}: name != directory"
+        assert head.get("disable-model-invocation") is not True, f"{path}: not preloadable"
+        assert path.parent.name.endswith("-profile"), f"{path}: a profile is named <type>-profile"
+        hits = [ln for ln in text.splitlines() if CYRILLIC.search(ln)]
+        assert not hits, f"кириллица в профиле {path.parent.name}: {hits[:3]}"
 
 
 def test_generated_marker_names_the_real_generator(tmp_path: Path) -> None:

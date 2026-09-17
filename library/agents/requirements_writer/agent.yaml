@@ -10,5 +10,8 @@ consumes:
 produces:
   - { port: requirements, type: requirements@v1 }
 needs: [read, edit, "mcp:tavily-remote"]
+# The requirements profile (facet SPEC §6): the writer, the corrector and the critic of this
+# document type read ONE contract, preloaded at spawn, instead of three copies in three prompts.
+skills: [requirements-profile]
 defaults:
   timeout_s: 1800

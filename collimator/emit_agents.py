@@ -10,6 +10,13 @@
 в живом прогоне поднялся под своим `agentType` и дотянулся до `mcp__tavily-remote__tavily_search`
 (`docs/probe-findings.md`, пункты 2 и 3).
 
+Профили типов документов (facet SPEC §6) приезжают полем `skills:` фронтматтера: рантайм
+подгружает `.claude/skills/<имя>/SKILL.md` в контекст агента при запуске. Несуществующий
+профиль рантайм **молча пропускает** — предупреждение уходит только в debug-журнал, агент
+стартует без контракта, и прогон этого не покажет. Поэтому сборка проверяет каждый названный
+профиль на диске и падает, если его нет: это та же порода тихого провала, что и путь к
+ненаписанному файлу в порту.
+
 Модель здесь не пишется намеренно. У агента в библиотеке её нет: `params.model` живёт у узла
 конвейера, потому что один и тот же агент в разных конвейерах стоит разных денег. Модель
 задаёт вызов `agent()` в скрипте — это работа `emit_workflow.py`.
@@ -43,6 +50,7 @@ MCP_PREFIX = "mcp:"
 
 AGENT_YAML = "agent.yaml"
 PROMPT_MD = "prompt.md"
+SKILL_MD = "SKILL.md"
 
 # English, because this line ends up INSIDE the agent's system prompt — the whole generated file
 # is the prompt, comment included. Everything an agent reads is English; the target language
@@ -91,6 +99,22 @@ def tools_of(needs: Iterable[str]) -> list[str]:
     return ordered + [f"mcp__{server}" for server in mcp_servers_of(caps)]
 
 
+def missing_skills(spec: AgentSpec, skills_dir: Path) -> list[str]:
+    """Профили, названные контрактом, которых нет в `skills_dir`."""
+    return [skill for skill in spec.skills if not (skills_dir / skill / SKILL_MD).is_file()]
+
+
+def check_skills(spec: AgentSpec, skills_dir: Path | None) -> None:
+    """Названный профиль обязан лежать на диске — рантайм отсутствующий пропустит молча."""
+    if skills_dir is None:
+        return
+    missing = missing_skills(spec, skills_dir)
+    if missing:
+        raise FileNotFoundError(
+            f"агент {spec.name} называет профили, которых нет в {skills_dir}: {missing}"
+        )
+
+
 def load_agent(agent_dir: Path) -> tuple[AgentSpec, str]:
     """Прочитать пакет агента из библиотеки: контракт плюс системный промпт."""
     spec_path = agent_dir / AGENT_YAML
@@ -117,6 +141,10 @@ def render_agent(spec: AgentSpec, prompt: str) -> str:
     servers = mcp_servers_of(spec.needs)
     if servers:
         head["mcpServers"] = servers
+    if spec.skills:
+        # Списком, а не строкой: так поле описано у рантайма, и так его читает YAML без
+        # догадок о разделителе.
+        head["skills"] = list(spec.skills)
 
     frontmatter = yaml.safe_dump(
         head,
@@ -129,16 +157,21 @@ def render_agent(spec: AgentSpec, prompt: str) -> str:
     return f"---\n{frontmatter}---\n\n{marker}\n\n{prompt.strip()}\n"
 
 
-def emit_agent(agent_dir: Path, out_dir: Path) -> Path:
-    """Сгенерировать один файл определения. Возвращает записанный путь."""
+def emit_agent(agent_dir: Path, out_dir: Path, skills_dir: Path | None = None) -> Path:
+    """Сгенерировать один файл определения. Возвращает записанный путь.
+
+    `skills_dir` — каталог профилей (`.claude/skills`); если задан, названные контрактом
+    профили проверяются на диске до записи файла.
+    """
     spec, prompt = load_agent(agent_dir)
+    check_skills(spec, skills_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
     target = out_dir / f"{slug_of(spec.name)}.md"
     target.write_text(render_agent(spec, prompt), encoding="utf-8")
     return target
 
 
-def emit_all(agents_dir: Path, out_dir: Path) -> list[Path]:
+def emit_all(agents_dir: Path, out_dir: Path, skills_dir: Path | None = None) -> list[Path]:
     """Сгенерировать определения всех агентов библиотеки, в устойчивом порядке."""
     packages = sorted(p for p in agents_dir.iterdir() if (p / AGENT_YAML).is_file())
-    return [emit_agent(package, out_dir) for package in packages]
+    return [emit_agent(package, out_dir, skills_dir) for package in packages]

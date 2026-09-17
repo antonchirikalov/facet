@@ -20,6 +20,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOWS = ROOT / ".claude" / "workflows"
 AGENTS = ROOT / ".claude" / "agents"
+SKILLS = ROOT / ".claude" / "skills"
 
 AGENT_TYPE = re.compile(r"agentType:\s*'([a-z0-9-]+)'")
 COMMENT_LINE = re.compile(r"^\s*//")
@@ -112,6 +113,28 @@ def test_agent_name_matches_its_filename(agent: Path) -> None:
     head = frontmatter(agent)
     assert head.get("name") == agent.stem, f"{agent.name}: name={head.get('name')!r}"
     assert str(head.get("tools", "")).strip(), f"{agent.name}: пустой список инструментов"
+
+
+@pytest.mark.parametrize("agent", agent_files(), ids=lambda p: p.name)
+def test_every_declared_skill_exists(agent: Path) -> None:
+    """Профиль без файла — не падение, а хуже: рантайм пропускает его молча.
+
+    Предупреждение уходит в debug-журнал, агент стартует без контракта типа документа и
+    работает как ни в чём не бывало. Здесь проверяется сгенерированное — то, что рантайм
+    реально читает.
+    """
+    skills = frontmatter(agent).get("skills", [])
+    assert isinstance(skills, list), f"{agent.name}: skills должен быть списком"
+    missing = [s for s in skills if not (SKILLS / str(s) / "SKILL.md").is_file()]
+    assert not missing, f"{agent.name}: нет профилей {missing} в {SKILLS}"
+
+
+def test_profile_names_do_not_shadow_saved_workflows() -> None:
+    """Сохранённый воркфлоу виден как скилл своего имени; проектный скилл его перекроет."""
+    workflows = {p.stem for p in workflow_scripts()}
+    profiles = {p.name for p in SKILLS.iterdir() if p.is_dir()}
+    clash = workflows & profiles
+    assert not clash, f"профили перекрывают точки запуска воркфлоу: {sorted(clash)}"
 
 
 # --- независимость от прогона и от темы -----------------------------------------------
