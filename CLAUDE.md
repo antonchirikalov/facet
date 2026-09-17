@@ -34,6 +34,8 @@ python -X utf8 tools/busy.py --file <прогон>/tools.jsonl --now "<ISO>"  # 
 python -X utf8 tools/gate.py --file <файл> --no-empty-sections   # заголовки без работы под ними
 python -X utf8 tools/rounds.py --dir <прогон>/rounds            # какие круги уже пройдены
 python -X utf8 tools/sweep_junk.py --dry-run                   # что за мусор в корне
+python -X utf8 tools/confluence_publish.py --draft <файл> --dry-run <куда.xml>  # только конвертация
+python -X utf8 tools/confluence_publish.py --draft <файл> --parent-id <id> --json <куда.json>  # публикация
 ```
 
 Скрипт воркфлоу прогоняется `dry_run.mjs` **до** живого запуска, и не в двух режимах, а во всех,

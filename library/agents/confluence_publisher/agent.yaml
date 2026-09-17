@@ -1,14 +1,31 @@
 name: confluence_publisher
 version: 1
 description: >
-  Publishes a finalized design document to Confluence: converts the markdown to the
-  platform's storage format, creates or updates the page under a parent, uploads any
-  associated attachments, and returns a publish confirmation recording the page URL,
-  id, version, and attachment count.
+  Publishes a finalized design document to Confluence by running the repository's
+  publish tool: it converts the markdown to the platform's storage format, creates the
+  page under the target parent or updates the page already there, uploads the images the
+  document references, and returns the tool's record of the page URL, id, version, and
+  attachment count.
 consumes:
   - { port: design_doc, type: design_doc@v1 }
 produces:
   - { port: publication, type: publication@v1 }
+# bash, because publishing is invoking a CLI. The same knowing exception as the
+# illustrator: the workdir guard does not match Bash, so on this step I1 rests on the
+# prompt. The script itself only reads the draft and writes the record.
 needs: [read, bash]
+# The publish tool is a script, not an MCP server. What it reads from the environment is
+# delivered the way the illustrator's tool is — the `env` block of `.claude/settings.json`
+# (the machine-specific values in `settings.local.json`, which git does not carry):
+#   CONFLUENCE_PUBLISH_SCRIPT  — path to tools/confluence_publish.py; the step never
+#                                guesses it and never reimplements the conversion
+#   CONFLUENCE_URL             — the Confluence base URL
+#   CONFLUENCE_PERSONAL_TOKEN  — PAT, Bearer auth. The script reads it itself, so the
+#                                value never reaches the prompt or the artifact.
+# The TARGET page is not environment: a parent id and a space key belong to the run, not
+# to the machine, so the node's task names them. Declaring them here would make one
+# checkout publish everything to one place.
 defaults:
-  timeout_s: 1800
+  # One page, two HTTP round trips and a handful of attachments. The old hour was set
+  # when this step was expected to convert the document by itself.
+  timeout_s: 600

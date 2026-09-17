@@ -4,7 +4,9 @@
       "Bash(python -X utf8 tools/gate.py:*)",
       "Bash(python tools/gate.py:*)",
       "mcp__tavily-remote__tavily_search",
-      "mcp__tavily-remote__tavily_extract"
+      "mcp__tavily-remote__tavily_extract",
+      "Bash(python tools/confluence_publish.py:*)",
+      "Bash(python \"$CONFLUENCE_PUBLISH_SCRIPT\":*)"
     ]
   },
   "hooks": {

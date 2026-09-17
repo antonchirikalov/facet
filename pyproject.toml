@@ -6,6 +6,9 @@ requires-python = ">=3.11"
 dependencies = [
   "pydantic>=2.7",
   "pyyaml>=6",
+  # tools/confluence_publish.py: публикация идёт в REST Confluence напрямую. Импорт
+  # ленивый — конвертер и --dry-run обходятся стандартной библиотекой.
+  "httpx>=0.27",
 ]
 
 [project.optional-dependencies]
