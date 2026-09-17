@@ -199,7 +199,13 @@ const GATE = {
 const ENV_BLOCK =
   `mkdir -p ${WORK_DIR}/tmp ${FIGURES_DIR}\n` +
   `export WINROOT="$(pwd -W)"   # Windows form; the POSIX form breaks PowerShell\n` +
-  `export TMPDIR="$WINROOT/${WORK_DIR}/tmp" TEMP="$TMPDIR" TMP="$TMPDIR"\n` +
+  // Three statements, not one: bash expands every word of an `export` BEFORE it assigns any of
+  // them, so `export TMPDIR=x TEMP="$TMPDIR"` hands TEMP the OLD value of TMPDIR — empty in a
+  // fresh shell. Measured on the smoke run: it printed `TEMP=` and the gateway bridge failed
+  // three times in a row, which is exactly the 401 this block exists to prevent.
+  `export TMPDIR="$WINROOT/${WORK_DIR}/tmp"\n` +
+  `export TEMP="$TMPDIR"\n` +
+  `export TMP="$TMPDIR"\n` +
   `export KIMI_BASE_URL="https://api.kimi.com/coding/v1"\n` +
   `FIGGY="\${FIGGYBANANA_HOME:-$(echo "$PAPERBANANA_BIN" | tr '\\\\\\\\' '/' | ` +
   `sed 's#/[.]venv/Scripts/paperbanana.exe$##')}"\n` +
