@@ -25,7 +25,7 @@
 
 export const meta = {
   name: 'attn-figures',
-  description: 'Figures for a finished article through figgybanana, with Kimi K3 as the critic',
+  description: 'Figures for a finished article through figgybanana, with a separate vision critic',
   phases: [
     { title: 'Plan', detail: 'which figures the article needs, placeholders into the text' },
     { title: 'Draw', detail: 'figgybanana, one run per figure' },
@@ -50,12 +50,30 @@ if (!source) {
 // A count, not a path: this one is a policy default and belongs here.
 const wanted = (args && args.figures) || 3
 const MAX_REDRAWS = 2
+// The width of the copy that ships with the article. The render itself is 4K and stays in the
+// tool's run directory for redraws; a page gets this.
+const FIGURE_WIDTH = (args && args.figureWidth) || 2000
+
+// The vision critic is a parameter, not a sentence in a prompt: `args.critic` is
+// { provider, model } or the string 'none' (the CLI then judges with claude_code sonnet).
+// Kimi K3 by default, for the reasons in the header. When its quota runs out mid-run the agent
+// drops the two flags for the rest of the figures and names the critic per figure in the
+// manifest — that fallback stays, because a quota is not something a script can see coming.
+const critic = (args && args.critic) || { provider: 'kimi', model: 'k3' }
+const CRITIC_FLAGS =
+  critic === 'none' ? '' : `  --critic-vlm-provider ${critic.provider} --critic-vlm-model ${critic.model} \\\n`
+const CRITIC_NAME = critic === 'none' ? 'claude_code sonnet (no separate critic)' : `${critic.provider} ${critic.model}`
 
 // Every path is named by the script. `run_dir` is the one exception the agents report back,
 // because the CLI stamps it with a timestamp the script has no way to know.
 const ARTICLE_PATH = `${run}/article.md`
 const FIGURES_DIR = `${run}/figures`
 const WORK_DIR = `${run}/figures-work`
+// In place when the run directory IS the article's directory. The article writer already put
+// the placeholders into the text, so the figures belong next to it; drawing into a side
+// directory left the original with five dangling figures/ links, patched by hand with a
+// junction once. In place, the plan step writes nothing at all.
+const IN_PLACE = source === ARTICLE_PATH
 const MANIFEST_PATH = `${FIGURES_DIR}/manifest.json`
 // Both paths are absolute and both are needed. figgybanana resolves `guidelines_path` and
 // `reference_set_path` relative to the current directory, and we run its CLI from this
@@ -228,7 +246,7 @@ const TOOL_RULES =
   `PROVIDERS. Images go through ss_gateway and nothing else. If the gateway answers 401 or ` +
   `"missing bearer token", stop, set gateway_ok=false and explain; do NOT fall back to ` +
   `openai_imagen, google_imagen or any other image provider — that is not your decision.\n` +
-  `The critic is Kimi K3. If Kimi answers 403 or "usage limit", drop the two flags ` +
+  `The critic is ${CRITIC_NAME}. If it answers 403 or "usage limit", drop the two flags ` +
   `--critic-vlm-provider and --critic-vlm-model from the command: the critic then becomes ` +
   `claude_code sonnet. Name the critic per figure in your report.`
 
@@ -246,9 +264,19 @@ function drawCommand(slug, caption) {
     `  --output-dir ${WORK_DIR} \\\n` +
     `  --auto --max-iterations 3 \\\n` +
     `  --vlm-provider claude_code --vlm-model sonnet \\\n` +
-    `  --critic-vlm-provider kimi --critic-vlm-model k3 \\\n` +
+    CRITIC_FLAGS +
     `  --image-provider ss_gateway \\\n` +
     `  --aspect-ratio 16:9 --save-prompts`
+  )
+}
+
+// The web copy. Pillow lives in figgybanana's virtualenv, so the interpreter is derived from
+// $PAPERBANANA_BIN the way $FIGGY is — this command has to work in a Bash call of its own.
+function shrinkCommand(runDir, slug) {
+  return (
+    `"$(echo "$PAPERBANANA_BIN" | sed 's#paperbanana.exe$#python.exe#')" -X utf8 ` +
+    `tools/shrink_png.py --file ${runDir}/final_output.png --to ${FIGURES_DIR}/${slug}.png ` +
+    `--max-width ${FIGURE_WIDTH} --log ${WORK_DIR}/tools.jsonl --log-note "web copy of ${slug}"`
   )
 }
 
@@ -264,19 +292,30 @@ const plan = await agent(
     `correspondence between parts. Do not illustrate what one sentence already makes clear.\n\n` +
     `FIRST check whether the article already carries placeholders of the form ` +
     `![caption](figures/<slug>.png). If it does, they ARE the plan: the writer declared them ` +
-    `while writing, with the reader in front of them. Copy the article to ${ARTICLE_PATH} ` +
-    `unchanged, add none, remove none, and return every placeholder you found — however many ` +
-    `there are, the count ${wanted} does not apply.\n\n` +
-    `Only if the article has no placeholders at all: copy the article to ${ARTICLE_PATH} and ` +
-    `insert into the copy exactly ${wanted} ` +
+    `while writing, with the reader in front of them. ` +
+    (IN_PLACE
+      ? `Write nothing — the article stays exactly where and as it is. `
+      : `Copy the article to ${ARTICLE_PATH} unchanged, add none, remove none. `) +
+    `Return every placeholder you found — however many there are, the count ${wanted} does ` +
+    `not apply.\n\n` +
+    (IN_PLACE
+      ? `If the article has no placeholders at all, stop and say so in the result: in place, ` +
+        `the source is never edited, and the figures then have to be planned in a separate run ` +
+        `directory.\n\n`
+      : `Only if the article has no placeholders at all: copy the article to ${ARTICLE_PATH} and ` +
+        `insert into the copy exactly ${wanted} `) +
     `placeholders of the form ![caption](figures/<slug>.png), each one directly after the ` +
     `paragraph it belongs to. The caption is in the article's language and says what the ` +
     `figure communicates. The slug is latin and hyphenated. Change nothing else in the text: ` +
     `not a word, not the order of the sections.\n\n` +
     `Return the list of figures: slug, caption verbatim, the section it stands after, and what ` +
-    `it is good for.\n\nOUTPUT. Your result is the FILE ${ARTICLE_PATH}: the copy of the ` +
-    `article with the placeholders. Write it with the Write tool. The schema fields describe ` +
-    `it, they are not it.`,
+    `it is good for.\n\n` +
+    (IN_PLACE
+      ? `OUTPUT (no file). Your result is the list of placeholders in the schema; the article ` +
+        `is not yours to write.`
+      : `OUTPUT. Your result is the FILE ${ARTICLE_PATH}: the copy of the article with the ` +
+        `placeholders. Write it with the Write tool. The schema fields describe it, they are ` +
+        `not it.`),
   { agentType: 'article-writer', model: 'sonnet', label: 'plan', phase: 'Plan', schema: PLAN },
 )
 log(`[plan] figures planned=${plan.figures.length}`)
@@ -297,6 +336,11 @@ let drawn = await agent(
     `${WORK_DIR}/brief-<slug>.txt: the entities, what connects to what, the labels that must ` +
     `appear verbatim, and what must NOT be on the picture. In prose, not in fragments. Take ` +
     `the notation from the article: if the text calls a matrix Q, it is Q on the figure.\n` +
+    `   EVERY NUMBER that has to appear on the figure is written in the brief, copied from the ` +
+    `article: weights, sizes, counts — and for a panel that compares two variants, BOTH sets of ` +
+    `numbers, not just the headline one. A number the brief does not name is a number the ` +
+    `generator invents: one comparison panel shipped with the scaled weights repeated on the ` +
+    `unscaled side because the brief named only the peak.\n` +
     `   The article is Russian, so the worded labels on the figure are Russian too, and the ` +
     `brief is written in Russian. Formulas and matrix names (X, Q, K, V, W^Q, n × d_k) stay as ` +
     `they are in the text — they have no language. Keep the worded labels few and short: the ` +
@@ -304,10 +348,13 @@ let drawn = await agent(
     `out mangled than a short one.\n` +
     `2. Run the tool once with this command, substituting your bin, the slug and the caption:\n\n` +
     drawCommand('<slug>', '<caption>') +
-    `\n\n3. The tool names its own run directory and writes final_output.png into it. Copy that ` +
-    `file to the name from the placeholder: cp ${WORK_DIR}/run_*/final_output.png ` +
-    `${FIGURES_DIR}/<slug>.png — copy the run that just finished, not the newest one at a ` +
-    `guess. Check that the file exists and is not empty.\n` +
+    `\n\n3. The tool names its own run directory and writes final_output.png into it. That ` +
+    `render is 4K and over ten megabytes — it stays there for redraws. What ships is a ` +
+    `web-sized copy under the name from the placeholder, made by this command (one Bash call, ` +
+    `it resolves its own interpreter):\n\n` +
+    shrinkCommand('<run directory>', '<slug>') +
+    `\n\n   Use the run that just finished, not the newest one at a guess. Check that the ` +
+    `file exists and is not empty.\n` +
     `4. After the very first figure, open ${WORK_DIR}/run_*/planning.json and look at the ` +
     `field retrieved_examples. An empty list there means the etalons were not picked up, which ` +
     `means REFERENCE_SET_PATH did not arrive: stop and say so, do not draw the rest blind. The ` +
@@ -351,6 +398,11 @@ const lookTask = (slugs) =>
   `legible; is the notation the same as in the text; are there invented elements the article ` +
   `does not have; are the directions of any relations reversed; is the picture empty or a ` +
   `mess. Typos inside the picture's labels are a defect and they are visible.\n\n` +
+  `NUMBERS are labels too, and the most expensive ones to get wrong. Read the section's own ` +
+  `numbers and check every number printed on the figure against them: a comparison panel that ` +
+  `shows 0.0924 where the text says 0.0449 is a wrong figure however clean it looks, and one ` +
+  `such panel passed a vision critic. A number on the figure that the text does not contain ` +
+  `is a defect, named with both values.\n\n` +
   `Separately and pedantically — CYRILLIC. Image generators break it: letters get substituted ` +
   `and words turn into Russian-looking noise. Read every Russian label out to yourself: if it ` +
   `is not a real word, that is a defect, and say which label went wrong. An article with a ` +
@@ -411,12 +463,12 @@ while (redraws < MAX_REDRAWS && looked.checks.some((c) => !c.ok)) {
       `<bin> generate --output-dir ${WORK_DIR} --continue-run <run directory> \\\n` +
       `  --auto --max-iterations 2 \\\n` +
       `  --vlm-provider claude_code --vlm-model sonnet \\\n` +
-      `  --critic-vlm-provider kimi --critic-vlm-model k3 \\\n` +
+      CRITIC_FLAGS +
       `  --image-provider ss_gateway \\\n` +
       `  --feedback "<the defects for this figure, on one line>"\n\n` +
       `If continuing does not work, edit the brief ${WORK_DIR}/brief-<slug>.txt according to ` +
-      `the defects and run the ordinary command again. Copy the finished file to ` +
-      `${FIGURES_DIR}/<slug>.png again, over the old one. Update ${MANIFEST_PATH}.` +
+      `the defects and run the ordinary command again. Then make the web copy again, over the ` +
+      `old one:\n\n${shrinkCommand('<run directory>', '<slug>')}\n\nUpdate ${MANIFEST_PATH}.` +
       TOOL_RULES,
     {
       agentType: 'illustrator',

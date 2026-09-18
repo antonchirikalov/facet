@@ -139,7 +139,12 @@ if (unknownStages.length) {
 const RUN_RESEARCH = STAGES.includes('research')
 const RUN_DRAFT = STAGES.includes('draft')
 
-const MAX_ROUNDS = cfg.maxRounds || 2
+// Four, not two. Round 1 is always `revise` — it is the first time two critics see the text —
+// so a limit of two leaves exactly one round of repair, and the loop ends on the limit rather
+// than on convergence: measured 14 → 14 open items with both critics still on `revise`, then a
+// relaunch by hand to rounds 3–4, which closed it (8 → 9 non-blocking, both `ok`). The
+// plateau detector below is what stops a loop that is not converging; the limit only caps cost.
+const MAX_ROUNDS = cfg.maxRounds || 4
 // How many rounds may fail to beat the best result before the loop admits it has finished.
 // Two, because one bad round is noise and two in a row is a plateau.
 const PLATEAU_ROUNDS = cfg.plateauRounds || 2

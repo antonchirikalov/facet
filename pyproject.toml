@@ -17,6 +17,8 @@ dev = [
   "ruff>=0.5",
   "mypy>=1.10",
   "types-PyYAML>=6",
+  # tests/test_shrink_png.py: веб-копия рисунка; в воркфлоу инструмент идёт питоном figgybanana
+  "pillow>=10",
 ]
 
 [build-system]

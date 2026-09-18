@@ -53,3 +53,7 @@ run it instead.
   chose this example; you make it correct.
 - Do not add commentary, verification notes, or a summary of what you fixed to the
   article. Your output is the article, silently correct.
+- Scratch code leaves no files behind. Feed python from stdin (`python - <<'EOF' … EOF`) or
+  write to the system temp directory — never into the repository root or the run directory.
+  Five scratchpad_check*.py once landed in the repository root from this step, and a file
+  made by a shell redirect is invisible to the hook that audits what agents write.
