@@ -262,7 +262,13 @@ const plan = await agent(
     `Read it and decide which ${wanted} figures explain the mechanism better than a paragraph ` +
     `of prose does. A figure must carry what prose carries badly: a structure, a flow, a ` +
     `correspondence between parts. Do not illustrate what one sentence already makes clear.\n\n` +
-    `Copy the article to ${ARTICLE_PATH} and insert into the copy exactly ${wanted} ` +
+    `FIRST check whether the article already carries placeholders of the form ` +
+    `![caption](figures/<slug>.png). If it does, they ARE the plan: the writer declared them ` +
+    `while writing, with the reader in front of them. Copy the article to ${ARTICLE_PATH} ` +
+    `unchanged, add none, remove none, and return every placeholder you found — however many ` +
+    `there are, the count ${wanted} does not apply.\n\n` +
+    `Only if the article has no placeholders at all: copy the article to ${ARTICLE_PATH} and ` +
+    `insert into the copy exactly ${wanted} ` +
     `placeholders of the form ![caption](figures/<slug>.png), each one directly after the ` +
     `paragraph it belongs to. The caption is in the article's language and says what the ` +
     `figure communicates. The slug is latin and hyphenated. Change nothing else in the text: ` +
