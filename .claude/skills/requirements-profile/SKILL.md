@@ -63,6 +63,10 @@ Rules that make the shape worth having:
   requirements is a fact about the document that nothing checks and that goes stale on the
   next edit; a reader who catches one wrong number stops trusting the requirements. The first
   line of the file is the `# Requirements:` heading.
+- **Section 1 lists roles, not people.** A row is a role — sponsor, clinic manager,
+  administrator, doctor, accountant, IT contractor — with what that role does with the system;
+  the person who holds it is named in the Description where the sources name them. Ten rows of
+  named individuals is a contact list, and a design cannot be checked against a contact list.
 - **Document index** lists every input document with its type: `brief`, `rfp`, `transcript`,
   `meeting notes`, `chat`, `email`, `spreadsheet`, `client answers`. The type is what the trust
   hierarchy below keys on.
@@ -217,7 +221,9 @@ costs a round:
 - every body row of a table that has a Source column has a non-empty Source cell
   (`--rows-have-source`);
 - no duplicate `FR-`, `NFR-`, `BR-`, `C-`, `G-`, `A-` ids (`--unique-ids`);
-- a prose floor from the order when the order gives one; no ceiling the order did not name.
+- a floor on file length (`--min-length`), not on prose: the document is tables, and a
+  prose floor made a table-complete draft fail its first round and grow two thousand
+  characters of filler to pass the second. No ceiling the order did not name.
 
 ## Exemplar
 

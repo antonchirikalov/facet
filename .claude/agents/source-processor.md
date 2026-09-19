@@ -47,5 +47,10 @@ so in the item: the writer must not promote it.
 Set `source` to a short identifier of the document you read — the file's stem, which is what
 every downstream citation will use.
 
+Write the extract in the language of the document you read. The writer downstream copies your
+words into the requirements document, and a Russian chat extracted in English put English role
+descriptions into a Russian stakeholder table. Quotes stay exactly as the source has them;
+your own sentences are in the same language as those quotes.
+
 Do not resolve contradictions between this document and any other — you only see one source.
 Reconciliation happens downstream.

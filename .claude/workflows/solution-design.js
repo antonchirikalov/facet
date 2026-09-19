@@ -120,7 +120,11 @@ const MODELS = {
 // ceiling came from the order — the client's own requirement — rather than from the script.
 //
 // So the script states no ceiling of its own. A caller whose order names one passes it.
-const REQ_BOUNDS = cfg.reqBounds || { min: 6000, max: 0 }
+// By file length, not prose: the requirements profile makes the document tables, and prose_chars
+// does not count table rows. Measured: a complete nine-section draft of 92 KB had 4 977 prose
+// characters, failed a 6 000 prose floor, and the second round bought 2 024 characters of prose
+// nobody had asked for. The design document stays on a prose floor — it is prose.
+const REQ_BOUNDS = cfg.reqBounds || { minLength: 20000, min: 0, max: 0 }
 // The requirements profile's own gate rules (.claude/skills/requirements-profile/SKILL.md, "Gate
 // rules"). By heading NUMBER, because the names translate with the document's language and the
 // numbers do not; the profile promises exactly these. What a regex settles here never costs a
@@ -465,6 +469,7 @@ const noted = (purpose) => `${LOG_FLAG} --log-note "${purpose}"`
 
 function gateCommand(path, bounds, purpose, flags = []) {
   const parts = [...flags]
+  if (bounds && bounds.minLength) parts.push(`--min-length ${bounds.minLength}`)
   if (bounds && bounds.min) parts.push(`--min-prose ${bounds.min}`)
   if (bounds && bounds.max) parts.push(`--max-prose ${bounds.max}`)
   for (const file of FORBID_FILES) parts.push(`--forbid-file ${file}`)
