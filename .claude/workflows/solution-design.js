@@ -121,6 +121,16 @@ const MODELS = {
 //
 // So the script states no ceiling of its own. A caller whose order names one passes it.
 const REQ_BOUNDS = cfg.reqBounds || { min: 6000, max: 0 }
+// The requirements profile's own gate rules (.claude/skills/requirements-profile/SKILL.md, "Gate
+// rules"). By heading NUMBER, because the names translate with the document's language and the
+// numbers do not; the profile promises exactly these. What a regex settles here never costs a
+// critic's round — and a critic sent to count citations counts them, while a gate reads them.
+const REQ_GATE_FLAGS = cfg.reqGateFlags || [
+  ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `--require-heading "^##\\s+${n}\\."`),
+  ...['8.1', '8.2', '8.3'].map((n) => `--require-heading "^###\\s+${n.replace('.', '\\.')}"`),
+  '--rows-have-source',
+  '--unique-ids "\\b(?:FR|NFR|BR|C|G|A)-\\d{3}\\b"',
+]
 const DESIGN_BOUNDS = cfg.designBounds || { min: 12000, max: 0 }
 // No forbidden-pattern files by default. This is an internal engineering document, not an article
 // in someone's voice, and the slop list is editorial policy for published prose. A caller who
@@ -453,8 +463,8 @@ const LOG_FLAG = `--log ${TOOLS_LOG}`
 // Cyrillic through argv on Windows depends on the codepage.
 const noted = (purpose) => `${LOG_FLAG} --log-note "${purpose}"`
 
-function gateCommand(path, bounds, purpose) {
-  const parts = []
+function gateCommand(path, bounds, purpose, flags = []) {
+  const parts = [...flags]
   if (bounds && bounds.min) parts.push(`--min-prose ${bounds.min}`)
   if (bounds && bounds.max) parts.push(`--max-prose ${bounds.max}`)
   for (const file of FORBID_FILES) parts.push(`--forbid-file ${file}`)
@@ -700,6 +710,7 @@ async function reviseLoop({
   loop,
   artifact,
   bounds,
+  gateFlags = [],
   phaseName,
   writer,
   correctors = [],
@@ -802,7 +813,7 @@ async function reviseLoop({
   // because the length was wrong.
   if (present.has(artifact) && startRound > 1) {
     const sized = await call(
-      commands([gateCommand(artifact, bounds, `resume: size of the ${loop} draft found`)]),
+      commands([gateCommand(artifact, bounds, `resume: size of the ${loop} draft found`, gateFlags)]),
       { agentType: 'gate-runner', model: MODELS.gate, label: `${loop}:resume-size`, phase: phaseName, schema: GATE },
     )
     if (sized && sized.report) {
@@ -971,7 +982,7 @@ async function reviseLoop({
 
     // The gate before the critics, always. What a regex settles must never cost a critic's round,
     // and the critics have to be judging the text that is actually on disk.
-    const gated = await call(commands([gateCommand(artifact, bounds, `${loop} round ${round}`)]), {
+    const gated = await call(commands([gateCommand(artifact, bounds, `${loop} round ${round}`, gateFlags)]), {
       agentType: 'gate-runner',
       model: MODELS.gate,
       label: `${loop}:gate:${round}`,
@@ -1246,6 +1257,7 @@ if (RUN_REQUIREMENTS) {
     loop: 'req',
     artifact: REQ_PATH,
     bounds: REQ_BOUNDS,
+    gateFlags: REQ_GATE_FLAGS,
     phaseName: 'Requirements',
     writer: {
       agentType: 'requirements-writer',

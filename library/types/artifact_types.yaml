@@ -10,7 +10,10 @@ types:
       # front-matter block with invented metadata (fr_count: 9 against ten FRs), which
       # the critic then had to argue about. The gate settles it mechanically.
       - { rule: regex, pattern: "\\A#\\s*Requirements:" }
-      - { rule: regex, pattern: "FR-\\d+" }
+      # Three-digit ids and the nine numbered sections of the requirements profile
+      # (.claude/skills/requirements-profile/SKILL.md); the workflow gate checks the same.
+      - { rule: regex, pattern: "FR-\\d{3}" }
+      - { rule: regex, pattern: "(?m)^##\\s+9\\." }
   # A design with no rules passed the gate at three lines; SPEC §5's own example gives
   # design_doc a min_length. The regex is the mechanical half of "mark what you chose":
   # the section must exist, and the critic judges whether it is honest.

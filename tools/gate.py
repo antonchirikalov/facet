@@ -59,6 +59,13 @@ MSYS_DRIVE = re.compile(r"^/([A-Za-z])(?=/|$)")
 COMMENT = re.compile(r"^\s*#")
 HEADING = re.compile(r"^(#{1,6})[ \t]+(.*\S)")
 
+# A table's source column, by header, in either of the two languages the pipeline writes. The
+# requirements profile puts a Source cell on every row; a row with that cell empty is a
+# conclusion dressed as a requirement, and a regex finds it before a critic spends a round.
+SOURCE_HEADER = re.compile(r"^\s*(source|источник)\b", re.IGNORECASE)
+TABLE_LINE = re.compile(r"^\s*\|.*\|\s*$")
+TABLE_RULE = re.compile(r"^\s*\|?\s*:?-{3,}")
+
 
 @dataclass
 class Section:
@@ -178,6 +185,79 @@ def empty_sections(text: str, floor: int) -> list[str]:
     return [section.title for section in sorted(empty, key=lambda s: s.line)]
 
 
+def split_row(line: str) -> list[str]:
+    """Cells of one markdown table row, outer pipes removed, each cell stripped."""
+    inner = line.strip()
+    inner = inner.removeprefix("|")
+    inner = inner.removesuffix("|")
+    return [c.strip() for c in inner.split("|")]
+
+
+def missing_headings(text: str, patterns: list[str]) -> list[str]:
+    """Required heading patterns that match no line of the document, in the order given.
+
+    By number, not by name: the profile fixes `## 1.` … `## 9.` and `### 8.1` … `### 8.3`,
+    and the names translate with the document's language while the numbers do not.
+    """
+    lines = text.splitlines()
+    return [pattern for pattern in patterns if not any(re.search(pattern, line) for line in lines)]
+
+
+def rows_without_source(text: str) -> list[str]:
+    """First cell of every body row whose source cell is empty, in tables that have one.
+
+    Tables without a Source/Источник header are not judged: the document index has no source
+    of its own. A body row is named by its first cell — the ID — so the writer can find it.
+    """
+    empty: list[str] = []
+    source_index: int | None = None
+    in_table = False
+    for line in text.splitlines():
+        if not TABLE_LINE.match(line):
+            in_table = False
+            source_index = None
+            continue
+        cells = split_row(line)
+        if not in_table:
+            in_table = True
+            source_index = next(
+                (i for i, cell in enumerate(cells) if SOURCE_HEADER.match(cell)), None
+            )
+            continue
+        if TABLE_RULE.match(line) and all(TABLE_RULE.match(c) or not c for c in cells):
+            continue
+        if source_index is None:
+            continue
+        if source_index >= len(cells) or not cells[source_index]:
+            empty.append(cells[0] if cells and cells[0] else "(row without an id)")
+    return empty
+
+
+def duplicate_ids(text: str, pattern: str) -> list[str]:
+    """Ids that open more than one table row, in first-seen order.
+
+    Only the first cell of a row counts as a declaration; the same id quoted in a Source cell
+    or in prose is a reference, and references are what the ids exist for.
+    """
+    rx = re.compile(pattern)
+    seen: set[str] = set()
+    dupes: list[str] = []
+    for line in text.splitlines():
+        if not TABLE_LINE.match(line):
+            continue
+        cells = split_row(line)
+        if not cells:
+            continue
+        match = rx.search(cells[0])
+        if match is None or match.start() != 0:
+            continue
+        found = match.group(0)
+        if found in seen and found not in dupes:
+            dupes.append(found)
+        seen.add(found)
+    return dupes
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="Deterministic content gates.")
     p.add_argument("--file", type=Path, help="document to check")
@@ -209,6 +289,23 @@ def main() -> int:
         default=None,
         metavar="MIN_LINE",
         help="every heading must have content under it; optional floor on a line that counts",
+    )
+    p.add_argument(
+        "--require-heading",
+        action="append",
+        default=[],
+        metavar="REGEX",
+        help="a heading line matching this pattern must exist; repeatable",
+    )
+    p.add_argument(
+        "--rows-have-source",
+        action="store_true",
+        help="in every table with a Source/Источник column, every body row fills it",
+    )
+    p.add_argument(
+        "--unique-ids",
+        metavar="REGEX",
+        help="ids matching this pattern at the start of a table row must be unique",
     )
     p.add_argument("--min-entries", type=int, help="floor on entries directly inside --dir")
     p.add_argument("--strict", action="store_true", help="also exit 1 when the gate fails")
@@ -247,6 +344,28 @@ def main() -> int:
                     problems.append(
                         f"headings with nothing under them ({len(empty)}): " + "; ".join(empty[:8])
                     )
+
+            if args.require_heading:
+                missing = missing_headings(text, args.require_heading)
+                measures["missing_headings"] = missing
+                if missing:
+                    problems.append(
+                        f"required heading missing ({len(missing)}): " + "; ".join(missing)
+                    )
+
+            if args.rows_have_source:
+                unsourced = rows_without_source(text)
+                measures["rows_without_source"] = unsourced
+                if unsourced:
+                    problems.append(
+                        f"rows without a source ({len(unsourced)}): " + ", ".join(unsourced[:12])
+                    )
+
+            if args.unique_ids:
+                dupes = duplicate_ids(text, args.unique_ids)
+                measures["duplicate_ids"] = dupes
+                if dupes:
+                    problems.append(f"duplicate ids ({len(dupes)}): " + ", ".join(dupes[:12]))
 
             hits: dict[str, int] = {}
             for pattern in args.forbid:

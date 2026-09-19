@@ -1,0 +1,5 @@
+# Полные эталоны живут вне репозитория: это клиентские документы. Скопируйте в
+# exemplars.local.yaml (он в .gitignore) и подставьте свои пути или ссылки.
+# Тип → где лежит полный документ. Агент читает его, если путь доступен; иначе скелет.
+requirements: https://confluence.example.com/pages/viewpage.action?pageId=<id>
+solution-design: C:/path/to/approved/_solution_design.md
