@@ -350,11 +350,11 @@ def test_source_processor_reads_images_without_duplicate_read(tmp_path: Path) ->
 CYRILLIC = re.compile("[а-яА-ЯёЁ]")
 
 # Агенты, которым цитировать целевой язык положено по работе.
-TARGET_LANGUAGE_AGENTS = {
-    "style-critic-ru",  # словарь русских штампов и форм обращения — предмет его проверки
-    "article-stylist",  # то же, редакторская роль
-    "article-fact-checker",  # образец ослабленной формулировки на языке статьи
-}
+# Пусто с 2026-09-20. Раньше здесь стояли стилевой критик (словарь русских штампов) и
+# корректор статьи (пример ослабленной фразы): русский материал переехал в данные —
+# library/style/ru-style-tells.md и library/style/forbid/ru-slop.txt — и критик читает его
+# с диска. Промпт, которому нужен целевой язык, теперь называет файл, а не цитирует.
+TARGET_LANGUAGE_AGENTS: set[str] = set()
 
 
 def test_generated_agent_prompts_are_english(tmp_path: Path) -> None:
@@ -451,6 +451,24 @@ def test_profiles_are_preloadable_and_english() -> None:
         assert path.parent.name.endswith("-profile"), f"{path}: a profile is named <type>-profile"
         hits = [ln for ln in text.splitlines() if CYRILLIC.search(ln)]
         assert not hits, f"кириллица в профиле {path.parent.name}: {hits[:3]}"
+
+
+def test_style_critic_data_files_exist() -> None:
+    """Критик читает русский материал с диска; отсутствие файла — молчаливо пустая проверка."""
+    assert (ROOT / "library" / "style" / "ru-style-tells.md").is_file()
+    assert (ROOT / "library" / "style" / "forbid" / "ru-slop.txt").is_file()
+    prompt = (LIBRARY_AGENTS / "style_critic_ru" / "prompt.md").read_text(encoding="utf-8")
+    assert "ru-style-tells.md" in prompt and "ru-slop.txt" in prompt
+
+
+def test_claude_md_is_english() -> None:
+    """CLAUDE.md кладётся в контекст каждого подагента как «instructions» — значит, он промпт."""
+    hits = [
+        ln
+        for ln in (ROOT / "CLAUDE.md").read_text(encoding="utf-8").splitlines()
+        if CYRILLIC.search(ln)
+    ]
+    assert not hits, f"кириллица в CLAUDE.md: {hits[:3]}"
 
 
 def test_generated_marker_names_the_real_generator(tmp_path: Path) -> None:

@@ -49,7 +49,7 @@ correctly, and the style critic flipped the same draft from approved to revise b
 weakened sentences all arrived wearing the same hedge.
 
 So: vary how you weaken. "Often" is not the only way to say "not always" — the article's own
-register may prefer naming the case ("на моделях, где это мерили"), or moving the claim into a
+register may prefer naming the case where it was measured, or moving the claim into a
 subordinate clause, or simply dropping the universal quantifier. Never bolt the same qualifier
 onto five sentences in a row. If a `voice` input is given, it describes the register the article
 is written in, and your corrections belong inside it.
