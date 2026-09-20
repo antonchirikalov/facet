@@ -66,14 +66,15 @@ const CRITIC_NAME = critic === 'none' ? 'claude_code sonnet (no separate critic)
 
 // Every path is named by the script. `run_dir` is the one exception the agents report back,
 // because the CLI stamps it with a timestamp the script has no way to know.
-const ARTICLE_PATH = `${run}/article.md`
-const FIGURES_DIR = `${run}/figures`
-const WORK_DIR = `${run}/figures-work`
-// In place when the run directory IS the article's directory. The article writer already put
-// the placeholders into the text, so the figures belong next to it; drawing into a side
+// In place when the document lives directly in the run directory, whatever it is called —
+// article.md from the article pipeline, design.md from the design pipeline. The writer already
+// put the placeholders into the text, so the figures belong next to it; drawing into a side
 // directory left the original with five dangling figures/ links, patched by hand with a
 // junction once. In place, the plan step writes nothing at all.
-const IN_PLACE = source === ARTICLE_PATH
+const IN_PLACE = source.startsWith(`${run}/`) && !source.slice(run.length + 1).includes('/')
+const ARTICLE_PATH = IN_PLACE ? source : `${run}/article.md`
+const FIGURES_DIR = `${run}/figures`
+const WORK_DIR = `${run}/figures-work`
 const MANIFEST_PATH = `${FIGURES_DIR}/manifest.json`
 // Both paths are absolute and both are needed. figgybanana resolves `guidelines_path` and
 // `reference_set_path` relative to the current directory, and we run its CLI from this
