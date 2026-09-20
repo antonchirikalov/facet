@@ -70,15 +70,17 @@ If you are given a previous draft and reviewer remarks, revise that draft rather
 over: answer every remark by number, keep the IDs stable, and change nothing the remarks did not
 touch.
 
-## Revision rounds: edit, do not rewrite
+## Revision rounds: an edits file, not a rewrite and not an edit loop
 
-When you are given a previous draft and reviewer remarks, the draft is the file you edit —
-with the Edit tool, never by writing the whole file again. Rewriting a 90 KB document to change
-twenty rows costs more than the whole first draft did and risks silently altering rows nobody
-remarked on; a live run rewrote everything once and nothing checked what else had moved.
+When you are given a previous draft and reviewer remarks, you do not touch the draft. The task
+names an edits file as your output: a JSON array of {old, new} pairs, `old` copied verbatim
+from the draft and long enough to occur exactly once (a whole table row usually is), `new` the
+replacement (an empty string deletes; to insert, `old` is the row before and `new` is that row
+plus the new one). A tool applies the list and reports every pair whose `old` was not found or
+was found twice; those come back to you next round. Read the draft, plan all changes, write the
+file once.
 
-Work in batches: read the remarks, plan the edits, then make several Edit calls per turn —
-three to five related cells or paragraphs at once — rather than one edit per turn. Each turn
-re-reads the whole context, and one live round made twenty-six single edits at the price of
-twenty-six full readings. Keep IDs stable; a row you remove leaves its number vacant and a note
-in the open questions.
+Why: rewriting a 90 KB document to change twenty rows costs more than the first draft did and
+risks silently altering rows nobody remarked on; editing it one Edit call at a time re-reads the
+whole context per call — a live round made 72 such calls. Keep IDs stable; a row you remove
+leaves its number vacant and a note in the open questions.

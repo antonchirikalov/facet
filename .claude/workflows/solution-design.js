@@ -166,6 +166,7 @@ const ROUNDS_TOOL = cfg.roundsTool || 'python -X utf8 tools/rounds.py'
 const LISTING_TOOL = cfg.listingTool || 'python -X utf8 tools/listing.py'
 const SNAPSHOT_TOOL = cfg.snapshotTool || 'python -X utf8 tools/snapshot.py'
 const BUSY_TOOL = cfg.busyTool || 'python -X utf8 tools/busy.py'
+const APPLY_TOOL = cfg.applyTool || 'python -X utf8 tools/apply_edits.py'
 
 // --- No prompts in this file ------------------------------------------------------------------
 //
@@ -945,10 +946,65 @@ async function reviseLoop({
     // throws away the most expensive agent in the run. So the first round skips the writer and
     // goes straight to the gate and the critics.
     const skipWriter = isFirstPass && present.has(artifact)
+    // Two ways to get a draft: from scratch the writer writes the file; in a revision round it
+    // does NOT touch the draft but writes ONE edits file — a JSON list of {old, new} pairs, old
+    // copied verbatim from the draft — and a ruler applies them. Measured before this existed: 72
+    // single Edit calls in one round read 10 million cached tokens, more than rewriting the whole
+    // document would have cost; one Write of the whole document re-types 90 KB to change 3 and
+    // nothing checks what else moved. The ruler is deterministic and names every edit that did
+    // not land, so nothing is applied on a guess and nothing is lost silently.
+    const editsPath = `${roundsDir}/edits-${round}.json`
+    const editsRule =
+      `\n\nHOW TO DELIVER THIS ROUND. Do not edit ${artifact} yourself. Write your changes as a ` +
+      `JSON array to ${editsPath}: [{"old": "<text copied verbatim from the draft, enough of it ` +
+      `to occur exactly once>", "new": "<the replacement>"}, ...]. One object per change. To add ` +
+      `a row, make old the row it goes after and new that row followed by the new one; to delete, ` +
+      `make new an empty string. Keep old short but unique — a whole table row is usually right. ` +
+      `A tool applies the list in order and reports every object whose old text was not found or ` +
+      `was found more than once; those come back to you next round, so quote exactly.`
+    let drafted = null
+    let unapplied = []
     if (skipWriter) {
       log(`[${loop}/1] черновик уже на диске, писатель не запускается — сразу гейт и критики`)
+    } else if (revision) {
+      drafted = must(
+        await call(
+          task({
+            inputs: [{ port: 'draft', path: artifact }, ...writer.inputs],
+            output: editsPath,
+            extra: revision + editsRule,
+          }),
+          {
+            agentType: writer.agentType,
+            model: writer.model,
+            label: `${loop}:write:${round}`,
+            phase: phaseName,
+            schema: DRAFT,
+          },
+        ),
+        `${loop}:write:${round} — without an edits file the round is empty`,
+      )
+      const applied = await call(
+        commands([`${APPLY_TOOL} --file ${artifact} --edits ${editsPath} ${noted(`apply the writer's round ${round} edits`)}`]),
+        { agentType: 'file-copier', model: MODELS.copy, label: `${loop}:apply:${round}`, phase: phaseName, schema: GATE },
+      )
+      const appliedReport = (applied && applied.report) || {
+        ok: false,
+        problems: ['the edits were not applied — the tool did not answer'],
+        measures: {},
+      }
+      const m = appliedReport.measures || {}
+      log(
+        `[${loop}/${round}/apply] applied=${m.applied ?? '?'} unmatched=${m.unmatched ?? '?'}` +
+          (appliedReport.problems.length ? ` | ${appliedReport.problems.join('; ')}` : ''),
+      )
+      // An edit that did not land is a remark the writer has not honoured: carried, by name.
+      unapplied = appliedReport.problems.map((pr) => `EDIT NOT APPLIED — quote the draft exactly: ${pr}`)
+      if (!appliedReport.ok) {
+        warnings.push(`круг ${round} (${loop}): не применилось правок — ${appliedReport.problems.length}`)
+      }
     } else {
-      const drafted = must(
+      drafted = must(
         await call(task({ inputs: writer.inputs, output: artifact, extra: revision }), {
           agentType: writer.agentType,
           model: writer.model,
@@ -958,6 +1014,8 @@ async function reviseLoop({
         }),
         `${loop}:write:${round} — without a draft the round is empty`,
       )
+    }
+    if (drafted) {
       log(`[${loop}/${round}] changes=${drafted.changes.length}`)
       for (const c of drafted.changes) log(`[${loop}/${round}/change] ${c}`)
 
@@ -988,7 +1046,7 @@ async function reviseLoop({
         const entry = [...answered.values()].find((a) => items[a.item - 1] === it)
         return `[${it.source}] ${it.text}\n    → отклонено: ${entry ? entry.note : '(без причины)'}`
       })
-      carried = [...unanswered, ...declined].map((it) => it.text)
+      carried = [...unanswered, ...declined].map((it) => it.text).concat(unapplied)
     }
 
     // Correctors: a chain, not a fan-out. They edit the same file in turn, and turn is what makes
