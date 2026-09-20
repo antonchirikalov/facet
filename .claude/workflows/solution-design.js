@@ -994,8 +994,11 @@ async function reviseLoop({
     // Correctors: a chain, not a fan-out. They edit the same file in turn, and turn is what makes
     // it safe — two agents writing one document concurrently already produced a draft whose
     // provenance could not be established. They run before the gate, so the measurement the
-    // critics are told about is the measurement of the text that exists.
-    if (!skipWriter) {
+    // critics are told about is the measurement of the text that exists. They also run on a
+    // draft found on disk: the launch that wrote it died before they could (writer at 16:58,
+    // process gone at 17:00, nothing in between), and an unchecked draft judged by a critic
+    // spends the critic's round on what a corrector settles.
+    {
       for (const corrector of correctors) {
         const fixed = await call(task({ inputs: corrector.inputs, output: artifact }), {
           agentType: corrector.agentType,
@@ -1229,10 +1232,41 @@ if (RUN_REQUIREMENTS) {
   log(`[extract] входных документов: ${sources.length}`)
   for (const s of sources) log(`[extract/вход] ${s}`)
 
+  // Matched by index, never by a path the agent chose how to spell.
+  const extractPaths = sources.map((s) => extractPathOf(stemOf(s)))
+  // Two more rules per extract, both paid for: every row of its tables has a Source cell (the
+  // writer cannot cite what the extract did not locate), and it is written in the script of its
+  // source — a Russian chat extracted in English put English role descriptions into a Russian
+  // stakeholder table, and the critic found it, not the gate.
+  const extractFlags = (extractPath) => {
+    const i = extractPaths.indexOf(extractPath)
+    return `--rows-have-source --language-of ${sources[i]}`
+  }
+
+  // What is already extracted is not extracted again. The disk is the checkpoint here as
+  // everywhere: a launch that resumed after the writer re-extracted all five documents although
+  // every extract was on disk and had passed this same gate. `fresh` is the one way to redo them.
+  let todo = sources
+  if (!cfg.fresh) {
+    const already = await call(
+      existenceCommands(extractPaths, 'resume: which extracts are already on disk', extractFlags),
+      { agentType: 'gate-runner', model: MODELS.gate, label: 'extract:resume', phase: 'Extract', schema: EXISTENCE },
+    )
+    const found = (already && already.checks) || []
+    if (found.length === extractPaths.length) {
+      todo = sources.filter((s, i) => !found[i].ok)
+      const kept = sources.length - todo.length
+      if (kept) log(`[extract] на диске уже ${kept} извлечений из ${sources.length}, переделываются только недостающие`)
+      for (const [i, s] of sources.entries()) if (found[i].ok) touched.add(extractPaths[i])
+    } else {
+      log(`[extract] проверок ${found.length} на ${extractPaths.length} путей — сопоставить нельзя, извлекаем всё`)
+    }
+  }
+
   // One agent per document, in parallel, each writing one extract. `pipeline` rather than
   // `parallel` because there is nothing to synchronise: a document that finishes early has no
   // reason to wait for the slowest one.
-  const extracted = await pipeline(sources, (source) => {
+  const extracted = await pipeline(todo, (source) => {
     const stem = stemOf(source)
     return call(
       task({ inputs: [{ port: 'source', path: source }], output: extractPathOf(stem) }),
@@ -1246,16 +1280,6 @@ if (RUN_REQUIREMENTS) {
     ).then((res) => ({ stem, source, res }))
   })
 
-  // Matched by index, never by a path the agent chose how to spell.
-  const extractPaths = sources.map((s) => extractPathOf(stemOf(s)))
-  // Two more rules per extract, both paid for: every row of its tables has a Source cell (the
-  // writer cannot cite what the extract did not locate), and it is written in the script of its
-  // source — a Russian chat extracted in English put English role descriptions into a Russian
-  // stakeholder table, and the critic found it, not the gate.
-  const extractFlags = (extractPath) => {
-    const i = extractPaths.indexOf(extractPath)
-    return `--rows-have-source --language-of ${sources[i]}`
-  }
   const checks = await call(existenceCommands(extractPaths, 'was the extract actually written', extractFlags), {
     agentType: 'gate-runner',
     model: MODELS.gate,
