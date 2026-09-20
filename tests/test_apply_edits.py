@@ -86,7 +86,7 @@ def test_cli_applies_and_reports_measures(
     assert report["measures"] == {
         "edits": 2,
         "chars_before": len(DOC),
-        "chars": len(DOC) - 3,
+        "chars": len(DOC) - 1,  # «одно» → «раз» короче на один знак, «конец» → «финал» той же длины
         "applied": 2,
         "unmatched": 0,
     }
