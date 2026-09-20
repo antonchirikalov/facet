@@ -134,6 +134,12 @@ const REQ_BOUNDS = cfg.reqBounds || { minLength: 20000, min: 0, max: 0 }
 // rules"). By heading NUMBER, because the names translate with the document's language and the
 // numbers do not; the profile promises exactly these. What a regex settles here never costs a
 // critic's round — and a critic sent to count citations counts them, while a gate reads them.
+// The design profile's gate rules (.claude/skills/solution-design-profile/SKILL.md, "Gate rules").
+const DESIGN_GATE_FLAGS = cfg.designGateFlags || [
+  ...[1, 2, 3, 4, 5, 6, 7].map((n) => `--require-heading "^##\\s+${n}\\."`),
+  ...['1.1', '1.2', '1.3', '1.4'].map((n) => `--require-heading "^###\\s+${n.replace('.', '\\.')}"`),
+  '--forbid-file library/style/forbid/no-bold.txt',
+]
 const REQ_GATE_FLAGS = cfg.reqGateFlags || [
   ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `--require-heading "^##\\s+${n}\\."`),
   ...['8.1', '8.2', '8.3'].map((n) => `--require-heading "^###\\s+${n.replace('.', '\\.')}"`),

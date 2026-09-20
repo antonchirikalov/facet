@@ -9,5 +9,8 @@ consumes:
 produces:
   - { port: choice, type: selection@v1 }
 needs: [read, edit]
+# The same profile as the designer and the critic: a selector without the contract picks the
+# longer candidate.
+skills: [solution-design-profile]
 defaults:
   timeout_s: 1800
