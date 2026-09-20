@@ -41,9 +41,8 @@ collimator, не достроен и не достраивается: скрип
 ```bash
 uv sync --extra dev
 uv run pytest                                          # без сети и без LLM
-uv run python -c "from pathlib import Path; from collimator.emit_agents import emit_all; emit_all(Path('library/agents'), Path('.claude/agents'), Path('.claude/skills'))"
+uv run python -c "from pathlib import Path; from facet.emit_agents import emit_all; emit_all(Path('library/agents'), Path('.claude/agents'), Path('.claude/skills'))"
 node tools/dry_run.mjs .claude/workflows/<скрипт>.js ok  # прогон на заглушках до живого запуска
 ```
 
-Полный список и правила — в `CLAUDE.md`. Питоновый пакет пока называется `collimator`:
-переименование — отдельный шаг (`SPEC.md` §9, §13).
+Полный список и правила — в `CLAUDE.md` и `docs/workflow-conventions.md`.

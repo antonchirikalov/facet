@@ -56,7 +56,7 @@ KEEP = frozenset(
         ".ruff_cache",
         ".venv",
         "__pycache__",
-        "collimator",
+        "facet",
         "docs",
         "library",
         "probe-runs",

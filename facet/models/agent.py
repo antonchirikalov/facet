@@ -1,8 +1,10 @@
-"""Agent package format — ``agent.yaml`` (SPEC §6).
+"""Agent package format — ``agent.yaml``.
 
-Structural model only: port types are strings (may be ``collection<X>``);
-semantic rules that need registry context (single primary output, no
-collection produces, HITL shape) are enforced by the graph validator (§8.3).
+What the generator reads: ``name``, ``description``, ``needs`` (tools), ``skills``
+(document-type profiles). ``consumes``/``produces`` are kept as documentation of the agent's
+contract — the ports themselves are wired by the workflow script's task(), never by this
+package — and ``defaults.timeout_s`` is a note for the script author. The risk tiers and the
+graph validator of the refract compiler are gone with the compiler.
 """
 
 from __future__ import annotations
@@ -18,32 +20,9 @@ _PORT_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
 _SKILL_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 _BASE_CAPABILITIES = frozenset({"read", "edit", "vision", "bash", "webfetch"})
 
-# Capability risk tiers (SPEC §17 phase 3). Ordered safe < moderate < dangerous;
-# a project's confirm policy can require human confirmation at/above a tier.
-_TIER_ORDER = ("safe", "moderate", "dangerous")
-_CAPABILITY_TIER = {
-    "read": "safe",
-    "vision": "safe",
-    "webfetch": "moderate",
-    "edit": "moderate",
-    "bash": "dangerous",
-}
-
-
-def capability_tier(cap: str) -> str:
-    """Risk tier of a capability; ``mcp:<server>`` is moderate, unknown → moderate."""
-    if cap.startswith("mcp:"):
-        return "moderate"
-    return _CAPABILITY_TIER.get(cap, "moderate")
-
-
-def tier_at_least(cap: str, threshold: str) -> bool:
-    """True if ``cap``'s tier is >= ``threshold`` in the safe<moderate<dangerous order."""
-    return _TIER_ORDER.index(capability_tier(cap)) >= _TIER_ORDER.index(threshold)
-
 
 class Port(BaseModel):
-    """A consumes/produces port (SPEC §6)."""
+    """A consumes/produces port: documentation of the contract, not wiring."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -65,7 +44,7 @@ class AgentDefaults(BaseModel):
 
 
 class AgentSpec(BaseModel):
-    """``agent.yaml`` (SPEC §6). Referenced from the graph as ``name@version``."""
+    """``agent.yaml`` — one agent of ``library/agents/``."""
 
     model_config = ConfigDict(extra="forbid")
 
@@ -73,7 +52,7 @@ class AgentSpec(BaseModel):
     version: int
     description: str = ""
     consumes: list[Port] = Field(default_factory=list)
-    produces: list[Port]
+    produces: list[Port] = Field(default_factory=list)
     needs: list[str] = Field(default_factory=list)
     # Document-type profiles preloaded into the agent's context at spawn (facet SPEC §6).
     # The writer and the critic of one type name the same profile, so they read one

@@ -15,7 +15,7 @@ import sweep_junk
 
 def make_root(tmp_path: Path) -> Path:
     """Слепок корня: свои каталоги, посторонний пустой и посторонний с файлом."""
-    (tmp_path / "collimator").mkdir()
+    (tmp_path / "facet").mkdir()
     (tmp_path / "tools").mkdir()
     (tmp_path / "probe-runs" / "attn").mkdir(parents=True)
     (tmp_path / "probe-runs" / "attn" / "article.md").write_text("текст", encoding="utf-8")
@@ -37,7 +37,7 @@ def test_splits_empty_from_occupied(tmp_path: Path) -> None:
 def test_keeps_the_repository_own_directories(tmp_path: Path) -> None:
     empty, occupied = sweep_junk.strays(make_root(tmp_path))
     names = {p.name for p in empty + occupied}
-    assert "collimator" not in names
+    assert "facet" not in names
     assert "tools" not in names
     assert "probe-runs" not in names
 
@@ -78,7 +78,7 @@ def test_sweep_removes_only_the_empty_strays(
     # Всё остальное на месте, включая посторонний каталог с файлом.
     assert (root / "важное" / "файл.txt").is_file()
     assert (root / "probe-runs" / "attn" / "article.md").is_file()
-    assert (root / "collimator").is_dir()
+    assert (root / "facet").is_dir()
 
     out = capsys.readouterr()
     assert "strays: 3 empty, 1 kept" in out.out
@@ -88,7 +88,7 @@ def test_sweep_removes_only_the_empty_strays(
 def test_clean_root_is_a_no_op(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    (tmp_path / "collimator").mkdir()
+    (tmp_path / "facet").mkdir()
     monkeypatch.setattr(sweep_junk, "REPO", tmp_path)
     monkeypatch.setattr(sys, "argv", ["sweep_junk.py"])
     assert sweep_junk.main() == 0

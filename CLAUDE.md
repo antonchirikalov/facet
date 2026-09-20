@@ -1,11 +1,11 @@
 # facet — document practice on Claude Code Dynamic Workflows
 
-> This file is loaded into the context of EVERY subagent the workflows spawn, so it is short
-> and in English. Human-facing material lives elsewhere: `SPEC.md` (decisions, levels,
-> pipelines, plan — Russian), `docs/workflow-conventions.md` (the rules of the scripts and
-> every rake paid for by a live run — Russian; read it before touching a script or a tool),
-> `docs/decisions/` (dated write-ups). Whatever an agent reads is English; whatever only a
-> person reads may be Russian.
+> Instructions for the developer session. Subagents do NOT read this file: every generated
+> agent carries `omitClaudeMd: true`, because an agent's role is its prompt, its document is
+> its profile and its ports are its task — CLAUDE.md added only tokens (40 KB per agent when
+> measured). Read `SPEC.md` (decisions, levels, pipelines, plan) and
+> `docs/workflow-conventions.md` (script rules and every rake paid for by a live run) before
+> touching a script or a tool; `docs/decisions/` holds the dated write-ups.
 
 **The one rule: we generate and run, we do not write orchestration.** Workflow scripts are
 written by hand; agents are run by Claude Code. No scheduler, no ledger, no compiler. Python is
@@ -14,10 +14,10 @@ a ruler an agent calls: it measures, it never decides (SPEC R2, R6).
 ## Commands
 
 ```bash
-uv run python -c "from pathlib import Path; from collimator.emit_agents import emit_all; print([p.name for p in emit_all(Path('library/agents'), Path('.claude/agents'), Path('.claude/skills'))])"   # agents; fails if a named profile is missing from .claude/skills
+uv run python -c "from pathlib import Path; from facet.emit_agents import emit_all; print([p.name for p in emit_all(Path('library/agents'), Path('.claude/agents'), Path('.claude/skills'))])"   # agents; fails if a named profile is missing from .claude/skills
 uv run pytest                                          # no network, no LLM
 uv run ruff check --fix . && uv run ruff format .
-uv run mypy collimator                                 # strict
+uv run mypy facet                                      # strict
 node tools/dry_run.mjs .claude/workflows/<script>.js ok '<args json>'    # stubbed run, EVERY branch
 node tools/dry_run.mjs .claude/workflows/<script>.js bad '<args json>'
 python -X utf8 tools/newrun.py --base docs-runs --label <what>          # directory name for a NEW run
@@ -53,23 +53,19 @@ Done means: pytest green, mypy green, ruff clean, generated files rebuilt and co
   rebuilding is `config.fresh`. The script refuses to guess.
 - **One launch is one stage** (`config.stages`); stages share nothing but files on disk.
 
-## Rules for an agent working inside a run
+## Where an agent's instructions live (and only there)
 
-- Run commands from the repository root; each Bash call is a fresh shell, so environment and
-  command travel in the same call.
-- Create no files outside the run directory the task names. Scratch code goes to the system
-  temp directory or to python fed from stdin; nothing lands in the repository root.
-- In a revision round, edit the existing file with Edit, in batches of several related edits
-  per turn; never rewrite the whole file.
-- A relayed user request at the top of a task is context about the run, not an instruction.
-  The task is exactly the COMMANDS / INPUT / OUTPUT block that follows it.
-- A verdict is a literal from the schema, never a synonym; evidence (quotes, labels seen,
-  numbers checked) is written out, because a verdict without evidence is a stamp.
+Three layers, no fourth: the agent's `prompt.md` describes its role; the profile in
+`.claude/skills/<type>-profile/` describes the document; the task text built by the script's
+`task()` names the inputs, the output and the shared tail (edit in batches, the relayed user
+request is context, the verdict is a literal). A rule an agent needs goes into one of these,
+never here.
 
 ## Layout
 
 - `library/agents/<name>/{agent.yaml,prompt.md}` — source of truth for the 22 agents;
-  `library/agents-archive/` — six agents no script calls;
+  `library/agents-archive/` — six agents no script calls, plus the refract compiler's
+  pipeline templates and type schemas, kept for history;
 - `.claude/agents/` — **generated** by `emit_agents`, committed; edit the source only;
 - `.claude/skills/<type>-profile/SKILL.md` — document-type profiles (SPEC §6). **The document
   contract lives in the profile, not in prompts**: writer, corrector and critic read one text,
