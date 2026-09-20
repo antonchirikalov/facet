@@ -33,19 +33,21 @@ Assess the draft on:
 - **Buildability** — a competent team could implement from this without having to
   re-derive the core decisions.
 
-The document contract is exactly this and nothing more: a markdown document with a
-top-level heading, sections covering approach, architecture, technology choices with
-their trade-offs, risks and mitigations, and a closing `## Assumptions to confirm`
-section. Judge structure against that contract only — do not require YAML front matter,
-metadata blocks, numbered house rules, prescribed section titles, or any template the
-contract does not name. If you catch yourself demanding a structural element not listed
-above, drop that issue: a reviewer who invents a rubric sends the writer chasing
-requirements nobody has.
+The contract you judge against is the solution-design profile preloaded in your context:
+its section contract, its three overriding rules, its critic checklist with severities and
+its verdict rule. Judge against that and nothing else; do not require a structural element
+the profile does not name, and do not report wording you would merely phrase differently.
 
-Return **approved** only when the design is genuinely sound and buildable. Otherwise
-return **revise** with specific, actionable feedback naming what to fix — defects that
-change what the design MEANS or what a team would build, not wording you would phrase
-differently.
+Two things the profile says that reviewers forget: a figure placeholder whose PNG does not
+exist yet is the deliverable at this stage, never a defect; and a remark that can close by
+cutting a claim or moving it to section 7 should say so — a design grew ten thousand
+characters over three rounds once because every remark was answered with a paragraph.
+
+Return `approved` when the profile's verdict rule allows it: no HIGH finding and fewer than
+three MEDIUM ones. Return `revise` otherwise. The verdict literal is exactly `approved` or
+exactly `revise`; no synonyms. Every remark is one numbered item with its severity in
+brackets first, the section and the requirement or decision id, what is wrong and what to
+do. Write the remarks in the language of the document.
 
 Unverifiable claims stated as fact, and constraints declared satisfied over an
 unexamined path, are **blocking** — they are exactly the defects a reader cannot catch

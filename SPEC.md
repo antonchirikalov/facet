@@ -175,8 +175,8 @@ facet/
 | 0 | Копия collimator с историей в `facet`; переименование в `pyproject.toml`, README; refract помечен замороженным | 1 ч | `uv run pytest` зелёный в facet |
 | 1 | Один дом для агентов: сверить `library/agents` с копиями в refract, пересобрать `.claude/agents`, добавить `skills:` писателям и критикам | 0,5 д | `emit_agents` без ручных правок в `.claude/agents` |
 | 2 | Документация: README, `document-types.md`, `run-layout.md`, `workflow-conventions.md`, `decisions/` | 1 д | новая сессия по README находит, как сделать любой тип |
-| 3 | Профили `requirements` (готов 2026-09-19), `solution-design`, `gap-analysis` | 1 д | критик и писатель одного типа читают один профиль |
-| 4 | Эталоны для трёх типов + `exemplars.local.yaml` (`requirements` готов 2026-09-19) | 0,5 д | в репозитории нет данных клиентов |
+| 3 | Профили `requirements` (готов 2026-09-19), `solution-design` (готов 2026-09-20), `gap-analysis` | 1 д | критик и писатель одного типа читают один профиль |
+| 4 | Эталоны для трёх типов + `exemplars.local.yaml` (`requirements` 2026-09-19, `solution-design` скелет 2026-09-20) | 0,5 д | в репозитории нет данных клиентов |
 | 5 | `requirements.js` по образцу `solution-design.js`; прогон на контрольном входе, сравнение с тремя прогонами refract | 1–2 д | документ не хуже refract; носильщиков в журнале — посчитано |
 | 6 | Скилл `/doc` для уровней 1–2; испытание на gap-анализе или памятке | 0,5 д | результат сравнён с ручным документом того же типа |
 

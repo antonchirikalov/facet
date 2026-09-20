@@ -1588,6 +1588,7 @@ const design = await reviseLoop({
   loop: 'design',
   artifact: DESIGN_PATH,
   bounds: DESIGN_BOUNDS,
+  gateFlags: DESIGN_GATE_FLAGS,
   phaseName: 'Design',
   writer: {
     agentType: 'solution-designer',

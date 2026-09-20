@@ -37,7 +37,11 @@ PROFILE_AGENTS = {
         "requirements_fact_checker",
         "requirements_critic",
     },
-    "solution-design-profile": {"solution_designer", "solution_design_critic"},
+    "solution-design-profile": {
+        "solution_designer",
+        "solution_design_critic",
+        "solution_design_selector",
+    },
 }
 
 # Кто требует MCP по состоянию библиотеки: три Tavily, один pdf-reader, source_finder оба.
