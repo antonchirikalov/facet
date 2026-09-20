@@ -84,6 +84,24 @@ Rules that make the shape worth having:
   requirement whose ground is in the sources — the number, the defect, the legal position, the
   fact about the site — keeps that ground in the sentence or in the Source cell; a figure
   without its reason cannot be defended, questioned or retired later.
+- **A requirement says WHAT, not HOW.** "The system reads receipts from 1C hourly" is a
+  requirement when the client's contractor imposed the hourly file exchange; "the system polls
+  an S3 bucket" is a design decision and belongs to the design document. The test: would the
+  client recognise the sentence as something they asked for or must live with? If it is a
+  choice the delivery team could make differently without the client noticing, it is not a
+  requirement.
+- **Prefer the EARS sentence shapes** for the Requirement cell; they make the trigger, the
+  state and the quantifier explicit and are what makes a row testable:
+  ubiquitous — "The system shall <response>"; event-driven — "When <trigger>, the system shall
+  <response>"; state-driven — "While <state>, the system shall <response>"; unwanted behaviour
+  — "If <condition>, then the system shall <response>"; optional — "Where <feature>, the system
+  shall <response>". In the document's language the same shapes hold, translated word for
+  word. Not mandatory, recommended: a row that fits none of them is usually two rows or a fact.
+- **No weak words in the Requirement cell.** "where possible", "as appropriate", "fast",
+  "user-friendly", "approximately", "etc.", "and/or" and their Russian equivalents make a row
+  unverifiable; the gate lists them from `library/style/forbid/req-weak-*.txt` and names the
+  row. A client's own weak words belong in the Source cell as a quote, and the row then states
+  the checkable reading of them or goes to 8.2 as a gap.
 - **Quantifiers are copied, not improved.** "one doctor per clinic", "each clinic", "any free
   slot", "at least", "no later than": the quantifier in the row is the quantifier in the source.
   Widening "one per clinic" into "every" is a meaning change, and it is the change a reviewer
@@ -196,6 +214,10 @@ CRITICAL
 MAJOR
 6. An NFR with no number and no checkable criterion, not tagged `[PROVISIONAL]`, not moved to
    8.2.
+6a. A row that is not necessary (removing it would leave no gap a stakeholder would notice),
+   not feasible within the constraints of section 5 as the sources state them, or not a
+   requirement at all but a design decision (HOW instead of WHAT) — ISO 29148 C1, C6 and the
+   "implementation-free" rule.
 7. A row with several independently checkable statements bundled into one.
 8. Every row `MUST`; or a priority the source does not support.
 9. 8.2 missing an open question that an extract raised; 8.3 missing an assumption the text

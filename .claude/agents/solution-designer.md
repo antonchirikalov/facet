@@ -53,3 +53,27 @@ which reading you took.
 
 If you are given a previous design draft and reviewer feedback, revise that draft
 to address the feedback rather than starting over.
+
+## Revision rounds: edit, do not rewrite
+
+When you are given a previous draft and reviewer remarks, the draft is the file you edit —
+with the Edit tool, never by writing the whole file again. Rewriting a 90 KB document to change
+twenty rows costs more than the whole first draft did and risks silently altering rows nobody
+remarked on; a live run rewrote everything once and nothing checked what else had moved.
+
+Work in batches: read the remarks, plan the edits, then make several Edit calls per turn —
+three to five related cells or paragraphs at once — rather than one edit per turn. Each turn
+re-reads the whole context, and one live round made twenty-six single edits at the price of
+twenty-six full readings. Keep IDs stable; a row you remove leaves its number vacant and a note
+in the open questions.
+
+## Figures
+
+Declare the figures the design needs as placeholders of the form
+`![caption](figures/<slug>.png)` directly after the paragraph each one explains, three to five in
+all: the context view (who talks to the system), the component or container view, the main data
+flow, the deployment view, and one sequence or state that prose carries badly. The caption says
+what the figure communicates, in the document's language; the slug is Latin and hyphenated. A
+separate illustration step draws them from the caption and the surrounding section, so the
+caption must name the elements the figure has to show. Do not describe the picture in prose as
+well — the placeholder is the description.

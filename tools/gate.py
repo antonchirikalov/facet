@@ -63,6 +63,14 @@ HEADING = re.compile(r"^(#{1,6})[ \t]+(.*\S)")
 # requirements profile puts a Source cell on every row; a row with that cell empty is a
 # conclusion dressed as a requirement, and a regex finds it before a critic spends a round.
 SOURCE_HEADER = re.compile(r"^\s*(source|источник)\b", re.IGNORECASE)
+# The column weak-word patterns are applied to: the statement itself, never the Source cell,
+# where "where possible" may be a client's own words and is exactly what a citation is for.
+STATEMENT_HEADER = re.compile(
+    r"^\s*(requirement|требование|rule|правило|statement|утверждение|constraint|ограничение)\b",
+    re.IGNORECASE,
+)
+CYRILLIC = re.compile(r"[а-яА-ЯёЁ]")
+LETTER = re.compile(r"[^\W\d_]", re.UNICODE)
 TABLE_LINE = re.compile(r"^\s*\|.*\|\s*$")
 TABLE_RULE = re.compile(r"^\s*\|?\s*:?-{3,}")
 
@@ -233,6 +241,71 @@ def rows_without_source(text: str) -> list[str]:
     return empty
 
 
+def cell_forbidden(text: str, pattern_files: list[Path]) -> tuple[list[tuple[str, str]], list[str]]:
+    """(row id, matched phrase) for every weak-word hit inside a statement cell.
+
+    INCOSE R7–R9: vague terms and escape clauses — "where possible", "as appropriate", "fast",
+    "etc." — make a requirement unverifiable, and a regex finds them with near-total recall. Only
+    the statement column is searched: the same words in a Source cell are the client's quoted
+    words, which is what the citation exists to preserve.
+    """
+    patterns: list[str] = []
+    problems: list[str] = []
+    for pf in pattern_files:
+        found, missing = patterns_of(pf)
+        patterns.extend(found)
+        problems.extend(missing)
+    hits: list[tuple[str, str]] = []
+    column: int | None = None
+    in_table = False
+    for line in text.splitlines():
+        if not TABLE_LINE.match(line):
+            in_table = False
+            column = None
+            continue
+        cells = split_row(line)
+        if not in_table:
+            in_table = True
+            column = next((i for i, c in enumerate(cells) if STATEMENT_HEADER.match(c)), None)
+            continue
+        if TABLE_RULE.match(line) and all(TABLE_RULE.match(c) or not c for c in cells):
+            continue
+        if column is None or column >= len(cells):
+            continue
+        for pattern in patterns:
+            for m in re.finditer(pattern, cells[column], flags=re.IGNORECASE):
+                hits.append((cells[0] or "(row without an id)", m.group(0)))
+    return hits, problems
+
+
+def cyrillic_share(text: str) -> float:
+    """Share of letters that are Cyrillic, 0.0 when the text has no letters."""
+    letters = LETTER.findall(text)
+    if not letters:
+        return 0.0
+    return len(CYRILLIC.findall(text)) / len(letters)
+
+
+def language_mismatch(text: str, reference: Path, gap: float = 0.5) -> str | None:
+    """A problem string when the file and its reference are written in different scripts.
+
+    Cheap and blunt on purpose: it tells Cyrillic from Latin, which is the mismatch that has
+    actually happened — a Russian chat extracted in English. A gap of 0.5 between the two
+    shares means one is mostly Cyrillic and the other is mostly not.
+    """
+    ref = resolve_path(reference)
+    if not ref.is_file():
+        return f"language reference missing: {reference.as_posix()}"
+    mine = cyrillic_share(text)
+    theirs = cyrillic_share(ref.read_text(encoding="utf-8", errors="replace"))
+    if abs(mine - theirs) >= gap:
+        return (
+            f"language differs from {ref.name}: cyrillic share {mine:.2f} here vs "
+            f"{theirs:.2f} in the reference"
+        )
+    return None
+
+
 def duplicate_ids(text: str, pattern: str) -> list[str]:
     """Ids that open more than one table row, in first-seen order.
 
@@ -307,6 +380,20 @@ def main() -> int:
         metavar="REGEX",
         help="ids matching this pattern at the start of a table row must be unique",
     )
+    p.add_argument(
+        "--cell-forbid-file",
+        action="append",
+        default=[],
+        type=Path,
+        metavar="PATH",
+        help="patterns forbidden inside the Requirement/Rule/Statement column; repeatable",
+    )
+    p.add_argument(
+        "--language-of",
+        type=Path,
+        metavar="PATH",
+        help="the file must be in the same script (Cyrillic/Latin) as this reference file",
+    )
     p.add_argument("--min-entries", type=int, help="floor on entries directly inside --dir")
     p.add_argument("--strict", action="store_true", help="also exit 1 when the gate fails")
     toollog.add_argument(p)
@@ -366,6 +453,20 @@ def main() -> int:
                 measures["duplicate_ids"] = dupes
                 if dupes:
                     problems.append(f"duplicate ids ({len(dupes)}): " + ", ".join(dupes[:12]))
+
+            if args.cell_forbid_file:
+                weak, missing = cell_forbidden(text, args.cell_forbid_file)
+                problems.extend(missing)
+                measures["weak_words"] = [f"{rid}: {phrase}" for rid, phrase in weak]
+                if weak:
+                    sample = "; ".join(f"{rid} «{phrase}»" for rid, phrase in weak[:10])
+                    problems.append(f"weak words in requirement cells ({len(weak)}): {sample}")
+
+            if args.language_of is not None:
+                mismatch = language_mismatch(text, args.language_of)
+                measures["cyrillic_share"] = round(cyrillic_share(text), 2)
+                if mismatch:
+                    problems.append(mismatch)
 
             hits: dict[str, int] = {}
             for pattern in args.forbid:

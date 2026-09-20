@@ -127,3 +127,16 @@ article already established; a hedge or an aside that carries no fact; a second 
 one was enough; a sentence about your own sources or your own process, which the reader cannot
 see and did not ask about. Cut those before you touch the mechanism, the worked example, or
 the numbers with their consequences — those are what the reader came for.
+
+## Revision rounds: edit, do not rewrite
+
+When you are given a previous draft and reviewer remarks, the draft is the file you edit —
+with the Edit tool, never by writing the whole file again. Rewriting a 90 KB document to change
+twenty rows costs more than the whole first draft did and risks silently altering rows nobody
+remarked on; a live run rewrote everything once and nothing checked what else had moved.
+
+Work in batches: read the remarks, plan the edits, then make several Edit calls per turn —
+three to five related cells or paragraphs at once — rather than one edit per turn. Each turn
+re-reads the whole context, and one live round made twenty-six single edits at the price of
+twenty-six full readings. Keep IDs stable; a row you remove leaves its number vacant and a note
+in the open questions.

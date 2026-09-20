@@ -103,9 +103,11 @@ const MODELS = {
   select: 'opus',
   probe: 'opus',
   discovery: 'opus',
-  gate: 'sonnet',
-  record: 'sonnet',
-  copy: 'sonnet',
+  // Carriers run one command and copy its output; the shell matters, the model does not. Each
+  // carrier's starting context is ~25K tokens regardless of model, so the model is the lever.
+  gate: 'haiku',
+  record: 'haiku',
+  copy: 'haiku',
   ...(cfg.models || {}),
 }
 // Length bounds. Absent is a legal answer and it is the default for the ceiling: the gate then
@@ -134,6 +136,11 @@ const REQ_GATE_FLAGS = cfg.reqGateFlags || [
   ...['8.1', '8.2', '8.3'].map((n) => `--require-heading "^###\\s+${n.replace('.', '\\.')}"`),
   '--rows-have-source',
   '--unique-ids "\\b(?:FR|NFR|BR|C|G|A)-\\d{3}\\b"',
+  // Weak words and escape clauses in the statement cell only (INCOSE R7–R9). Both languages
+  // are passed: a pattern for the other language matches nothing and costs nothing, and the
+  // script does not know the document's language.
+  '--cell-forbid-file library/style/forbid/req-weak-ru.txt',
+  '--cell-forbid-file library/style/forbid/req-weak-en.txt',
 ]
 const DESIGN_BOUNDS = cfg.designBounds || { min: 12000, max: 0 }
 // No forbidden-pattern files by default. This is an internal engineering document, not an article
@@ -488,9 +495,11 @@ function commands(list) {
 // A file that exists but holds 200 characters is a file an agent created and abandoned, which is
 // why existence is measured rather than tested: `--min-length` turns "is it there" and "is there
 // anything in it" into one number the script can branch on.
-function existenceCommands(paths, purpose = 'file is where it should be') {
+function existenceCommands(paths, purpose = 'file is where it should be', flagsOf = () => '') {
   return commands(
-    paths.map((p) => `${GATE_TOOL} --file ${p} --min-length ${MIN_ARTIFACT_CHARS} ${noted(purpose)}`),
+    paths.map(
+      (p) => `${GATE_TOOL} --file ${p} --min-length ${MIN_ARTIFACT_CHARS} ${flagsOf(p)} ${noted(purpose)}`.replace(/\s+/g, ' '),
+    ),
   )
 }
 
@@ -1205,7 +1214,15 @@ if (RUN_REQUIREMENTS) {
 
   // Matched by index, never by a path the agent chose how to spell.
   const extractPaths = sources.map((s) => extractPathOf(stemOf(s)))
-  const checks = await call(existenceCommands(extractPaths, 'was the extract actually written'), {
+  // Two more rules per extract, both paid for: every row of its tables has a Source cell (the
+  // writer cannot cite what the extract did not locate), and it is written in the script of its
+  // source — a Russian chat extracted in English put English role descriptions into a Russian
+  // stakeholder table, and the critic found it, not the gate.
+  const extractFlags = (extractPath) => {
+    const i = extractPaths.indexOf(extractPath)
+    return `--rows-have-source --language-of ${sources[i]}`
+  }
+  const checks = await call(existenceCommands(extractPaths, 'was the extract actually written', extractFlags), {
     agentType: 'gate-runner',
     model: MODELS.gate,
     label: 'extract:verify',

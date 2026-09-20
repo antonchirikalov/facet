@@ -1,0 +1,33 @@
+# Weak words and escape clauses in a requirement cell (INCOSE R7–R9, QuARS, ARM). Applied by the
+# gate to the Requirement/Rule column only, never to source quotes. One regex per line.
+\bas appropriate\b
+\bas required\b
+\bas necessary\b
+\bif necessary\b
+\bwhere possible\b
+\bif possible\b
+\bwhere practical\b
+\bto the extent\b
+\betc\.?
+\band/or\b
+\bfast\b
+\bquick(ly)?\b
+\buser[- ]friendly\b
+\beasy to use\b
+\bintuitive\b
+\bsufficient\b
+\badequate\b
+\bappropriate\b
+\bapproximately\b
+\bseveral\b
+\bsome\b
+\bmany\b
+\bminimi[sz]e\b
+\bmaximi[sz]e\b
+\boptimi[sz]e\b
+\befficient(ly)?\b
+\brobust\b
+\bflexible\b
+\bseamless(ly)?\b
+\bbest effort\b
+\bwhere feasible\b
