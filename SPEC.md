@@ -72,7 +72,7 @@ facet — дом для практики подготовки документо
 |---|---|---|---|
 | `requirements.js` | папка `input/` с документами клиента | `reqs/_requirements.md`, `_traceability.md`, `_open_questions.md`, `_unresolved.md` | **написать** (по образцу `solution-design.js`) |
 | `solution-design.js`, этап `design` | `requirements.md` | `design.md` + плейсхолдеры рисунков, кандидаты двух моделей, `discovery-questions.md` | есть |
-| `solution-design.js`, этап `discovery` | `requirements.md` | `discovery-questions.md` — вопросы клиенту по пробелам и противоречиям требований | есть (отдельно с 2026-09-21) |
+| `solution-design.js`, этап `discovery` | документы клиента (со `stages: ["requirements","discovery"]`) или готовый `requirements.md` | `discovery-questions.md` — вопросы клиенту по пробелам и противоречиям, с доменным поиском и ссылками на пункты требований | есть (отдельно с 2026-09-21) |
 | `explainer-article.js` | заказ в одну фразу | статья, источники, записи кругов | есть |
 | `attn-figures.js` | документ с плейсхолдерами | PNG + манифест | есть |
 
@@ -176,7 +176,7 @@ facet/
 | 0 | Копия collimator с историей в `facet`; переименование в `pyproject.toml`, README; refract помечен замороженным | 1 ч | `uv run pytest` зелёный в facet |
 | 1 | Один дом для агентов: сверить `library/agents` с копиями в refract, пересобрать `.claude/agents`, добавить `skills:` писателям и критикам | 0,5 д | `emit_agents` без ручных правок в `.claude/agents` |
 | 2 | Документация: README, `workflow-conventions.md`, `decisions/` (готовы 2026-09-21); `document-types.md`, `run-layout.md` | 1 д | новая сессия по README находит, как сделать любой тип |
-| 3 | Профили `requirements` (готов 2026-09-19), `solution-design` (готов 2026-09-20), `gap-analysis` | 1 д | критик и писатель одного типа читают один профиль |
+| 3 | Профили `requirements` (2026-09-19), `solution-design` (2026-09-20), `discovery-questions` (2026-09-21), `gap-analysis` | 1 д | критик и писатель одного типа читают один профиль |
 | 4 | Эталоны для трёх типов + `exemplars.local.yaml` (`requirements` 2026-09-19, `solution-design` скелет 2026-09-20) | 0,5 д | в репозитории нет данных клиентов |
 | 5 | `requirements.js` по образцу `solution-design.js`; прогон на контрольном входе, сравнение с тремя прогонами refract | 1–2 д | документ не хуже refract; носильщиков в журнале — посчитано |
 | 6 | Скилл `/doc` для уровней 1–2; испытание на gap-анализе или памятке | 0,5 д | результат сравнён с ручным документом того же типа |

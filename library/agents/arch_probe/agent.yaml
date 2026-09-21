@@ -10,5 +10,8 @@ consumes:
 produces:
   - { port: arch_report, type: arch_report@v1 }
 needs: [read, edit, "mcp:tavily-remote"]
+# The discovery-questions profile: the probe that drafts and the critic that curates read ONE
+# contract, preloaded at spawn, instead of two copies in two prompts.
+skills: [discovery-questions-profile]
 defaults:
   timeout_s: 1800

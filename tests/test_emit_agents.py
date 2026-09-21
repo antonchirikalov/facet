@@ -42,6 +42,7 @@ PROFILE_AGENTS = {
         "solution_design_critic",
         "solution_design_selector",
     },
+    "discovery-questions-profile": {"arch_probe", "arch_critic"},
 }
 
 # Кто требует MCP по состоянию библиотеки: три Tavily, один pdf-reader, source_finder оба.

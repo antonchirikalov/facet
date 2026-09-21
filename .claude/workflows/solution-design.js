@@ -138,6 +138,12 @@ const REQ_BOUNDS = cfg.reqBounds || { minLength: 20000, min: 0, max: 0 }
 // rules"). By heading NUMBER, because the names translate with the document's language and the
 // numbers do not; the profile promises exactly these. What a regex settles here never costs a
 // critic's round — and a critic sent to count citations counts them, while a gate reads them.
+// The discovery profile's gate rules (.claude/skills/discovery-questions-profile/SKILL.md).
+const DISCOVERY_GATE_FLAGS = cfg.discoveryGateFlags || [
+  ...[1, 2, 3, 4].map((n) => `--require-heading "^##\\s+${n}\\."`),
+  '--no-empty-sections',
+  '--forbid "\\x60"',
+]
 // The design profile's gate rules (.claude/skills/solution-design-profile/SKILL.md, "Gate rules").
 const DESIGN_GATE_FLAGS = cfg.designGateFlags || [
   ...[1, 2, 3, 4, 5, 6, 7].map((n) => `--require-heading "^##\\s+${n}\\."`),
@@ -1521,7 +1527,21 @@ async function runDiscovery() {
       ? `[discovery] вопросов после отбора: ${(curated.questions || []).length} → ${DISCOVERY_PATH}`
       : `[discovery] отбор не отработал — остались только кандидаты`,
   )
-  if (!curated) warnings.push('вопросы к заказчику не отобраны: курирующий агент не отработал')
+  if (!curated) {
+    warnings.push('вопросы к заказчику не отобраны: курирующий агент не отработал')
+    return null
+  }
+
+  // The same deterministic check the other two documents get. No revision loop here: the
+  // curator IS the critic of this document, and a second judge over a question list would
+  // argue about taste. What a regex settles is settled here and named in the log.
+  const gated = await call(
+    commands([gateCommand(DISCOVERY_PATH, null, 'discovery questions', DISCOVERY_GATE_FLAGS)]),
+    { agentType: 'gate-runner', model: MODELS.gate, label: 'discovery:gate', phase: 'Discovery', schema: GATE },
+  )
+  const report = (gated && gated.report) || { ok: false, problems: ['the gate returned nothing'], measures: {} }
+  log(`[discovery/gate] ok=${report.ok}${report.problems.length ? ' | ' + report.problems.join('; ') : ''}`)
+  for (const pr of report.problems) warnings.push(`вопросы к заказчику: ${pr}`)
   return curated
 }
 

@@ -11,5 +11,6 @@ consumes:
 produces:
   - { port: report, type: discovery_report@v1 }
 needs: [read, edit]
+skills: [discovery-questions-profile]
 defaults:
   timeout_s: 1800
