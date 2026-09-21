@@ -82,13 +82,17 @@ const HANDOFF_PATH = `${run}/handoff.md`
 const STAGES = cfg.stages || ['requirements', 'design']
 const RUN_REQUIREMENTS = STAGES.includes('requirements')
 const RUN_DESIGN = STAGES.includes('design')
-if (!RUN_REQUIREMENTS && !RUN_DESIGN) {
-  throw new Error(`config.stages must name "requirements", "design" or both; got: ${STAGES.join(', ')}`)
+// Discovery — the questions to put in front of the client — runs after the design by default,
+// and on its own when named as the only stage: it needs nothing but requirements.md.
+const RUN_DISCOVERY = STAGES.includes('discovery') || (RUN_DESIGN && cfg.discovery !== false)
+if (!RUN_REQUIREMENTS && !RUN_DESIGN && !RUN_DISCOVERY) {
+  throw new Error(
+    `config.stages must name "requirements", "design", "discovery" or a combination; got: ${STAGES.join(', ')}`,
+  )
 }
 const MAX_ROUNDS = cfg.maxRounds || 3
 const PLATEAU_ROUNDS = cfg.plateauRounds || 2
 const MIN_ARTIFACT_CHARS = cfg.minArtifactChars || 200
-const RUN_DISCOVERY = cfg.discovery !== false
 // The contest. Two models rather than two temperatures: the point is a different reading of the
 // same requirements, and the selector then has something to choose between. One model here is a
 // legal answer and turns the contest off.
@@ -1433,7 +1437,7 @@ if (RUN_REQUIREMENTS) {
     ],
   })
 
-  if (!RUN_DESIGN) {
+  if (!RUN_DESIGN && !RUN_DISCOVERY) {
     // Before the handoff record, so the record carries the warning if the file was not written.
     await recordUnresolved(
       requirements.open.map((o) => `Требования: ${o}`),
@@ -1442,8 +1446,8 @@ if (RUN_REQUIREMENTS) {
   }
   await recordHandoff()
   const { orphans: reqOrphans, foreign: reqForeign } = await auditRun()
-  if (!RUN_DESIGN) {
-    log(`[итог/requirements] дальше: тот же каталог с config.stages=["design"]`)
+  if (!RUN_DESIGN && !RUN_DISCOVERY) {
+    log(`[итог/requirements] дальше: тот же каталог с config.stages=["design"] или ["discovery"]`)
     return {
       stages: STAGES,
       inputs: sources,
@@ -1481,6 +1485,64 @@ if (!RUN_REQUIREMENTS) {
   }
   touched.add(REQ_PATH)
   log('[design] требования на диске найдены')
+}
+
+// --- Discovery: the questions the requirements leave open --------------------------------------
+//
+// Two agents: one mines the requirements for gaps, contradictions and unstated trade-offs, the
+// second cuts what is generic or already answered and writes the list a client can be asked.
+// Needs nothing but requirements.md, so it runs after the design by default and on its own as
+// `config.stages: ["discovery"]` — a requirements document straight from a client workshop can
+// be turned into the next workshop's agenda without a design in between.
+async function runDiscovery() {
+  phase('Discovery')
+  const probed = await call(
+    task({ inputs: [{ port: 'requirements', path: REQ_PATH }], output: `${run}/probe-questions.md` }),
+    { agentType: 'arch-probe', model: MODELS.probe, label: 'discovery:probe', phase: 'Discovery', schema: PROBE },
+  )
+  if (!probed) {
+    log('[discovery] пробник не отработал — вопросов к заказчику не будет')
+    warnings.push('стадия discovery не дала вопросов: пробник не отработал')
+    return null
+  }
+  log(`[discovery] вопросов-кандидатов: ${(probed.questions || []).length}`)
+  const curated = await call(
+    task({
+      inputs: [
+        { port: 'draft', path: `${run}/probe-questions.md` },
+        { port: 'requirements', path: REQ_PATH },
+      ],
+      output: DISCOVERY_PATH,
+    }),
+    { agentType: 'arch-critic', model: MODELS.discovery, label: 'discovery:curate', phase: 'Discovery', schema: PROBE },
+  )
+  log(
+    curated
+      ? `[discovery] вопросов после отбора: ${(curated.questions || []).length} → ${DISCOVERY_PATH}`
+      : `[discovery] отбор не отработал — остались только кандидаты`,
+  )
+  if (!curated) warnings.push('вопросы к заказчику не отобраны: курирующий агент не отработал')
+  return curated
+}
+
+// Discovery alone: the requirements are on disk (checked just above), no design is asked for.
+if (!RUN_DESIGN) {
+  const found = await runDiscovery()
+  await recordUnresolved([], true)
+  await recordHandoff()
+  const { onDisk: dOnDisk, orphans: dOrphans, foreign: dForeign } = await auditRun()
+  log(`[итог/discovery] вопросов к заказчику: ${found ? (found.questions || []).length : 0}`)
+  return {
+    stages: STAGES,
+    requirements: REQ_PATH,
+    discovery: found ? DISCOVERY_PATH : null,
+    questions: found ? (found.questions || []).length : 0,
+    files_on_disk: dOnDisk.length,
+    files_read_by_agents: touched.size,
+    orphans: dOrphans,
+    other_stage: dForeign,
+    warnings,
+  }
 }
 
 // --- Contest: two models design the same requirements ----------------------------------------
@@ -1624,35 +1686,7 @@ if (borrowBlock) log(`[design] у проигравших взято пункто
 // in front of the client rather than an assumption buried in a section. Two agents: one mines the
 // requirements for gaps, the second cuts what is generic or already answered.
 let discovery = null
-if (RUN_DISCOVERY) {
-  phase('Discovery')
-  const probed = await call(
-    task({ inputs: [{ port: 'requirements', path: REQ_PATH }], output: `${run}/probe-questions.md` }),
-    { agentType: 'arch-probe', model: MODELS.probe, label: 'discovery:probe', phase: 'Discovery', schema: PROBE },
-  )
-  if (!probed) {
-    log('[discovery] пробник не отработал — вопросов к заказчику не будет')
-    warnings.push('стадия discovery не дала вопросов: пробник не отработал')
-  } else {
-    log(`[discovery] вопросов-кандидатов: ${(probed.questions || []).length}`)
-    discovery = await call(
-      task({
-        inputs: [
-          { port: 'draft', path: `${run}/probe-questions.md` },
-          { port: 'requirements', path: REQ_PATH },
-        ],
-        output: DISCOVERY_PATH,
-      }),
-      { agentType: 'arch-critic', model: MODELS.discovery, label: 'discovery:curate', phase: 'Discovery', schema: PROBE },
-    )
-    log(
-      discovery
-        ? `[discovery] вопросов после отбора: ${(discovery.questions || []).length} → ${DISCOVERY_PATH}`
-        : `[discovery] отбор не отработал — остались только кандидаты`,
-    )
-    if (!discovery) warnings.push('вопросы к заказчику не отобраны: курирующий агент не отработал')
-  }
-}
+if (RUN_DISCOVERY) discovery = await runDiscovery()
 
 // --- Gate: the record of what stayed open -----------------------------------------------------
 phase('Gate')
