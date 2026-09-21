@@ -19,9 +19,14 @@
 // reach for a public image key, and silently switching providers is how a run stops testing
 // what it was built to test.
 //
-// Every string in this file is English, including the ones only a person reads. The articles
-// are Russian; the machinery that makes them is not, and a script that mixes the two gives a
-// model one more reason to switch language halfway through a run.
+// Every string in this file is English, including the ones only a person reads. The machinery
+// is English; the document is in whatever language its sources were, and a script that mixes the
+// two gives a model one more reason to switch language halfway through a run.
+//
+// The language of the labels is NOT a constant here. It used to be — the script said "the article
+// is Russian" in three places, because the first three documents it drew for were. Then it drew
+// an English client-facing page and produced Russian labels, one of them rendered as noise. The
+// plan step now reports the document's language and every later task is told it.
 
 export const meta = {
   name: 'attn-figures',
@@ -98,8 +103,14 @@ const REFERENCE_SET = '$FIGGY/data/reference_sets_blog'
 
 const PLAN = {
   type: 'object',
-  required: ['figures'],
+  required: ['figures', 'language'],
   properties: {
+    // Named in English (Russian, English, German), read off the document itself. Every worded
+    // label on every figure is in this language, and so is the brief the illustrator writes.
+    language: {
+      type: 'string',
+      description: 'the language the document is written in, named in English: Russian, English, …',
+    },
     figures: {
       type: 'array',
       minItems: 1,
@@ -310,7 +321,8 @@ const plan = await agent(
     `figure communicates. The slug is latin and hyphenated. Change nothing else in the text: ` +
     `not a word, not the order of the sections.\n\n` +
     `Return the list of figures: slug, caption verbatim, the section it stands after, and what ` +
-    `it is good for.\n\n` +
+    `it is good for. Return also the language the document is written in, named in English — ` +
+    `every worded label on every figure will be in that language.\n\n` +
     (IN_PLACE
       ? `OUTPUT (no file). Your result is the list of placeholders in the schema; the article ` +
         `is not yours to write.`
@@ -319,7 +331,8 @@ const plan = await agent(
         `not it.`),
   { agentType: 'article-writer', model: 'sonnet', label: 'plan', phase: 'Plan', schema: PLAN },
 )
-log(`[plan] figures planned=${plan.figures.length}`)
+const LANG = (plan.language || '').trim() || 'the language of the document'
+log(`[plan] figures planned=${plan.figures.length} language=${LANG}`)
 for (const f of plan.figures) {
   log(`[plan/${f.slug}] «${f.caption}» — after «${f.section}»`)
   log(`[plan/${f.slug}/why] ${f.why}`)
@@ -342,11 +355,12 @@ let drawn = await agent(
     `numbers, not just the headline one. A number the brief does not name is a number the ` +
     `generator invents: one comparison panel shipped with the scaled weights repeated on the ` +
     `unscaled side because the brief named only the peak.\n` +
-    `   The article is Russian, so the worded labels on the figure are Russian too, and the ` +
-    `brief is written in Russian. Formulas and matrix names (X, Q, K, V, W^Q, n × d_k) stay as ` +
-    `they are in the text — they have no language. Keep the worded labels few and short: the ` +
-    `image generator draws Cyrillic worse than Latin, and a long phrase is likelier to come ` +
-    `out mangled than a short one.\n` +
+    `   The document is written in ${LANG}, so every worded label on the figure is in ${LANG}, ` +
+    `and you write the brief in ${LANG}. Copy the wording from the document itself rather than ` +
+    `translating it. Notation, formulas, product names and identifiers (X, Q, K, V, FR-012, ` +
+    `PostgreSQL) stay exactly as the text writes them — they have no language. Keep the worded ` +
+    `labels few and short: an image generator draws a non-Latin script worse than Latin, and a ` +
+    `long phrase is likelier to come out mangled than a short one.\n` +
     `2. Run the tool once with this command, substituting your bin, the slug and the caption:\n\n` +
     drawCommand('<slug>', '<caption>') +
     `\n\n3. The tool names its own run directory and writes final_output.png into it. That ` +
@@ -404,10 +418,11 @@ const lookTask = (slugs) =>
   `shows 0.0924 where the text says 0.0449 is a wrong figure however clean it looks, and one ` +
   `such panel passed a vision critic. A number on the figure that the text does not contain ` +
   `is a defect, named with both values.\n\n` +
-  `Separately and pedantically — CYRILLIC. Image generators break it: letters get substituted ` +
-  `and words turn into Russian-looking noise. Read every Russian label out to yourself: if it ` +
-  `is not a real word, that is a defect, and say which label went wrong. An article with a ` +
-  `figure that has gibberish written on it is worse than an article with no figure.\n\n` +
+  `Separately and pedantically — SPELLING. Image generators break words, and they break a ` +
+  `non-Latin script worst of all: letters get substituted and a word turns into plausible-looking ` +
+  `noise. Read every label out to yourself: if it is not a real word in ${LANG}, that is a ` +
+  `defect, and say which label went wrong. A document with a figure that has gibberish written ` +
+  `on it is worse than a document with no figure.\n\n` +
   `If you crop fragments to inspect details, put them in ${WORK_DIR}, not in ${FIGURES_DIR}: ` +
   `that directory holds only what ships with the article.
 
@@ -417,12 +432,12 @@ const lookTask = (slugs) =>
   `FIRST write out into labels_seen every label on the picture verbatim — all of them, ` +
   `including the small ones under blocks and on arrows. Pass no verdict until you have: this ` +
   `is the step at which what a quick glance skips becomes visible.\n\n` +
-  `THE LANGUAGE OF THE LABELS. The article is Russian, so the worded labels are Russian. Latin ` +
-  `is allowed for: notation and formulas (X, Q, K, V, W^Q, n × d_k, d_model) and the terms the ` +
-  `article itself writes in Latin — softmax and Attention. Anything else in English is a ` +
-  `defect: "output" instead of «выход», "shape unchanged" instead of «форма не меняется», ` +
-  `"Concat" where the article speaks of concatenation. Three figures in one article must be in ` +
-  `one language; a mismatch between them is a defect even if each reads fine on its own.\n\n` +
+  `THE LANGUAGE OF THE LABELS. The document is written in ${LANG}, so every worded label is in ` +
+  `${LANG}. The exceptions are notation, formulas, identifiers and product names that the ` +
+  `document itself writes as they are — those carry over unchanged. A worded label in any other ` +
+  `language is a defect: name it and give the word the document uses instead. All the figures of ` +
+  `one document must be in one language; a mismatch between them is a defect even if each reads ` +
+  `fine on its own.\n\n` +
   `THE TYPOGRAPHY OF THE NOTATION. Subscripts must be subscripts: d_k and d_v are printed as a ` +
   `d with a small k or v below, not as "d_k" with an underscore in the middle of the line. A ` +
   `raw underscore in a formula is a defect, and it is especially visible when both spellings ` +
