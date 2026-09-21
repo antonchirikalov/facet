@@ -139,6 +139,7 @@ const DESIGN_GATE_FLAGS = cfg.designGateFlags || [
   ...[1, 2, 3, 4, 5, 6, 7].map((n) => `--require-heading "^##\\s+${n}\\."`),
   ...['1.1', '1.2', '1.3', '1.4'].map((n) => `--require-heading "^###\\s+${n.replace('.', '\\.')}"`),
   '--forbid-file library/style/forbid/no-bold.txt',
+  '--forbid "\\x60"',
 ]
 const REQ_GATE_FLAGS = cfg.reqGateFlags || [
   ...[1, 2, 3, 4, 5, 6, 7, 8, 9].map((n) => `--require-heading "^##\\s+${n}\\."`),
@@ -150,6 +151,9 @@ const REQ_GATE_FLAGS = cfg.reqGateFlags || [
   // script does not know the document's language.
   '--cell-forbid-file library/style/forbid/req-weak-ru.txt',
   '--cell-forbid-file library/style/forbid/req-weak-en.txt',
+  // No backticks: ids and names are plain text in a requirements document. \x60 is the
+  // character, spelled as a regex escape so that no shell ever sees a real one.
+  '--forbid "\\x60"',
 ]
 const DESIGN_BOUNDS = cfg.designBounds || { min: 12000, max: 0 }
 // No forbidden-pattern files by default. This is an internal engineering document, not an article

@@ -92,3 +92,27 @@ def test_same_language_is_fine(tmp_path: Path) -> None:
 def test_missing_reference_file_is_named(tmp_path: Path) -> None:
     problem = gate.language_mismatch("текст", tmp_path / "нет.md")
     assert problem is not None and "reference missing" in problem
+
+
+def test_backtick_is_caught_by_its_escape(tmp_path: Path) -> None:
+    """Скрипт передаёт --forbid "\\x60": ни один шелл не видит настоящего грависа."""
+    import json
+    import sys
+
+    doc = tmp_path / "d.md"
+    doc.write_text("| FR-001 | `PostgreSQL` | MUST |\n", encoding="utf-8")
+    argv = ["gate.py", "--file", str(doc), "--forbid", "\\x60"]
+    import pytest as _pytest
+
+    monkeypatch = _pytest.MonkeyPatch()
+    monkeypatch.setattr(sys, "argv", argv)
+    import contextlib
+    import io
+
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        gate.main()
+    monkeypatch.undo()
+    report = json.loads(buf.getvalue())
+    assert report["ok"] is False
+    assert any("forbidden pattern matched 2x" in p for p in report["problems"])

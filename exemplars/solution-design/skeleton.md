@@ -11,14 +11,14 @@ Based on requirements v1 of <date> | Output language: <language>
 
 <Two to four paragraphs: the problem the client has today, why the current tools fall short,
 the regulatory and organisational setting, and one plain sentence — what the system is and what
-it deliberately is not. Cite requirement ids inline: `FR-004`, `BR-002`.>
+it deliberately is not. Cite requirement ids inline: FR-004, BR-002.>
 
 ### 1.2 Stakeholders and systems
 
 | # | Role or system | Type | Role in the solution | Key interest | Source |
 | --- | --- | --- | --- | --- | --- |
-| 1 | <Sponsor> | human | approves scope, reads reports across all sites | <…> | `FR-039 — “<quote>”` |
-| 2 | <Accounting system> | external system | read-only source of receipts and price list | <…> | `BR-005 — “<quote>”` |
+| 1 | <Sponsor> | human | approves scope, reads reports across all sites | <…> | FR-039 — “<quote>” |
+| 2 | <Accounting system> | external system | read-only source of receipts and price list | <…> | BR-005 — “<quote>” |
 
 <!-- WHY: one row per human role and per external system the requirements name; the quote is
      what lets the client recognise their own words. -->
@@ -38,7 +38,7 @@ it deliberately is not. Cite requirement ids inline: `FR-004`, `BR-002`.>
 ### 1.4 The core technical bet
 
 <The one decision the rest hangs on — a consistency guarantee, an integration contract, a data
-model — and how it propagates through the design and what it buys. Decision id `D-01`.>
+model — and how it propagates through the design and what it buys. Decision id D-01.>
 
 ## 2. Technology and structure
 
@@ -53,8 +53,8 @@ pattern fits these NFRs and this domain.>
 
 | # | Module | Responsibility | Requirements |
 | --- | --- | --- | --- |
-| 1 | <Scheduling and booking> | <…> | `FR-001`–`FR-013`, `FR-027` |
-| 2 | <Background worker> (isolated: <runtime>) | <…> | `FR-020`, `FR-035` |
+| 1 | <Scheduling and booking> | <…> | FR-001–FR-013, FR-027 |
+| 2 | <Background worker> (isolated: <runtime>) | <…> | FR-020, FR-035 |
 
 <!-- WHY: a requirement id that appears in no row is unmet until section 3 shows otherwise. -->
 
@@ -67,7 +67,7 @@ quoted from section 9 of the requirements.>
 
 | External system | Direction | Protocol or mechanism | What flows | Requirements |
 | --- | --- | --- | --- | --- |
-| <1C> | inbound only | <hourly file drop to object storage> | <receipts, price list> | `BR-005`, `BR-006` |
+| <1C> | inbound only | <hourly file drop to object storage> | <receipts, price list> | BR-005, BR-006 |
 
 ![Data flow: <the one flow prose carries worst, e.g. receipt reconciliation>](figures/data-flow.png)
 
@@ -75,8 +75,8 @@ quoted from section 9 of the requirements.>
 
 ### 3.1 <Area, in the requirements' own order>
 
-<Requirement ids satisfied. The decision `D-NN` and why. The reading taken where a requirement
-was ambiguous, or the setting introduced where 8.1 left a conflict open (`C-002` → setting per
+<Requirement ids satisfied. The decision D-NN and why. The reading taken where a requirement
+was ambiguous, or the setting introduced where 8.1 left a conflict open (C-002 → setting per
 clinic). One scenario walkthrough: a named flow through the modules, naming what is invoked at
 each step.>
 
@@ -88,8 +88,8 @@ each step.>
 
 | Requirement | Design mechanism | How it is verified |
 | --- | --- | --- |
-| `NFR-001` — “<target value quoted>” | <mechanism> | <test, measurement or inspection> |
-| `NFR-004 [PROVISIONAL]` — “<value>” | <mechanism> | <stays provisional until …> |
+| NFR-001 — “<target value quoted>” | <mechanism> | <test, measurement or inspection> |
+| NFR-004 [PROVISIONAL] — “<value>” | <mechanism> | <stays provisional until …> |
 
 ## 5. Infrastructure and deployment
 
@@ -109,7 +109,7 @@ each step.>
 
 | # | Risk | Where it bites | Mitigation | Touches |
 | --- | --- | --- | --- | --- |
-| R-01 | <an exposure of THIS design> | <component or flow> | <what reduces it> | `D-04`, `NFR-008` |
+| R-01 | <an exposure of THIS design> | <component or flow> | <what reduces it> | D-04, NFR-008 |
 
 ## 7. Assumptions to confirm
 

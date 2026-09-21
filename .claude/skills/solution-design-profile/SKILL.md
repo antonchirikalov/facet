@@ -31,8 +31,8 @@ this do what we asked, within what we said we must live with, and what did they 
    how long or how much. The only permitted hedge in the document is the one caveat on the
    infrastructure section.
 3. **Know from chose, on every page.** A reader tells, without leaving the document, which
-   statements come from the requirements (cite the id: `FR-012`, `BR-004`, `C-003`) and which
-   are the designer's proposal (marked as decisions `D-NN` and, where they rest on something
+   statements come from the requirements (cite the id: FR-012, BR-004, C-003) and which
+   are the designer's proposal (marked as decisions D-NN and, where they rest on something
    unconfirmed, collected in section 7). A specific version, product, vendor tool or fact about
    the client's environment that no requirement states is a proposal, not a fact.
 
@@ -67,8 +67,8 @@ one line: Based on requirements v<n> of <date> | Output language: <language>
 
 Rules that make the shape worth having:
 
-- **No front matter, no metadata block, no counts.** The first line is the `# Solution
-  design:` heading. A block that counts figures or modules is a fact nothing checks.
+- **No front matter, no metadata block, no counts.** The first line is the # Solution
+  design: heading. A block that counts figures or modules is a fact nothing checks.
 - **Business context is prose**, two to four paragraphs, and ends with one plain sentence:
   what the system is and what it deliberately is not.
 - **Stakeholders and systems** has one row per human role and per external system the
@@ -79,14 +79,14 @@ Rules that make the shape worth having:
   runtime.
 - **Section 3 follows the requirements' own areas**, in their order, so a reader with the
   requirements open can walk both documents side by side. Each subsection: which ids it
-  satisfies; the decision (`D-NN`) and why; the reading taken where a requirement was
+  satisfies; the decision (D-NN) and why; the reading taken where a requirement was
   ambiguous or where 8.1 of the requirements left a conflict open — the design resolves it as
   a configurable setting or a documented reading, never silently. At least one scenario
   walkthrough per major area: a named, concrete flow through the modules, naming what is
   invoked at each step. The walkthrough is the data-flow narrative; do not add a second one.
 - **Every NFR row quotes the target value** from the requirements and names the mechanism
   that reaches it and how it will be verified (a test, a measurement, an inspection). An NFR
-  the requirements tag `[PROVISIONAL]` stays provisional here.
+  the requirements tag [PROVISIONAL] stays provisional here.
 - **Infrastructure** picks the deployment model the requirements impose (cloud vendor, on
   premises, hybrid, sovereign) and says so in the first line. It opens with the one caveat that
   the topology is a first pass to refine during discovery; that is the only hedge in the
@@ -110,7 +110,7 @@ Rules that make the shape worth having:
 ## Figures
 
 Wherever a diagram explains better than prose, the designer declares a placeholder of the form
-`![caption](figures/<slug>.png)` directly after the paragraph it explains, three to five in all:
+![caption](figures/<slug>.png) directly after the paragraph it explains, three to five in all:
 the context view (who talks to the system), the component or container view, the main data
 flow, the deployment topology, and one sequence or state that prose carries badly. The caption
 is in the document's language and names the elements the figure must show; the slug is Latin
@@ -120,16 +120,18 @@ as missing because the file is not there yet.
 
 ## Style
 
-No bold text anywhere in the body (`library/style/forbid/no-bold.txt` is in the gate);
-structure comes from headings and tables. Three or more items in sequence are a list, not a
+No bold text anywhere in the body (library/style/forbid/no-bold.txt is in the gate);
+structure comes from headings and tables. No backticks anywhere in the body: requirement ids, decision ids, product names, paths and
+values are plain text (FR-012, D-04, PostgreSQL 14). A backtick is code markup; where a design
+genuinely has to show a command or a config key, it goes in a fenced block, and that is rare.
+The gate rejects the character. Three or more items in sequence are a list, not a
 comma-separated sentence. No marketing language — nothing is "cutting-edge", "robust" or
-"best-in-class" without a mechanism behind it. Requirement ids and decision ids are inline in
-backticks. The document is in the language of the requirements document.
+"best-in-class" without a mechanism behind it. The document is in the language of the requirements document.
 
 ## Critic checklist
 
-In order of severity. `HIGH` alone forces `revise`; three or more `MEDIUM` force `revise`;
-`LOW` never does. Every finding names the section and, for a requirement defect, the id.
+In order of severity. HIGH alone forces revise; three or more MEDIUM force revise;
+LOW never does. Every finding names the section and, for a requirement defect, the id.
 
 HIGH
 1. A requirement (FR, NFR, BR) with no module, section-3 decision or explicit deferral to
@@ -170,21 +172,22 @@ The critic writes its remarks in the language of the document.
 
 Deterministic, run by the script before the critic sees the draft:
 
-- headings `## 1.` … `## 7.` and `### 1.1` … `### 1.4` present (`--require-heading`);
-- no heading with nothing under it (`--no-empty-sections`);
-- no bold in the body (`--forbid-file library/style/forbid/no-bold.txt`);
+- headings ## 1. … ## 7. and ### 1.1 … ### 1.4 present (--require-heading);
+- no heading with nothing under it (--no-empty-sections);
+- no bold in the body (--forbid-file library/style/forbid/no-bold.txt);
+- no backtick character anywhere (--forbid);
 - a prose floor from the order when the order gives one; no ceiling the order did not name.
 
 ## Exemplar
 
-`exemplars/solution-design/skeleton.md` — the anonymised skeleton distilled from the
+exemplars/solution-design/skeleton.md — the anonymised skeleton distilled from the
 template this profile descends from and from the strongest live design produced by this
 pipeline. The path to a full reference document, when one is available on this machine, is in
-`exemplars.local.yaml` (not in the repository).
+exemplars.local.yaml (not in the repository).
 
 ## Level
 
-3 — a saved Dynamic Workflow (`solution-design.js`, stage `design`): one candidate per model
+3 — a saved Dynamic Workflow (solution-design.js, stage design): one candidate per model
 in parallel, a selector, then designer → gate → critic in rounds up to the configured limit,
 with a plateau stop; then a discovery step that turns what the design could not close into
 questions for the client.
@@ -192,4 +195,4 @@ questions for the client.
 ## Output language
 
 The language of the requirements document the design is built from, unless the order says
-otherwise. Headings translate; ids, tags and the `# Solution design:` marker do not.
+otherwise. Headings translate; ids, tags and the # Solution design: marker do not.

@@ -25,7 +25,7 @@ Assess the draft on:
 - **Risk honesty** — real exposures are named with mitigations, not glossed over.
 - **Grounding** — a reader can tell requirement from proposal. Specific versions,
   products, vendor tools and assumptions about the client's environment belong under
-  `## Assumptions to confirm`, not stated as established fact. Any claim about what a
+  ## Assumptions to confirm, not stated as established fact. Any claim about what a
   vendor plans or recommends, or where a product stands in a market, is unverifiable
   and must go. A constraint declared satisfied while a path is left unanalysed — a
   notification, an export, a third-party channel carrying personal data — is a defect,
@@ -43,9 +43,9 @@ exist yet is the deliverable at this stage, never a defect; and a remark that ca
 cutting a claim or moving it to section 7 should say so — a design grew ten thousand
 characters over three rounds once because every remark was answered with a paragraph.
 
-Return `approved` when the profile's verdict rule allows it: no HIGH finding and fewer than
-three MEDIUM ones. Return `revise` otherwise. The verdict literal is exactly `approved` or
-exactly `revise`; no synonyms. Every remark is one numbered item with its severity in
+Return approved when the profile's verdict rule allows it: no HIGH finding and fewer than
+three MEDIUM ones. Return revise otherwise. The verdict literal is exactly approved or
+exactly revise; no synonyms. Every remark is one numbered item with its severity in
 brackets first, the section and the requirement or decision id, what is wrong and what to
 do. Write the remarks in the language of the document.
 

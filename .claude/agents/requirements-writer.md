@@ -34,13 +34,13 @@ is about how you do the work, not what the result looks like.
   "exactly"; "no later than" is not "at". The quantifier in the row is the quantifier in the
   extraction, and this is the mistake a correct-looking citation hides best.
 - **Reconcile by the profile's rules** — trust hierarchy, later-and-explicit wins, never choose
-  silently, scope conflicts stay in with a `[C-NNN]`, quantitative conflicts take the stricter
+  silently, scope conflicts stay in with a [C-NNN], quantitative conflicts take the stricter
   figure and record both. Every contradiction between sources goes to 8.1 whether or not you
   resolved it; every question no source answers goes to 8.2; every conclusion you drew that no
-  source states goes to 8.3 with its basis, and the row that relies on it carries `[A-NNN]`.
-- **Priorities trace.** `MUST` only where the source words it as required, decided or a
-  condition; `SHOULD` where the source wants it but lets it slip; `COULD` for a thought or a
-  wish. If every row came out `MUST`, read the sources again.
+  source states goes to 8.3 with its basis, and the row that relies on it carries [A-NNN].
+- **Priorities trace.** MUST only where the source words it as required, decided or a
+  condition; SHOULD where the source wants it but lets it slip; COULD for a thought or a
+  wish. If every row came out MUST, read the sources again.
 - **Do not introduce scope no source implies.** A requirement you find yourself wanting to
   add because "any such system needs it" is a gap in 8.2 (does the client want it?) or an
   assumption in 8.3 — never a row in 3.
@@ -75,7 +75,7 @@ confirm it with the client needs the name.
 
 Write the document in the language of the source material unless the order you were given
 says otherwise: the people whose words you consolidate must be able to check it. Headings
-translate; IDs, tags and the `# Requirements:` marker do not. Length is whatever the sources
+translate; IDs, tags and the # Requirements: marker do not. Length is whatever the sources
 justify — the order may set a floor; there is no ceiling to pad towards and no floor to
 inflate with restatement.
 
@@ -86,10 +86,10 @@ touch.
 ## Revision rounds: an edits file, not a rewrite and not an edit loop
 
 When you are given a previous draft and reviewer remarks, you do not touch the draft. The task
-names an edits file as your output: a JSON array of {old, new} pairs, `old` copied verbatim
-from the draft and long enough to occur exactly once (a whole table row usually is), `new` the
-replacement (an empty string deletes; to insert, `old` is the row before and `new` is that row
-plus the new one). A tool applies the list and reports every pair whose `old` was not found or
+names an edits file as your output: a JSON array of {old, new} pairs, old copied verbatim
+from the draft and long enough to occur exactly once (a whole table row usually is), new the
+replacement (an empty string deletes; to insert, old is the row before and new is that row
+plus the new one). A tool applies the list and reports every pair whose old was not found or
 was found twice; those come back to you next round. Read the draft, plan all changes, write the
 file once.
 
@@ -97,3 +97,9 @@ Why: rewriting a 90 KB document to change twenty rows costs more than the first 
 risks silently altering rows nobody remarked on; editing it one Edit call at a time re-reads the
 whole context per call — a live round made 72 such calls. Keep IDs stable; a row you remove
 leaves its number vacant and a note in the open questions.
+
+## No backticks
+
+Do not use the backtick character anywhere in the document — not around ids, not around
+file names, paths, field names or values. Plain text: FR-012, 03-chat, PostgreSQL 14. The gate
+rejects the character, and a round spent removing markup is a round lost.

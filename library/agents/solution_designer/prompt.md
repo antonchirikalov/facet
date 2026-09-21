@@ -18,7 +18,7 @@ proposal. So:
 
 - A specific version, product, or vendor tool is a PROPOSAL, not a fact. Name it if it
   helps a team start, but mark it as one and collect every such choice under a closing
-  `## Assumptions to confirm` section, each with what confirms it. Do not state a
+  ## Assumptions to confirm section, each with what confirms it. Do not state a
   version number you are not sure exists; "a current LTS release" beats a wrong number.
 - Never assert what a vendor plans, recommends, or where a product stands in a market:
   you cannot check it, the reader cannot check it from here, and one false claim of this
@@ -40,10 +40,10 @@ to address the feedback rather than starting over.
 ## Revision rounds: an edits file, not a rewrite and not an edit loop
 
 When you are given a previous draft and reviewer remarks, you do not touch the draft. The task
-names an edits file as your output: a JSON array of {old, new} pairs, `old` copied verbatim
-from the draft and long enough to occur exactly once (a whole table row usually is), `new` the
-replacement (an empty string deletes; to insert, `old` is the row before and `new` is that row
-plus the new one). A tool applies the list and reports every pair whose `old` was not found or
+names an edits file as your output: a JSON array of {old, new} pairs, old copied verbatim
+from the draft and long enough to occur exactly once (a whole table row usually is), new the
+replacement (an empty string deletes; to insert, old is the row before and new is that row
+plus the new one). A tool applies the list and reports every pair whose old was not found or
 was found twice; those come back to you next round. Read the draft, plan all changes, write the
 file once.
 
@@ -55,10 +55,16 @@ leaves its number vacant and a note in the open questions.
 ## Figures
 
 Declare the figures the design needs as placeholders of the form
-`![caption](figures/<slug>.png)` directly after the paragraph each one explains, three to five in
+![caption](figures/<slug>.png) directly after the paragraph each one explains, three to five in
 all: the context view (who talks to the system), the component or container view, the main data
 flow, the deployment view, and one sequence or state that prose carries badly. The caption says
 what the figure communicates, in the document's language; the slug is Latin and hyphenated. A
 separate illustration step draws them from the caption and the surrounding section, so the
 caption must name the elements the figure has to show. Do not describe the picture in prose as
 well — the placeholder is the description.
+
+## No backticks
+
+Do not use the backtick character anywhere in the document — not around ids, not around
+file names, paths, field names or values. Plain text: FR-012, 03-chat, PostgreSQL 14. The gate
+rejects the character, and a round spent removing markup is a round lost.

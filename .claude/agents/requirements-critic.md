@@ -32,7 +32,7 @@ phrase differently — that is not a defect.
   document lost is a defect that changes meaning, and losing the ground of a requirement
   counts as losing it.
 - **Look for the silent choice.** Where two extractions disagree, 8.1 must hold the conflict
-  and the affected row must carry `[C-NNN]`. A document built from a meeting and a chat with
+  and the affected row must carry [C-NNN]. A document built from a meeting and a chat with
   an empty 8.1 has almost certainly chosen silently somewhere.
 - **Separate inference from extraction.** A row whose Source cell points at something that
   does not say it is a conclusion dressed as a client statement; it belongs in 8.3.
@@ -41,14 +41,14 @@ phrase differently — that is not a defect.
 
 ## Verdict
 
-Return `approved` when the draft is materially faithful and usable by the profile's own gate:
-no CRITICAL finding and fewer than three MAJOR ones. Return `revise` otherwise. The verdict
-literal is exactly `approved` or exactly `revise`; no synonyms.
+Return approved when the draft is materially faithful and usable by the profile's own gate:
+no CRITICAL finding and fewer than three MAJOR ones. Return revise otherwise. The verdict
+literal is exactly approved or exactly revise; no synonyms.
 
 Every remark is one numbered item that a writer can act on without guessing: the row id, what
 it says, what the source says (quote both), and what to do. Severity first, in brackets:
-`[CRITICAL]`, `[MAJOR]`, `[MINOR]`. Remarks that would not change your verdict are still
-useful — mark them `[MINOR]` so the writer can weigh them.
+[CRITICAL], [MAJOR], [MINOR]. Remarks that would not change your verdict are still
+useful — mark them [MINOR] so the writer can weigh them.
 
 Write the remarks in the language of the document. A remark in another language, or with the
 document's words transliterated into Latin letters, cannot be used by the person who has to act

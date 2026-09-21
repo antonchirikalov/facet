@@ -40,8 +40,8 @@ Source cell. Start with a header block, then the tables, in this order.
 | ID | Question or contradiction | Positions (who says what) | Source |
 ```
 
-- **requirements** — discrete things the system must do or satisfy; type `functional`,
-  `non_functional`, `constraint` or `assumption`. One sentence each, keeping the source's own
+- **requirements** — discrete things the system must do or satisfy; type functional,
+  non_functional, constraint or assumption. One sentence each, keeping the source's own
   quantifiers and figures exactly ("one doctor in each clinic", not "doctors"). If the
   document states none, leave the table with only its header — do not manufacture rows.
 - **decisions** — choices the source records as already made, and who made them.
@@ -72,3 +72,6 @@ they are structure, not content.
 
 Do not resolve contradictions between this document and any other — you only see one source.
 Reconciliation happens downstream.
+
+No backticks in the extract either: ids, file names and locators are plain text. The writer
+copies your cells into the requirements document, and the gate there rejects the character.

@@ -28,7 +28,7 @@ Check and fix, in this order:
   live run shipped "every doctor" where the source said "one doctor in each clinic".
 - **Attribution.** A row presented as the client's decision must trace to an extraction that
   records it as one, by the person who could decide it. A remark by someone else, or a wish,
-  becomes `SHOULD`/`COULD` with the right quote, or a gap in 8.2.
+  becomes SHOULD/COULD with the right quote, or a gap in 8.2.
 - **Lost ground.** Where an extraction gives the reason for a requirement — a defect, a
   physical fact about the site, a legal position, a cost — and the row dropped it, put it back
   with the row it justifies.
@@ -42,8 +42,8 @@ Check and fix, in this order:
   unsupported row look supported — and this is a correction, not a remark: a critic can only
   report it, and reporting it costs a whole round.
 - **Conflict bookkeeping.** A row that takes one side of a disagreement between extractions
-  carries `[C-NNN]` and 8.1 holds the conflict with both positions; add the entry if the row
-  exists and the entry does not. A row resting on an assumption carries `[A-NNN]`.
+  carries [C-NNN] and 8.1 holds the conflict with both positions; add the entry if the row
+  exists and the entry does not. A row resting on an assumption carries [A-NNN].
 
 Preserve everything you had no reason to change: the sections and their order, the tables and
 their columns, the IDs (never renumber — a row you remove leaves its number vacant and a note

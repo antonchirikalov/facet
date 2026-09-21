@@ -28,7 +28,7 @@ supports it named; disagreements between sources shown, not averaged.
 ## Section contract
 
 The document has exactly these parts, in this order. Headings are written in the document's
-language, but each numbered heading keeps its number and each sub-heading its `N.M` — the gate
+language, but each numbered heading keeps its number and each sub-heading its N.M — the gate
 checks the numbers, a reader checks the names.
 
 ```
@@ -59,23 +59,23 @@ one paragraph "About this version": how Source cells are formed (see below), wha
 
 Rules that make the shape worth having:
 
-- **No front matter, no metadata block, no counts.** A block that says `fr_count: 9` above ten
+- **No front matter, no metadata block, no counts.** A block that says fr_count: 9 above ten
   requirements is a fact about the document that nothing checks and that goes stale on the
   next edit; a reader who catches one wrong number stops trusting the requirements. The first
-  line of the file is the `# Requirements:` heading.
+  line of the file is the # Requirements: heading.
 - **Section 1 lists roles, not people.** A row is a role — sponsor, clinic manager,
   administrator, doctor, accountant, IT contractor — with what that role does with the system;
   the person who holds it is named in the Description where the sources name them. Ten rows of
   named individuals is a contact list, and a design cannot be checked against a contact list.
-- **Document index** lists every input document with its type: `brief`, `rfp`, `transcript`,
-  `meeting notes`, `chat`, `email`, `spreadsheet`, `client answers`. The type is what the trust
+- **Document index** lists every input document with its type: brief, rfp, transcript,
+  meeting notes, chat, email, spreadsheet, client answers. The type is what the trust
   hierarchy below keys on.
 - **Domain grounding is prose.** One to five sentences that teach a reader with no context
   what is being built, for whom, and in what setting. One dense sentence is enough when it
   carries everything; do not pad. No bullets here.
 - **Section 3 is grouped by business area, never by source document**: scheduling, booking,
   notifications, records, billing, reporting, access, integrations — whatever the domain has.
-  Each area is one `### 3.N` subsection with three to ten rows. `FR-NNN` numbers run
+  Each area is one ### 3.N subsection with three to ten rows. FR-NNN numbers run
   sequentially across ALL subsections and never restart. The last subsection of 3 is
   **Out of scope**: what a source explicitly excludes from this version, with the excluding
   words in the Source cell. A document with no scope boundary has no scope.
@@ -99,16 +99,20 @@ Rules that make the shape worth having:
   word. Not mandatory, recommended: a row that fits none of them is usually two rows or a fact.
 - **No weak words in the Requirement cell.** "where possible", "as appropriate", "fast",
   "user-friendly", "approximately", "etc.", "and/or" and their Russian equivalents make a row
-  unverifiable; the gate lists them from `library/style/forbid/req-weak-*.txt` and names the
+  unverifiable; the gate lists them from library/style/forbid/req-weak-*.txt and names the
   row. A client's own weak words belong in the Source cell as a quote, and the row then states
   the checkable reading of them or goes to 8.2 as a gap.
+- **No backticks anywhere in the document.** Requirement ids, document ids, file names,
+  field names, paths and values are plain text: FR-012, 03-chat, PostgreSQL 14. A backtick is
+  code markup, and a requirements document has no code; the gate rejects the character
+  wherever it appears, including Source cells.
 - **Quantifiers are copied, not improved.** "one doctor per clinic", "each clinic", "any free
   slot", "at least", "no later than": the quantifier in the row is the quantifier in the source.
   Widening "one per clinic" into "every" is a meaning change, and it is the change a reviewer
   misses because the Source cell still points at the right place.
 - **Section 4: every NFR has a number** or an equally checkable criterion. "Fast" and "secure"
   are not requirements. Where the client declined to fix a figure, keep the indicative value
-  and tag the row `[PROVISIONAL]`; where no figure exists at all, the row is a gap in 8.2, not
+  and tag the row [PROVISIONAL]; where no figure exists at all, the row is a gap in 8.2, not
   an NFR. Categories: Performance, Security, Scalability, Availability, Legal/Compliance, UX,
   Ops/Maintainability, Internationalisation, Data sovereignty, Business/Financial.
 - **Section 5 holds what must always be true at runtime and what the project must live
@@ -122,7 +126,7 @@ Rules that make the shape worth having:
   it (read-only, write-back, hourly file drop).
 - **Section 8 is where honesty lives.** 8.1 lists every contradiction between sources or
   within one source — including resolved ones — with the positions, who holds them, and the
-  resolution or `UNRESOLVED`. 8.2 lists what no source answers and what depends on the
+  resolution or UNRESOLVED. 8.2 lists what no source answers and what depends on the
   answer. 8.3 lists every conclusion the writer drew that no source states, with its basis.
   "No conflicts found" is written only when none were found, and a document built from a
   meeting and a chat almost always has some.
@@ -132,17 +136,17 @@ Rules that make the shape worth having:
 
 ## IDs, tags and priorities
 
-- `FR-NNN`, `NFR-NNN`, `BR-NNN` — three-digit, zero-padded, sequential within their section
+- FR-NNN, NFR-NNN, BR-NNN — three-digit, zero-padded, sequential within their section
   (FR across all of section 3), no gaps, no duplicates, never renumbered between versions.
-- `C-NNN`, `G-NNN`, `A-NNN` — conflicts, gaps, assumptions. A requirement affected by a
-  conflict carries `[C-NNN]` in its Source cell; one affected by an assumption carries `[A-NNN]`.
-- Tags in the ID or Requirement cell, square brackets, upper case: `[PROVISIONAL]` for a figure
-  the client would not fix; `[CHANGED]`, `[NEW]`, `[REVISED]` for rows that moved since the
-  previous version (v2+ only); `[C-NNN]` / `[A-NNN]` as above.
-- Priority is `MUST`, `SHOULD` or `COULD`, and it traces like everything else: `MUST` when the
-  source words it as required, decided or a condition of the deal; `SHOULD` when the source
-  wants it but allows it to slip ("would be good", "if possible", "later if not now"); `COULD`
-  when the source mentions it as a thought or a wish. A document where every row is `MUST` has
+- C-NNN, G-NNN, A-NNN — conflicts, gaps, assumptions. A requirement affected by a
+  conflict carries [C-NNN] in its Source cell; one affected by an assumption carries [A-NNN].
+- Tags in the ID or Requirement cell, square brackets, upper case: [PROVISIONAL] for a figure
+  the client would not fix; [CHANGED], [NEW], [REVISED] for rows that moved since the
+  previous version (v2+ only); [C-NNN] / [A-NNN] as above.
+- Priority is MUST, SHOULD or COULD, and it traces like everything else: MUST when the
+  source words it as required, decided or a condition of the deal; SHOULD when the source
+  wants it but allows it to slip ("would be good", "if possible", "later if not now"); COULD
+  when the source mentions it as a thought or a wish. A document where every row is MUST has
   not read its sources.
 
 ## The Source cell
@@ -154,23 +158,23 @@ is not a requirement — it is a conclusion, and it moves to 8.3. The cell is bu
 <doc-id>: <locator> — “<short verbatim quote>”
 ```
 
-- `<doc-id>` is the input file's stem as listed in the document index, e.g. `03-chat`,
-  `RFP_Questions` — the same identifier in every cell, never a paraphrase of the title.
-- `<locator>` is what lets a reader open the document and find the sentence: a section or
-  heading, a page, a question number (`Q123`), a date and time with the speaker for chats and
-  transcripts (`08.09 11:20, Nastya`), a table name. A file name alone is not a locator.
+- <doc-id> is the input file's stem as listed in the document index, e.g. 03-chat,
+  RFP_Questions — the same identifier in every cell, never a paraphrase of the title.
+- <locator> is what lets a reader open the document and find the sentence: a section or
+  heading, a page, a question number (Q123), a date and time with the speaker for chats and
+  transcripts (08.09 11:20, Nastya), a table name. A file name alone is not a locator.
 - The quote is the source's own words for whatever carries the meaning — the number, the
   name, the threshold, the decisive phrase — kept short. Paraphrase in the Requirement cell,
   quote in the Source cell.
-- Two sources supporting one row are two references separated by `;`. A row both documents
+- Two sources supporting one row are two references separated by ;. A row both documents
   support is stronger than one mentioned in passing, and only the cell shows which is which.
 - When a later source changed an earlier position, the cell names both and says which won:
-  `02-meeting: §2 — “not decided”; 03-chat: 08.09 11:30, Anton — “new phone: SMS code” (later,
-  explicit)`.
+  02-meeting: §2 — “not decided”; 03-chat: 08.09 11:30, Anton — “new phone: SMS code” (later,
+  explicit).
 - Where the input is a set of client answers, the reference is the answer id and the quote
-  (`Q317 — “open to either a shared platform or independent solutions”`); where a requirement
+  (Q317 — “open to either a shared platform or independent solutions”); where a requirement
   comes only from the brief and was neither confirmed nor changed by the answers, the cell says
-  so (`brief: §4 (no Q&A delta)`) instead of inventing a citation.
+  so (brief: §4 (no Q&A delta)) instead of inventing a citation.
 
 ## Reconciling sources
 
@@ -180,22 +184,22 @@ is not a requirement — it is a conclusion, and it moves to 8.3. The cell is bu
   unless a lower-trust source is later AND explicit — then the later statement wins and 8.1
   records both.
 - **Never choose silently.** Every contradiction goes to 8.1 with both positions, both sources
-  and the resolution rule applied — or `UNRESOLVED` and the question that would resolve it.
-  The requirement row states the position taken and carries `[C-NNN]`.
+  and the resolution rule applied — or UNRESOLVED and the question that would resolve it.
+  The requirement row states the position taken and carries [C-NNN].
 - **Scope conflict** (one source includes, another excludes): the requirement stays in the
-  document, its Source cell carries `[C-NNN]`, and 8.1 says who wants it out.
+  document, its Source cell carries [C-NNN], and 8.1 says who wants it out.
 - **Quantitative conflict** (two figures for one thing): the row takes the more constraining
   figure, names both in the Source cell, and 8.1 holds the conflict. Never average.
 - **Gap is not conflict.** Missing from all sources → 8.2. Different in two sources → 8.1.
 - **Forced choice** — the document cannot be finished without picking a value nobody gave —
-  is an assumption in 8.3 with its basis, and the row carries `[A-NNN]`.
-- **Wishes stay wishes.** "It would be great if", "just a thought": a `COULD` row if a
+  is an assumption in 8.3 with its basis, and the row carries [A-NNN].
+- **Wishes stay wishes.** "It would be great if", "just a thought": a COULD row if a
   stakeholder with authority said it, otherwise a gap in 8.2 asking whether it is wanted.
 
 ## Critic checklist
 
-In order of severity. `CRITICAL` alone forces `revise`; three or more `MAJOR` force `revise`;
-`MINOR` never does. Every finding names the row (ID) and, for a source defect, both what the
+In order of severity. CRITICAL alone forces revise; three or more MAJOR force revise;
+MINOR never does. Every finding names the row (ID) and, for a source defect, both what the
 row says and what the source says.
 
 CRITICAL
@@ -206,20 +210,20 @@ CRITICAL
    lost — including the ground of a requirement (the number, defect, legal fact) that the
    source gives and the row dropped.
 3. A conflict between sources that the document resolved silently: one position taken, no
-   `C-NNN`, nothing in 8.1.
+   C-NNN, nothing in 8.1.
 4. A conclusion the writer drew presented as a client statement — a row with a Source cell
    pointing at something that does not say it, instead of an assumption in 8.3.
 5. A mandatory section missing, or section 3 without an Out of scope subsection.
 
 MAJOR
-6. An NFR with no number and no checkable criterion, not tagged `[PROVISIONAL]`, not moved to
+6. An NFR with no number and no checkable criterion, not tagged [PROVISIONAL], not moved to
    8.2.
 6a. A row that is not necessary (removing it would leave no gap a stakeholder would notice),
    not feasible within the constraints of section 5 as the sources state them, or not a
    requirement at all but a design decision (HOW instead of WHAT) — ISO 29148 C1, C6 and the
    "implementation-free" rule.
 7. A row with several independently checkable statements bundled into one.
-8. Every row `MUST`; or a priority the source does not support.
+8. Every row MUST; or a priority the source does not support.
 9. 8.2 missing an open question that an extract raised; 8.3 missing an assumption the text
    relies on; an assumption without a basis.
 10. Section 3 grouped by source document rather than by business area; or a single flat table.
@@ -238,27 +242,28 @@ or with the document's words transliterated, is unusable by the reader who has t
 Deterministic, run by the script before the critic sees the draft; what the gate settles never
 costs a round:
 
-- headings `## 1.` … `## 9.` and `### 8.1`, `### 8.2`, `### 8.3` present (`--require-heading`);
-- no heading with nothing under it (`--no-empty-sections`);
+- headings ## 1. … ## 9. and ### 8.1, ### 8.2, ### 8.3 present (--require-heading);
+- no heading with nothing under it (--no-empty-sections);
 - every body row of a table that has a Source column has a non-empty Source cell
-  (`--rows-have-source`);
-- no duplicate `FR-`, `NFR-`, `BR-`, `C-`, `G-`, `A-` ids (`--unique-ids`);
-- a floor on file length (`--min-length`), not on prose: the document is tables, and a
+  (--rows-have-source);
+- no duplicate FR-, NFR-, BR-, C-, G-, A- ids (--unique-ids);
+- no backtick character anywhere (--forbid);
+- a floor on file length (--min-length), not on prose: the document is tables, and a
   prose floor made a table-complete draft fail its first round and grow two thousand
   characters of filler to pass the second. No ceiling the order did not name.
 
 ## Exemplar
 
-`exemplars/requirements/skeleton.md` — the anonymised skeleton of the reference document this
+exemplars/requirements/skeleton.md — the anonymised skeleton of the reference document this
 profile was distilled from: an RFP-stage requirements document reconciled against several
 hundred written client answers, nine sections, every row sourced to an answer id and a quote.
 Read it for shape and density; the content there is placeholders. The path to the full
-reference document, when one is available on this machine, is in `exemplars.local.yaml`
+reference document, when one is available on this machine, is in exemplars.local.yaml
 (not in the repository).
 
 ## Level
 
-3 — a saved Dynamic Workflow (`solution-design.js`, stage `requirements`): one extractor per
+3 — a saved Dynamic Workflow (solution-design.js, stage requirements): one extractor per
 input document in parallel, then writer → fact-checker → gate → critic in rounds up to the
 configured limit, with a plateau stop.
 
@@ -266,4 +271,4 @@ configured limit, with a plateau stop.
 
 The language of the source material, unless the order says otherwise. The people whose words
 the document consolidates must be able to check it against what they said. Headings translate;
-IDs, tags and the `# Requirements:` marker do not.
+IDs, tags and the # Requirements: marker do not.
