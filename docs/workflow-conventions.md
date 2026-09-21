@@ -16,8 +16,8 @@
 рантайма — всё это было в refract и умерло намеренно, потому что платформа делает это лучше
 и меняется быстрее, чем мы успевали бы за ней.
 
-Разбор, из которого выросло это решение, лежит в `docs/analysis-native-claude-vs-refract.md`
-и `docs/plan.md` (перенесены из refract).
+Разбор, из которого выросло это решение, лежит в `docs/decisions/2026-08-13-analysis-native-claude-vs-refract.md`
+и `docs/decisions/2026-08-13-collimator-plan.md` (перенесены из refract).
 
 ## Команды
 
@@ -71,7 +71,7 @@ python -X utf8 tools/confluence_publish.py --draft <файл> --parent-id <id> -
 `registry.py`, ни `prompt.py`, ни `emit_workflow.py`, ни команды `collimate build`. Питона в
 пакете 144 строки: генератор определений агентов и модель агента. Скрипты конвейеров написаны
 руками, и это состояние, а не этап — решение о компиляторе принимается по замеру во втором
-архетипе (см. `docs/dynamic-workflows-retrospective-2026-08-17.md`).
+архетипе (см. `docs/decisions/2026-08-17-dynamic-workflows-retrospective.md`).
 
 - `collimator/emit_agents.py` — `agent.yaml` + `prompt.md` → `.claude/agents/<slug>.md`.
   Единственная работающая половина компилятора. Хвост ввода-вывода, который в refract строил

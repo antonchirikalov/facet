@@ -1,7 +1,7 @@
 """Тесты генератора определений подагентов.
 
 Две части. Первая — отображение возможностей контракта в инструменты: таблица из
-`docs/plan.md`, включая слипание `read` и `vision` в один `Read`. Вторая — сборка на
+`docs/decisions/2026-08-13-collimator-plan.md`, включая слипание `read` и `vision` в один `Read`. Вторая — сборка на
 настоящей библиотеке: 22 агента, и MCP ровно у тех пяти, у которых его называет `needs`.
 """
 
@@ -264,7 +264,7 @@ def test_every_emitted_file_parses_and_has_tools(tmp_path: Path) -> None:
 
 
 def test_mcp_appears_exactly_where_the_contract_names_it(tmp_path: Path) -> None:
-    """Проверка результата из `docs/plan.md`: ни одного лишнего разрешения на MCP."""
+    """Проверка результата из `docs/decisions/2026-08-13-collimator-plan.md`: ни одного лишнего разрешения на MCP."""
     emit_all(LIBRARY_AGENTS, tmp_path)
     with_tavily = set()
     with_pdf = set()
