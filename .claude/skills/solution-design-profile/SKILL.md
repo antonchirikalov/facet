@@ -21,7 +21,7 @@ guess labelled as a guess. It is read by two people with different questions: th
 asks "can I build from this without re-deriving the core decisions?", the client asks "does
 this do what we asked, within what we said we must live with, and what did they assume?".
 
-## Three rules that override everything below
+## Five rules that override everything below
 
 1. **One architecture, not several.** The document puts forward ONE design. A credible
    alternative is dismissed in a single prose sentence where the decision is made — never
@@ -29,12 +29,24 @@ this do what we asked, within what we said we must live with, and what did they 
 2. **No estimates of any kind.** No money, no durations, no T-shirt sizes, no story points,
    no team sizes. Phases are defined by what they deliver and their exit criterion, never by
    how long or how much. The only permitted hedge in the document is the one caveat on the
-   infrastructure section.
+   infrastructure section. The one exception: when the ORDER asks for a timeline, it is a separate
+   section marked preliminary, in weeks and deliverables, with no money and no team size.
 3. **Know from chose, on every page.** A reader tells, without leaving the document, which
    statements come from the requirements (cite the id: FR-012, BR-004, C-003) and which
    are the designer's proposal (marked as decisions D-NN and, where they rest on something
    unconfirmed, collected in section 7). A specific version, product, vendor tool or fact about
    the client's environment that no requirement states is a proposal, not a fact.
+4. **The smallest design that meets the requirements at their stated weight.** A heavy
+   mechanism — an offline store of all data, synchronisation with conflict resolution, a
+   message queue, a CDN or web firewall, an extra service, a second datastore — is added only
+   when a MUST requirement with a stated frequency or consequence needs it at the first
+   version's scale. Otherwise it goes to "Later" with the requirement that would trigger it.
+   The Vista design built all of these for a call that said "no signal is rare, record the
+   current visit"; a developer saw it in a minute, the loop did not.
+5. **DECISIONS are given.** When the task carries a DECISIONS block, a decided item is taken
+   as the design's premise and justified from the requirements, never reopened; a compare item
+   is the one exception to rule 1 — both options with their trade-offs, the choice left open in
+   section 7. An ORDER block sets scope, audience and mandatory sections the same way.
 
 ## Section contract
 
@@ -137,7 +149,8 @@ HIGH
 1. A requirement (FR, NFR, BR) with no module, section-3 decision or explicit deferral to
    section 7 — read the requirements id by id, do not sample.
 2. More than one architecture presented for the reader to choose between.
-3. Any estimate: money, duration, size, team.
+3. Any estimate: money, duration, size, team — except a timeline the ORDER asked for, in its
+   own section marked preliminary (rule 2).
 4. A constraint declared satisfied over an unanalysed path (a personal-data egress, an
    integration direction the requirements forbid).
 5. A fact about the client's environment, a vendor's plans, a version or a benchmark stated
@@ -145,6 +158,12 @@ HIGH
 6. A missing top-level section, or 1.1–1.4 missing from section 1.
 7. A conflict the requirements left open in 8.1 that the design resolves silently, without a
    decision id and without a setting or a stated reading.
+7a. A heavy mechanism (offline store of all data, sync with conflict resolution, queue, CDN,
+   web firewall, extra service or datastore) that no MUST requirement with a stated frequency
+   or consequence needs at the first version's scale — name the mechanism and the requirement
+   weight it overshoots.
+7b. A decided DECISIONS item reopened, replaced or contradicted; a compare item shown with one
+   option; an ORDER requirement (a mandatory section, a stack, a scope bound) not honoured.
 
 MEDIUM
 8. A functional area of the requirements without a scenario walkthrough.

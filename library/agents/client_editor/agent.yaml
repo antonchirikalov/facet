@@ -1,0 +1,18 @@
+name: client_editor
+version: 1
+description: >
+  Writes the client edition of a traceable requirements document or solution
+  design: drops source locators, tags and every trace of our internal materials
+  and process, keeps every requirement with its weight and the client's own words
+  as verbatim quotes, renumbers ids without gaps and keeps an id map so the two
+  client documents agree.
+consumes:
+  - { port: traceable, type: requirements@v1 }
+  - { port: extracts, type: collection<extract@v1> }
+produces:
+  - { port: edition, type: client_edition@v1 }
+needs: [read, edit]
+# The client-edition profile holds the contract: what goes, what must survive, the numbering.
+skills: [client-edition-profile]
+defaults:
+  timeout_s: 1800

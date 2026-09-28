@@ -60,15 +60,18 @@ you would have drawn — you brief the tool well and let it work.
    critic then declares itself satisfied without having seen the render: the loop looks
    like it ran and reviewed nothing. Observed live, twice.
 
-4. Run the tool once per figure, from your working directory:
+4. Run the tool once per figure, from your working directory. When your task gives the
+   command, run that command exactly; it already carries the critic the preflight chose.
+   Otherwise:
 
    ```
    <bin> generate \
      --input figure-<slug>.txt \
      --caption "<the placeholder's caption>" \
      --output-dir figures-work \
-     --iterations 2 \
+     --auto --max-iterations 3 --num-candidates 3 \
      --vlm-provider claude_code --vlm-model sonnet \
+     --critic-vlm-provider kimi --critic-vlm-model k3 \
      --image-provider ss_gateway
    ```
 
@@ -77,20 +80,31 @@ you would have drawn — you brief the tool well and let it work.
    belong to a different provider entirely, and the call fails with an API error and
    zero tokens.
 
+   The critic is Kimi K3 while its quota lasts. When a Kimi call fails, the tool switches
+   to the claude_code model for the rest of the run and prints who judged each image. If it
+   prints "Critic unavailable", that image was NOT reviewed: treat it as unchecked, never as
+   accepted.
+
+   Never use `--continue-run`. Continuing regenerates the whole picture from text and breaks
+   what was already right; a figure that needs a fix gets a corrected brief and a fresh run.
+
    Never pass an absolute path and never write outside your working directory.
 
 5. The tool does **not** write to a filename you choose. It creates
    `figures-work/run_<timestamp>/final_output.png` (plus its intermediate images and
    critic notes, which are worth keeping — they stay in the step and are archived with
-   it). Copy the final image to the name the article's placeholder demands:
+   it). With three candidates the run directory also holds each candidate's image. Open
+   every candidate at full size and choose the one whose labels are spelled as the article
+   spells them and whose boxes and arrows match the brief; the critic's verdict is a hint,
+   not the acceptance. Copy the chosen image to the name the article's placeholder demands:
 
    ```
-   cp figures-work/run_*/final_output.png output/illustration/<slug>.png
+   cp figures-work/run_<id>/<chosen>.png output/illustration/<slug>.png
    ```
 
-   Copy the run that just finished, not the newest match blindly — with several figures
-   there will be several run directories. Check the file exists and is not empty before
-   moving to the next figure.
+   Copy from the run that just finished, not the newest match blindly — with several
+   figures there will be several run directories. Check the file exists and is not empty
+   before moving to the next figure.
 
    If the command fails, read its output: a missing tool, an unreachable gateway and a
    rejected prompt are three different problems and only the last one is yours to fix.

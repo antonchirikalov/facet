@@ -331,6 +331,37 @@ def duplicate_ids(text: str, pattern: str) -> list[str]:
     return dupes
 
 
+def id_gaps(text: str, pattern: str) -> list[str]:
+    """Declared ids that break the 1, 2, 3 order of their prefix, as "FR-008 after FR-006".
+
+    A client edition renumbers after cutting rows; the Vista one was renumbered by hand with a
+    map, and a skipped number reads as a requirement that was removed. Declarations only, as in
+    duplicate_ids; the prefix is everything before the last run of digits.
+    """
+    rx = re.compile(pattern)
+    last: dict[str, tuple[int, str]] = {}
+    gaps: list[str] = []
+    for line in text.splitlines():
+        if not TABLE_LINE.match(line):
+            continue
+        cells = split_row(line)
+        if not cells:
+            continue
+        match = rx.search(cells[0])
+        if match is None or match.start() != 0:
+            continue
+        found = match.group(0)
+        number = re.search(r"(\d+)\D*$", found)
+        if number is None:
+            continue
+        prefix, n = found[: number.start(1)], int(number.group(1))
+        before, name = last.get(prefix, (0, ""))
+        if n != before + 1:
+            gaps.append(f"{found} after {name}" if name else f"{found} first")
+        last[prefix] = (n, found)
+    return gaps
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="Deterministic content gates.")
     p.add_argument("--file", type=Path, help="document to check")
@@ -379,6 +410,11 @@ def main() -> int:
         "--unique-ids",
         metavar="REGEX",
         help="ids matching this pattern at the start of a table row must be unique",
+    )
+    p.add_argument(
+        "--sequential-ids",
+        metavar="REGEX",
+        help="declared ids of each prefix must run 1, 2, 3 without gaps, in document order",
     )
     p.add_argument(
         "--cell-forbid-file",
@@ -453,6 +489,12 @@ def main() -> int:
                 measures["duplicate_ids"] = dupes
                 if dupes:
                     problems.append(f"duplicate ids ({len(dupes)}): " + ", ".join(dupes[:12]))
+
+            if args.sequential_ids:
+                gaps = id_gaps(text, args.sequential_ids)
+                measures["id_gaps"] = gaps
+                if gaps:
+                    problems.append(f"ids out of sequence ({len(gaps)}): " + ", ".join(gaps[:12]))
 
             if args.cell_forbid_file:
                 weak, missing = cell_forbidden(text, args.cell_forbid_file)

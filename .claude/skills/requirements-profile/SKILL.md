@@ -148,6 +148,12 @@ Rules that make the shape worth having:
   wants it but allows it to slip ("would be good", "if possible", "later if not now"); COULD
   when the source mentions it as a thought or a wish. A document where every row is MUST has
   not read its sources.
+- Weight travels with the requirement. When a source says how often something happens or how
+  much it matters — "rare", "99% of jobs", "usually", "nice", "a little over the top", "every
+  visit" — that wording goes into the Requirement cell itself ("Without a signal, which the
+  owner calls rare, the technician can still draw and record"). The design sizes its mechanisms
+  by it: the Vista run lost "rare, only the current visit" on the way from the call to NFR-001,
+  and the design built an encrypted offline store of every job with conflict resolution.
 
 ## The Source cell
 
@@ -224,6 +230,8 @@ MAJOR
    "implementation-free" rule.
 7. A row with several independently checkable statements bundled into one.
 8. Every row MUST; or a priority the source does not support.
+8a. A frequency or importance the source states ("rare", "nice", "99% of jobs", "over the
+   top") dropped from the row it qualifies.
 9. 8.2 missing an open question that an extract raised; 8.3 missing an assumption the text
    relies on; an assumption without a basis.
 10. Section 3 grouped by source document rather than by business area; or a single flat table.

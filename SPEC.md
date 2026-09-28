@@ -73,6 +73,7 @@ facet — дом для практики подготовки документо
 | `requirements.js` | папка `input/` с документами клиента | `reqs/_requirements.md`, `_traceability.md`, `_open_questions.md`, `_unresolved.md` | **написать** (по образцу `solution-design.js`) |
 | `solution-design.js`, этап `design` | `requirements.md` | `design.md` + плейсхолдеры рисунков, кандидаты двух моделей, `discovery-questions.md` | есть |
 | `solution-design.js`, этап `discovery` | документы клиента (со `stages: ["requirements","discovery"]`) или готовый `requirements.md` | `discovery-questions.md` — вопросы клиенту по пробелам и противоречиям, с доменным поиском и ссылками на пункты требований | есть (отдельно с 2026-09-21) |
+| `solution-design.js`, этап `client` | принятые `requirements.md` и `design.md`, `extracts/` | `requirements.client.md`, `design.client.md`, `client-id-map.json` — редакции для заказчика без источников, меток и следов процесса, с цитатами клиента и сквозной нумерацией | есть (с 2026-09-28) |
 | `explainer-article.js` | заказ в одну фразу | статья, источники, записи кругов | есть |
 | `attn-figures.js` | документ с плейсхолдерами | PNG + манифест | есть |
 

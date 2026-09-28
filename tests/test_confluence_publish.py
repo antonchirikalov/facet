@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+import argparse
 import re
 from pathlib import Path
 
@@ -165,3 +166,35 @@ def test_отсутствующее_вложение_падает_с_имене�
 def test_заголовок_берётся_из_первого_h1() -> None:
     assert cp.first_h1("# Название\n\nтекст\n", "запас") == "Название"
     assert cp.first_h1("текст без заголовка\n", "запас") == "запас"
+
+
+# --- внутренние документы не уходят дословно ------------------------------------------------
+
+
+def test_метка_внутреннего_документа_находится_в_шапке() -> None:
+    assert cp.internal_marker(
+        "# Бриф\n\nВнутренний документ для команды продажи, клиенту не показывать."
+    )
+    assert cp.internal_marker("# Client research notes (internal)\n\ntext")
+    assert cp.internal_marker("# Design\n\nThe PDF service is an internal tool.") is None
+
+
+def test_внутренний_черновик_не_публикуется(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    draft = tmp_path / "brief.md"
+    draft.write_text("# Бриф\n\nВнутренний документ, клиенту не показывать.\n", encoding="utf-8")
+    monkeypatch.setenv("CONFLUENCE_URL", "https://example.invalid")
+    monkeypatch.setenv("CONFLUENCE_PERSONAL_TOKEN", "t")
+    args = argparse.Namespace(
+        draft=str(draft),
+        title=None,
+        illustrations=None,
+        attachment=[],
+        no_toc=True,
+        dry_run=None,
+        allow_internal=False,
+    )
+    with pytest.raises(cp.Failure) as exc:
+        cp.run(args)
+    assert exc.value.stage == "policy"

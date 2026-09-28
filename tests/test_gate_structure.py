@@ -172,3 +172,30 @@ def test_clean_document_passes_all_three(
     )
     assert report["ok"] is True
     assert code == 0
+
+
+# --- sequential ids ---------------------------------------------------------------------
+
+
+def test_sequential_ids_name_the_gap() -> None:
+    """Клиентская редакция перенумерована: пропущенный номер читается как вычеркнутое требование."""
+    text = (
+        "| ID | Requirement |\n| --- | --- |\n"
+        "| FR-001 | a |\n| FR-002 | b |\n| FR-004 | c |\n| NFR-001 | d |\n"
+        "\nSee FR-003 in prose: a reference, not a declaration.\n"
+    )
+    assert gate.id_gaps(text, r"\b(?:FR|NFR)-\d{3}\b") == ["FR-004 after FR-002"]
+
+
+def test_sequential_ids_first_must_be_one() -> None:
+    text = "| ID | x |\n| --- | --- |\n| D-02 | a |\n"
+    assert gate.id_gaps(text, r"\bD-\d{2}\b") == ["D-02 first"]
+
+
+def test_sequential_ids_via_cli(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    doc = write(tmp_path, "| ID | x |\n| --- | --- |\n| FR-001 | a |\n| FR-003 | b |\n")
+    report, _ = run(capsys, monkeypatch, "--file", str(doc), "--sequential-ids", r"\bFR-\d{3}\b")
+    assert report["measures"]["id_gaps"] == ["FR-003 after FR-001"]
+    assert any("out of sequence" in p for p in report["problems"])

@@ -11,8 +11,9 @@
 // Kimi K3 sits in the critic slot on purpose. It is the slot that looks at the rendered image,
 // which is what its vision is wanted for, and the Kimi-for-Coding quota is small — spending it
 // on the critic alone stretches it about three times further than putting Kimi on every agent.
-// When that quota runs out the CLI is called again without the two critic flags, so the critic
-// falls back to claude_code sonnet; the agent reports which slot filled it per figure.
+// Whether Kimi answers is checked once before the first render (tools/preflight.py); if it does
+// not, the run goes without the two critic flags. If its quota runs out later, figgybanana
+// switches the critic to claude_code sonnet itself and prints who judged each image.
 //
 // Images go through ss_gateway and nowhere else. A 401 from the gateway means its bridge has no
 // token in the Windows keychain (fix: open "SS AI Setup", press Apply) — it is not a reason to
@@ -32,6 +33,7 @@ export const meta = {
   name: 'attn-figures',
   description: 'Figures for a finished article through figgybanana, with a separate vision critic',
   phases: [
+    { title: 'Preflight', detail: 'which critic answers; the temp directory in long form' },
     { title: 'Plan', detail: 'which figures the article needs, placeholders into the text' },
     { title: 'Draw', detail: 'figgybanana, one run per figure' },
     { title: 'Look', detail: 'read the PNGs with our own eyes against the captions' },
@@ -61,13 +63,27 @@ const FIGURE_WIDTH = (args && args.figureWidth) || 2000
 
 // The vision critic is a parameter, not a sentence in a prompt: `args.critic` is
 // { provider, model } or the string 'none' (the CLI then judges with claude_code sonnet).
-// Kimi K3 by default, for the reasons in the header. When its quota runs out mid-run the agent
-// drops the two flags for the rest of the figures and names the critic per figure in the
-// manifest — that fallback stays, because a quota is not something a script can see coming.
+// Kimi K3 by default, for the reasons in the header — but only after the Preflight phase has seen
+// it answer one image. On the Vista run both keys were dead (401, then 429) and every figure went
+// out "Critic satisfied" unreviewed. Now: no answer in preflight, no Kimi flags at all; an answer
+// in preflight and a quota that runs out later, and figgybanana itself switches to claude_code for
+// the rest of the run and prints who judged each image.
 const critic = (args && args.critic) || { provider: 'kimi', model: 'k3' }
-const CRITIC_FLAGS =
+let CRITIC_FLAGS =
   critic === 'none' ? '' : `  --critic-vlm-provider ${critic.provider} --critic-vlm-model ${critic.model} \\\n`
-const CRITIC_NAME = critic === 'none' ? 'claude_code sonnet (no separate critic)' : `${critic.provider} ${critic.model}`
+let CRITIC_NAME = critic === 'none' ? 'claude_code sonnet (no separate critic)' : `${critic.provider} ${critic.model}`
+// Several candidates per render, and a choice by our own check. One render per figure, repaired
+// by continue-run, was the most expensive habit of the Vista run: 80 renders for 9 figures,
+// because continuing regenerates the whole picture from text and breaks what was already right.
+// Fresh runs with three candidates were what converged.
+const CANDIDATES = (args && args.candidates) || 3
+// One look for every figure of a document. Passed into every brief, so figures drawn in
+// different runs still look like one set.
+const STYLE =
+  (args && args.style) ||
+  'Clean flat vector style: white rounded cards with a soft shadow, one consistent line-icon set, ' +
+    'soft pastel accents (blue, teal, amber, coral, violet), generous spacing, one sans-serif font, ' +
+    'crisp legible labels, no logos, no people, no decorative background.'
 
 // Every path is named by the script. `run_dir` is the one exception the agents report back,
 // because the CLI stamps it with a timestamp the script has no way to know.
@@ -116,8 +132,16 @@ const PLAN = {
       minItems: 1,
       items: {
         type: 'object',
-        required: ['slug', 'caption', 'why', 'section'],
+        required: ['slug', 'caption', 'why', 'section', 'kind'],
         properties: {
+          kind: {
+            type: 'string',
+            enum: ['exact', 'illustration'],
+            description:
+              'exact: its value is which box connects to which, in what order or on which week ' +
+              '(sequence, component, deployment, state, flow, timeline); illustration: a mockup, ' +
+              'a scene or a hero picture whose value is the look',
+          },
           slug: { type: 'string', description: 'latin, hyphenated, the filename without .png' },
           caption: { type: 'string', description: 'the caption from the placeholder, verbatim' },
           why: { type: 'string', description: 'what the figure explains better than a paragraph' },
@@ -192,6 +216,24 @@ const LOOKED = {
   },
 }
 
+const PREFLIGHT = {
+  type: 'object',
+  required: ['report', 'stdout'],
+  properties: {
+    report: {
+      type: 'object',
+      required: ['ok', 'problems', 'measures', 'critic'],
+      properties: {
+        ok: { type: 'boolean' },
+        problems: { type: 'array', items: { type: 'string' } },
+        measures: { type: 'object' },
+        critic: { type: 'string', enum: ['kimi', 'claude_code'] },
+      },
+    },
+    stdout: { type: 'string' },
+  },
+}
+
 const GATE = {
   type: 'object',
   required: ['report', 'stdout'],
@@ -236,7 +278,12 @@ const ENV_BLOCK =
   `export TMPDIR="$WINROOT/${WORK_DIR}/tmp"\n` +
   `export TEMP="$TMPDIR"\n` +
   `export TMP="$TMPDIR"\n` +
-  `export KIMI_BASE_URL="https://api.kimi.com/coding/v1"\n` +
+  `export KIMI_BASE_URL="\${KIMI_BASE_URL:-https://api.kimi.com/coding/v1}"\n` +
+  // The key from the user environment, not the session's copy: a session keeps the environment it
+  // started with, and on 28.09 it still carried a replaced key that answered 401 while the one in
+  // the registry worked. Never printed.
+  `UKEY="$(powershell.exe -NoProfile -Command "[Environment]::GetEnvironmentVariable('MOONSHOT_API_KEY','User')" 2>/dev/null | tr -d '\\r')"\n` +
+  `[ -n "$UKEY" ] && export MOONSHOT_API_KEY="$UKEY"; unset UKEY\n` +
   `FIGGY="\${FIGGYBANANA_HOME:-$(echo "$PAPERBANANA_BIN" | tr '\\\\\\\\' '/' | ` +
   `sed 's#/[.]venv/Scripts/paperbanana.exe$##')}"\n` +
   `test -d "$FIGGY/data" || { echo "figgybanana directory not found: $FIGGY"; exit 1; }\n` +
@@ -258,9 +305,12 @@ const TOOL_RULES =
   `PROVIDERS. Images go through ss_gateway and nothing else. If the gateway answers 401 or ` +
   `"missing bearer token", stop, set gateway_ok=false and explain; do NOT fall back to ` +
   `openai_imagen, google_imagen or any other image provider — that is not your decision.\n` +
-  `The critic is ${CRITIC_NAME}. If it answers 403 or "usage limit", drop the two flags ` +
-  `--critic-vlm-provider and --critic-vlm-model from the command: the critic then becomes ` +
-  `claude_code sonnet. Name the critic per figure in your report.`
+  `The critic is ${CRITIC_NAME}. If it fails mid-run the tool switches to claude_code by itself ` +
+  `and prints "Critic satisfied (<provider>)" per image: report that provider per figure. A ` +
+  `line "Critic unavailable: image NOT reviewed" means no critic looked at it: report the ` +
+  `critic as none. Either way you accept a figure only by your own check, never on the ` +
+  `critic's word: on the last run it called defective images satisfied again and again.\n` +
+  `NEVER use --continue-run: it regenerates the whole figure from text and breaks what was right.`
 
 // The environment and the command go into ONE Bash call, never two. Each Bash invocation is a
 // fresh shell, so exports from a previous call are gone — and when TEMP is gone the gateway
@@ -274,7 +324,7 @@ function drawCommand(slug, caption) {
     `  --input ${WORK_DIR}/brief-${slug}.txt \\\n` +
     `  --caption "${caption}" \\\n` +
     `  --output-dir ${WORK_DIR} \\\n` +
-    `  --auto --max-iterations 3 \\\n` +
+    `  --auto --max-iterations 3 --num-candidates ${CANDIDATES} \\\n` +
     `  --vlm-provider claude_code --vlm-model sonnet \\\n` +
     CRITIC_FLAGS +
     `  --image-provider ss_gateway \\\n` +
@@ -284,15 +334,43 @@ function drawCommand(slug, caption) {
 
 // The web copy. Pillow lives in figgybanana's virtualenv, so the interpreter is derived from
 // $PAPERBANANA_BIN the way $FIGGY is — this command has to work in a Bash call of its own.
-function shrinkCommand(runDir, slug) {
+function shrinkCommand(chosen, slug) {
   return (
     `"$(echo "$PAPERBANANA_BIN" | sed 's#paperbanana.exe$#python.exe#')" -X utf8 ` +
-    `tools/shrink_png.py --file ${runDir}/final_output.png --to ${FIGURES_DIR}/${slug}.png ` +
+    `tools/shrink_png.py --file ${chosen} --to ${FIGURES_DIR}/${slug}.png ` +
     `--max-width ${FIGURE_WIDTH} --log ${WORK_DIR}/tools.jsonl --log-note "web copy of ${slug}"`
   )
 }
 
 log(`[start] dir=${run} article=${source} figures=${wanted}`)
+
+// --- Preflight: which critic answers, and is the temp directory one the critic can read ------
+
+phase('Preflight')
+if (critic !== 'none' && critic.provider === 'kimi') {
+  const pre = await agent(
+    `Run exactly this, from the repository root, in ONE Bash invocation, and return the parsed ` +
+      `JSON report in the report field and the raw output in stdout. Correct nothing.\n\n` +
+      `${ENV_BLOCK}\n` +
+      `python -X utf8 tools/preflight.py --kimi --log ${WORK_DIR}/tools.jsonl --log-note "which critic answers"`,
+    { agentType: 'gate-runner', model: 'haiku', label: 'preflight', phase: 'Preflight', schema: PREFLIGHT },
+  )
+  const verdict = pre && pre.report && pre.report.critic
+  if (verdict === 'kimi') {
+    log(`[preflight] Kimi answered; critic = ${CRITIC_NAME}`)
+  } else {
+    const why = (pre && pre.report && pre.report.measures && pre.report.measures.kimi && pre.report.measures.kimi.reason) || 'no answer'
+    CRITIC_FLAGS = ''
+    CRITIC_NAME = 'claude_code sonnet (Kimi unavailable at preflight)'
+    log(`[preflight] Kimi did not answer (${why}); the critic for this run is claude_code sonnet`)
+  }
+  // After the exports the temp directory is in long form, so a problem here means the environment
+  // block itself went wrong. Said loudly; the figures are still drawn, because the Look step
+  // judges every image with its own eyes whatever the critic managed to see.
+  for (const problem of (pre && pre.report && pre.report.problems) || []) {
+    log(`[preflight] PROBLEM: ${problem}`)
+  }
+}
 
 // --- Plan: the writer declares the figures, which is what its contract says it does ---------
 
@@ -320,9 +398,12 @@ const plan = await agent(
     `paragraph it belongs to. The caption is in the article's language and says what the ` +
     `figure communicates. The slug is latin and hyphenated. Change nothing else in the text: ` +
     `not a word, not the order of the sections.\n\n` +
-    `Return the list of figures: slug, caption verbatim, the section it stands after, and what ` +
-    `it is good for. Return also the language the document is written in, named in English — ` +
-    `every worded label on every figure will be in that language.\n\n` +
+    `Return the list of figures: slug, caption verbatim, the section it stands after, what it ` +
+    `is good for, and its kind: exact when its value is which box connects to which, in what ` +
+    `order or on which week (sequence, component, deployment, state, flow, timeline), ` +
+    `illustration when its value is the look (a product mockup, a scene, a hero picture). ` +
+    `Return also the language the document is written in, named in English — every worded ` +
+    `label on every figure will be in that language.\n\n` +
     (IN_PLACE
       ? `OUTPUT (no file). Your result is the list of placeholders in the schema; the article ` +
         `is not yours to write.`
@@ -344,12 +425,20 @@ phase('Draw')
 let drawn = await agent(
   `You have ${plan.figures.length} figures to draw for the article ${ARTICLE_PATH}.\n\n` +
     `The placeholders in the article:\n` +
-    plan.figures.map((f, i) => `${i + 1}. ${f.slug} — «${f.caption}» (section «${f.section}»)`).join('\n') +
+    plan.figures.map((f, i) => `${i + 1}. ${f.slug} [${f.kind}] — «${f.caption}» (section «${f.section}»)`).join('\n') +
     `\n\nFor each figure:\n` +
     `1. Read the section of the article it belongs to and write a brief into ` +
     `${WORK_DIR}/brief-<slug>.txt: the entities, what connects to what, the labels that must ` +
     `appear verbatim, and what must NOT be on the picture. In prose, not in fragments. Take ` +
     `the notation from the article: if the text calls a matrix Q, it is Q on the figure.\n` +
+    `   The style line for every brief, verbatim: ${STYLE}\n` +
+    `   For an EXACT figure the brief ends with two lists the check will be run against: ` +
+    `"Boxes:" — every box or participant with its exact label; "Connections:" — every arrow as ` +
+    `"FROM -> TO: label", in order, and for a timeline every bar as "label: weeks A–B". Nothing ` +
+    `outside these lists may appear. For an ILLUSTRATION the brief ends with "Text on the ` +
+    `image:" — every word that must be legible — and reference images, if any, are passed for ` +
+    `style only: say so in the brief, because a reference drawing's own details (stairs, labels) ` +
+    `otherwise leak into the picture.\n` +
     `   EVERY NUMBER that has to appear on the figure is written in the brief, copied from the ` +
     `article: weights, sizes, counts — and for a panel that compares two variants, BOTH sets of ` +
     `numbers, not just the headline one. A number the brief does not name is a number the ` +
@@ -363,13 +452,20 @@ let drawn = await agent(
     `long phrase is likelier to come out mangled than a short one.\n` +
     `2. Run the tool once with this command, substituting your bin, the slug and the caption:\n\n` +
     drawCommand('<slug>', '<caption>') +
-    `\n\n3. The tool names its own run directory and writes final_output.png into it. That ` +
-    `render is 4K and over ten megabytes — it stays there for redraws. What ships is a ` +
-    `web-sized copy under the name from the placeholder, made by this command (one Bash call, ` +
-    `it resolves its own interpreter):\n\n` +
-    shrinkCommand('<run directory>', '<slug>') +
+    `\n\n3. The tool names its own run directory and renders ${CANDIDATES} candidates into ` +
+    `<run directory>/candidates/cand_<n>/ (with one candidate: final_output.png in the run ` +
+    `directory itself). Open every candidate's final image AND its diagram_iter_*.png with the ` +
+    `Read tool at full size and check it against the lists at the end of its brief, item by ` +
+    `item: every box present and spelled exactly, every connection from the right box to the ` +
+    `right box in the right direction, every bar on its weeks, every text item legible, nothing ` +
+    `outside the lists. Choose the clean one; an earlier iteration of a candidate may be cleaner ` +
+    `than its final output, and it counts. The render is 4K and over ten megabytes — it stays ` +
+    `there. What ships is a web-sized copy of the chosen file under the name from the ` +
+    `placeholder, made by this command (one Bash call, it resolves its own interpreter):\n\n` +
+    shrinkCommand('<the chosen png>', '<slug>') +
     `\n\n   Use the run that just finished, not the newest one at a guess. Check that the ` +
-    `file exists and is not empty.\n` +
+    `file exists and is not empty. If no candidate is clean, still ship the best one and list ` +
+    `its defects: the Look step decides whether it is redrawn.\n` +
     `4. After the very first figure, open ${WORK_DIR}/run_*/planning.json and look at the ` +
     `field retrieved_examples. An empty list there means the etalons were not picked up, which ` +
     `means REFERENCE_SET_PATH did not arrive: stop and say so, do not draw the rest blind. The ` +
@@ -409,6 +505,11 @@ const lookTask = (slugs) =>
   slugs.map((s) => `${FIGURES_DIR}/${s}.png`).join(', ') +
   `\n\nOpen EVERY file with the Read tool — you can look at images — and check it against its ` +
   `caption and against the section of the article it belongs to.\n\n` +
+  `For an exact figure, also open its brief ${WORK_DIR}/brief-<slug>.txt and walk the lists ` +
+  `at its end one line at a time: each box present with its exact label, each connection from ` +
+  `the named box to the named box in the named direction, each timeline bar on its weeks. A ` +
+  `connection that starts or ends on the wrong box is a defect however good the picture looks; ` +
+  `on the last run the sequence diagram's message 7 kept starting on the wrong lifeline.\n\n` +
   `For each one decide whether it is fit for the article as it stands. Look at: are the labels ` +
   `legible; is the notation the same as in the text; are there invented elements the article ` +
   `does not have; are the directions of any relations reversed; is the picture empty or a ` +
@@ -473,18 +574,15 @@ while (redraws < MAX_REDRAWS && looked.checks.some((c) => !c.ok)) {
             c.defects.map((d) => `   - ${d}`).join('\n'),
         )
         .join('\n\n') +
-      `\n\nThe tool has a supported path for this: continue the existing run and hand the ` +
-      `defects to its critic. The exports and the call go in ONE Bash invocation.\n\n` +
-      `${ENV_BLOCK}\n` +
-      `<bin> generate --output-dir ${WORK_DIR} --continue-run <run directory> \\\n` +
-      `  --auto --max-iterations 2 \\\n` +
-      `  --vlm-provider claude_code --vlm-model sonnet \\\n` +
-      CRITIC_FLAGS +
-      `  --image-provider ss_gateway \\\n` +
-      `  --feedback "<the defects for this figure, on one line>"\n\n` +
-      `If continuing does not work, edit the brief ${WORK_DIR}/brief-<slug>.txt according to ` +
-      `the defects and run the ordinary command again. Then make the web copy again, over the ` +
-      `old one:\n\n${shrinkCommand('<run directory>', '<slug>')}\n\nUpdate ${MANIFEST_PATH}.` +
+      `\n\nDo not continue the old run: --continue-run regenerates the whole figure from text and ` +
+      `breaks what was already right. Instead write the defects into the brief as explicit ` +
+      `rules ("message 7 starts on the Cloud API lifeline and ends on the Technician tablet ` +
+      `lifeline"), save it as ${WORK_DIR}/brief-<slug>-r<N>.txt, and render afresh with the ` +
+      `ordinary command pointed at the revised brief — ${CANDIDATES} candidates again:\n\n` +
+      drawCommand('<slug>', '<caption>').replace(`brief-<slug>.txt`, `brief-<slug>-r<N>.txt`) +
+      `\n\nChoose the clean candidate by the same full-size check as before, then make the web ` +
+      `copy again, over the old one:\n\n${shrinkCommand('<the chosen png>', '<slug>')}\n\n` +
+      `Update ${MANIFEST_PATH}.` +
       TOOL_RULES,
     {
       agentType: 'illustrator',

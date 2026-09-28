@@ -596,6 +596,27 @@ def resolve_attachments(
     return files, skipped
 
 
+# Markers that make a draft internal. Checked before anything leaves the machine: on 27.09 two
+# client notes marked "internal, do not show the client" went to Confluence verbatim, and the rule
+# that forbids it was noticed only afterwards.
+INTERNAL = re.compile(
+    r"internal only|internal use|\(internal\)|do not share|confidential|"
+    r"внутренн\w* документ|\(внутреннее\b|клиенту не показывать|для внутреннего",
+    re.IGNORECASE,
+)
+
+
+def internal_marker(md: str) -> str | None:
+    """The first internal marker in the draft's opening lines, or None.
+
+    Only the head of the document is read: that is where a marking lives, and a design that
+    mentions "an internal tool" in section 4 is not an internal document.
+    """
+    head = "\n".join(md.splitlines()[:8])
+    found = INTERNAL.search(head)
+    return found.group(0) if found else None
+
+
 def run(args: argparse.Namespace) -> dict[str, Any]:
     draft = Path(args.draft).expanduser()
     if not draft.is_file():
@@ -628,6 +649,15 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "attachments_count": len(attachments),
             "attachments_skipped": skipped,
         }
+
+    marker = internal_marker(md)
+    if marker and not getattr(args, "allow_internal", False):
+        raise Failure(
+            "policy",
+            f"the draft is marked internal ({marker!r}); organisation rules forbid publishing "
+            "internal text verbatim to any channel. Publish a rewritten version, or pass "
+            "--allow-internal if the owner has decided otherwise",
+        )
 
     url = os.environ.get("CONFLUENCE_URL")
     token = os.environ.get("CONFLUENCE_PERSONAL_TOKEN") or os.environ.get("CONFLUENCE_TOKEN")
@@ -732,6 +762,11 @@ def main() -> None:
         "--dry-run",
         default=None,
         help="Convert only: write storage XHTML here, touch nothing remote",
+    )
+    parser.add_argument(
+        "--allow-internal",
+        action="store_true",
+        help="Publish a draft marked internal anyway (the owner's explicit decision)",
     )
     args = parser.parse_args()
 

@@ -20,7 +20,7 @@
 // disk. That is a refusal, not a failure, so it cannot live in "bad" mode — it would end every
 // failure run at the first stage. It gets its own invocation.
 
-import { readFileSync } from 'node:fs'
+import { readFileSync, writeFileSync } from 'node:fs'
 
 const [, , target, mode = 'ok', argsJson] = process.argv
 const runArgs = argsJson ? JSON.parse(argsJson) : { runDir: 'dry/run' }
@@ -179,11 +179,16 @@ function fill(schema, prompt) {
 
 const calls = []
 const logs = []
+// Every task text by label, written to DRY_PROMPTS_OUT when set. What an agent is told is the one
+// thing the counts above cannot see: the order travelled as a port to a directory that was never a
+// file, the run finished, and no agent had read a word of it. A test now reads these texts.
+const prompts = []
 
 const stubs = {
   args: runArgs,
   agent: async (prompt, opts = {}) => {
     calls.push(opts.label ?? '(no label)')
+    prompts.push({ label: opts.label ?? '(no label)', agentType: opts.agentType ?? null, prompt })
     if (typeof prompt !== 'string') throw new Error(`prompt is ${typeof prompt}, not a string`)
     if (prompt.includes('undefined')) {
       throw new Error(`prompt for "${opts.label}" contains the literal "undefined"`)
@@ -219,4 +224,6 @@ try {
   console.error(`MODE ${mode}: ПАДЕНИЕ — ${error.message}`)
   console.error(error.stack)
   process.exitCode = 1
+} finally {
+  if (process.env.DRY_PROMPTS_OUT) writeFileSync(process.env.DRY_PROMPTS_OUT, JSON.stringify(prompts, null, 1), 'utf8')
 }

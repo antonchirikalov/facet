@@ -50,6 +50,18 @@ const now = (args && args.now) || ''
 // require it: the input documents ARE the order here. When present it goes to the requirements
 // writer as an extra port.
 const order = (args && args.order) || ''
+// Decisions the architect settled before the run, in the shape tech-proposal.js already uses:
+// { id, title, mode: 'decided' | 'compare', brief }. Optional; checked here because a typo in a
+// mode would otherwise turn a settled decision into an open one without anyone noticing.
+const decisions = (args && args.decisions) || []
+if (!Array.isArray(decisions)) {
+  throw new Error('args.decisions должен быть списком: [{ id, title, mode: "decided"|"compare", brief }]')
+}
+for (const d of decisions) {
+  if (!d || !d.id || !d.title || !['decided', 'compare'].includes(d.mode)) {
+    throw new Error(`решение ${JSON.stringify(d)}: нужны id, title и mode "decided" или "compare"`)
+  }
+}
 
 const cfg = (args && args.config) || {}
 
@@ -65,6 +77,9 @@ const REQ_PATH = `${run}/requirements.md`
 const DESIGN_PATH = `${run}/design.md`
 const DISCOVERY_PATH = `${run}/discovery-questions.md`
 const UNRESOLVED_PATH = `${run}/UNRESOLVED.md`
+const REQ_CLIENT_PATH = `${run}/requirements.client.md`
+const DESIGN_CLIENT_PATH = `${run}/design.client.md`
+const ID_MAP_PATH = `${run}/client-id-map.json`
 const CANDIDATES_DIR = `${run}/design-candidates`
 const candidatePathOf = (n) => `${CANDIDATES_DIR}/candidate-${n}.md`
 const extractPathOf = (stem) => `${EXTRACTS_DIR}/${stem}.md`
@@ -85,9 +100,18 @@ const RUN_DESIGN = STAGES.includes('design')
 // Discovery — the questions to put in front of the client — runs after the design by default,
 // and on its own when named as the only stage: it needs nothing but requirements.md.
 const RUN_DISCOVERY = STAGES.includes('discovery') || (RUN_DESIGN && cfg.discovery !== false)
-if (!RUN_REQUIREMENTS && !RUN_DESIGN && !RUN_DISCOVERY) {
+// The client edition runs alone, after a person has read the traceable versions: it is written
+// from accepted documents, and a launch that also rewrote them would edit what it copies from.
+const RUN_CLIENT = STAGES.includes('client')
+if (RUN_CLIENT && STAGES.length > 1) {
   throw new Error(
-    `config.stages must name "requirements", "design", "discovery" or a combination; got: ${STAGES.join(', ')}`,
+    `config.stages=["client"] запускается отдельно, после принятых requirements и design; ` +
+      `получено: ${STAGES.join(', ')}`,
+  )
+}
+if (!RUN_REQUIREMENTS && !RUN_DESIGN && !RUN_DISCOVERY && !RUN_CLIENT) {
+  throw new Error(
+    `config.stages must name "requirements", "design", "discovery", "client" or a combination; got: ${STAGES.join(', ')}`,
   )
 }
 const MAX_ROUNDS = cfg.maxRounds || 3
@@ -107,6 +131,7 @@ const MODELS = {
   select: 'opus',
   probe: 'opus',
   discovery: 'opus',
+  client: 'opus',
   // Carriers run one command and copy its output. Sonnet, not haiku, and this was measured: a
   // haiku carrier read the harness's relayed user request ("check the prompts, run the tests") as
   // its own task, ran pytest and dry-runs for eight minutes, wrote a report into the repository
@@ -144,6 +169,19 @@ const DISCOVERY_GATE_FLAGS = cfg.discoveryGateFlags || [
   '--no-empty-sections',
   '--forbid "\\x60"',
 ]
+// The client-edition profile's gate rules (.claude/skills/client-edition-profile/SKILL.md). The
+// quotes are checked by a separate tool against the extracts, in the same carrier call.
+// Ids are checked in the requirements edition only: there a row's first cell declares an id, in
+// the design the same cell holds a reference (an NFR row quotes the requirement it meets).
+const CLIENT_ID_PATTERN = cfg.clientIdPattern || '\\b(?:FR|NFR|BR|C|G|A)-\\d{3}\\b'
+const CLIENT_GATE_FLAGS = cfg.clientGateFlags || [
+  '--no-empty-sections',
+  '--forbid-file library/style/forbid/client-meta.txt',
+  '--forbid-file library/style/forbid/no-bold.txt',
+  '--forbid "\\x60"',
+]
+const CLIENT_ID_FLAGS = [`--unique-ids "${CLIENT_ID_PATTERN}"`, `--sequential-ids "${CLIENT_ID_PATTERN}"`]
+const QUOTES_TOOL = cfg.quotesTool || 'python -X utf8 tools/check_quotes.py'
 // The design profile's gate rules (.claude/skills/solution-design-profile/SKILL.md, "Gate rules").
 const DESIGN_GATE_FLAGS = cfg.designGateFlags || [
   ...[1, 2, 3, 4, 5, 6, 7].map((n) => `--require-heading "^##\\s+${n}\\."`),
@@ -179,11 +217,18 @@ const STAGE_OWNED = [
   { prefix: `${roundsDirOf('req')}/`, mine: RUN_REQUIREMENTS },
   { prefix: `${CANDIDATES_DIR}/`, mine: RUN_DESIGN },
   { prefix: `${roundsDirOf('design')}/`, mine: RUN_DESIGN },
+  { prefix: `${run}/probe-questions.md`, mine: RUN_DISCOVERY },
+  { prefix: DISCOVERY_PATH, mine: RUN_DISCOVERY },
+  { prefix: UNRESOLVED_PATH, mine: !RUN_CLIENT },
+  { prefix: REQ_CLIENT_PATH, mine: RUN_CLIENT },
+  { prefix: DESIGN_CLIENT_PATH, mine: RUN_CLIENT },
+  { prefix: ID_MAP_PATH, mine: RUN_CLIENT },
 ]
 
 const GATE_TOOL = cfg.gateTool || 'python -X utf8 tools/gate.py'
 const ROUNDS_TOOL = cfg.roundsTool || 'python -X utf8 tools/rounds.py'
 const LISTING_TOOL = cfg.listingTool || 'python -X utf8 tools/listing.py'
+const INTAKE_TOOL = cfg.intakeTool || 'python -X utf8 tools/intake.py'
 const SNAPSHOT_TOOL = cfg.snapshotTool || 'python -X utf8 tools/snapshot.py'
 const BUSY_TOOL = cfg.busyTool || 'python -X utf8 tools/busy.py'
 const APPLY_TOOL = cfg.applyTool || 'python -X utf8 tools/apply_edits.py'
@@ -256,7 +301,7 @@ async function call(taskText, opts) {
   return agent(taskText, opts)
 }
 
-function task({ inputs, output, extra, noFile }) {
+function task({ inputs, output, extra, noFile, brief }) {
   for (const i of inputs || []) touched.add(i.path)
   if (!noFile && output) touched.add(output)
   lastPorts = {
@@ -266,10 +311,33 @@ function task({ inputs, output, extra, noFile }) {
   const ports = (inputs || []).map((i) => `${i.port}: ${i.path}`).join('\n')
   return (
     (ports ? `INPUT\n${ports}\n\n` : '') +
+    (brief ? `${brief}\n\n` : '') +
     (noFile ? NO_FILE_RULE : `OUTPUT\n${output}\n\n` + OUTPUT_RULE) +
     (extra ? `\n\n${extra}` : '')
   )
 }
+
+// --- What the person who launched the run decided before it started --------------------------
+//
+// The order used to travel as a port whose path was the inputs directory: a script has no
+// filesystem, so the text was never on disk and no agent ever saw it. The Vista run paid for that
+// twice — frames the order asked for were never embedded, and the stack, the hosting and the MVP
+// bounds the architect had already settled were chosen again by the designer, differently. Both
+// now travel as text inside the task, the only channel a script has.
+const ORDER_BLOCK = order
+  ? `ORDER\n${order}\n\nThe order sets the scope, audience, format and decisions of this run and is ` +
+    `binding where it sets them. Facts still come only from the sources.`
+  : ''
+const DECISIONS_BLOCK = decisions.length
+  ? `DECISIONS\n` +
+    decisions
+      .map((d) => `- ${d.id} ${d.title} [${d.mode === 'compare' ? 'compare' : 'decided'}]: ${d.brief || ''}`)
+      .join('\n') +
+    `\n\nA decided item is taken as given: design on it and justify it from the requirements. A ` +
+    `compare item is presented as the options with their trade-offs, and the choice is left as an ` +
+    `open question. Neither is reopened by the design.`
+  : ''
+const DESIGN_BRIEF = [ORDER_BLOCK, DECISIONS_BLOCK].filter(Boolean).join('\n\n')
 
 // agent() yields null when a subagent dies on a terminal error after retries, or when the person
 // running this skips it. The most expensive of those assumptions used to sit in the last quarter
@@ -316,6 +384,28 @@ const LISTING = {
     // then the two disagree and say so. Carrying a number is the one thing a summarising agent
     // does not shorten.
     count: { type: 'integer', description: 'the files number from the report measures, verbatim' },
+  },
+}
+
+// The Vista run listed the top of input/ and missed input/call-2026-09-23/ with the call digest,
+// a cleaner transcript and sixteen frames; our own notes sat among the client's words unmarked.
+// The inventory walks the whole tree and the script names what the listing will not process.
+const INTAKE = {
+  type: 'object',
+  required: ['files'],
+  properties: {
+    files: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['path', 'kind'],
+        properties: {
+          path: { type: 'string' },
+          kind: { type: 'string', enum: ['client', 'ours', 'media', 'unknown'] },
+          duplicate_of: { type: 'string', description: 'present only when the report has it' },
+        },
+      },
+    },
   },
 }
 
@@ -993,6 +1083,7 @@ async function reviseLoop({
             inputs: [{ port: 'draft', path: artifact }, ...writer.inputs],
             output: editsPath,
             extra: revision + editsRule,
+            brief: writer.brief,
           }),
           {
             agentType: writer.agentType,
@@ -1025,7 +1116,7 @@ async function reviseLoop({
       }
     } else {
       drafted = must(
-        await call(task({ inputs: writer.inputs, output: artifact, extra: revision }), {
+        await call(task({ inputs: writer.inputs, output: artifact, extra: revision, brief: writer.brief }), {
           agentType: writer.agentType,
           model: writer.model,
           label: `${loop}:write:${round}`,
@@ -1078,7 +1169,7 @@ async function reviseLoop({
     // spends the critic's round on what a corrector settles.
     {
       for (const corrector of correctors) {
-        const fixed = await call(task({ inputs: corrector.inputs, output: artifact }), {
+        const fixed = await call(task({ inputs: corrector.inputs, output: artifact, brief: corrector.brief }), {
           agentType: corrector.agentType,
           model: corrector.model,
           label: `${loop}:${corrector.tag}:${round}`,
@@ -1153,7 +1244,7 @@ async function reviseLoop({
     // them instead of their sum.
     const judged = await parallel(
       critics.map((c) => () =>
-        call(task({ inputs: c.inputs, noFile: true, extra: declinedBlock || undefined }), {
+        call(task({ inputs: c.inputs, noFile: true, extra: declinedBlock || undefined, brief: c.brief }), {
           agentType: c.agentType,
           model: c.model,
           label: `${loop}:${c.tag}:${round}`,
@@ -1310,6 +1401,21 @@ if (RUN_REQUIREMENTS) {
   log(`[extract] входных документов: ${sources.length}`)
   for (const s of sources) log(`[extract/вход] ${s}`)
 
+  // Warnings, not a stop: a person decides whether a nested call folder belongs to the order.
+  const inventory = await call(
+    commands([`${INTAKE_TOOL} --dir ${INPUTS_DIR} ${noted('inventory of the whole input tree')}`]),
+    { agentType: 'gate-runner', model: MODELS.gate, label: 'inputs:intake', phase: 'Extract', schema: INTAKE },
+  )
+  const listedNames = new Set(sources.map((s) => s.replace(/\\/g, '/').split('/').pop()))
+  for (const f of (inventory && inventory.files) || []) {
+    const nested = f.path.includes('/')
+    if (f.duplicate_of) log(`[extract/опись] дубль: ${f.path} = ${f.duplicate_of}`)
+    else if (nested && f.kind !== 'media' && !listedNames.has(f.path.split('/').pop()))
+      log(`[extract/опись] во вложенной папке и не обрабатывается: ${f.path} — переложите в ${INPUTS_DIR}, если это часть заказа`)
+    if (f.kind === 'ours') log(`[extract/опись] наша заметка, не слова клиента: ${f.path}`)
+    if (f.kind === 'unknown') log(`[extract/опись] не ясно, чей это документ: ${f.path}`)
+  }
+
   // Matched by index, never by a path the agent chose how to spell.
   const extractPaths = sources.map((s) => extractPathOf(stemOf(s)))
   // Two more rules per extract, both paid for: every row of its tables has a Source cell (the
@@ -1410,7 +1516,6 @@ if (RUN_REQUIREMENTS) {
   }
 
   // --- Requirements: the first revision loop -------------------------------------------------
-  const orderPort = order ? [{ port: 'order', path: `${run}/inputs` }] : []
   requirements = await reviseLoop({
     loop: 'req',
     artifact: REQ_PATH,
@@ -1421,6 +1526,7 @@ if (RUN_REQUIREMENTS) {
       agentType: 'requirements-writer',
       model: MODELS.reqWrite,
       inputs: [...extractPorts],
+      brief: ORDER_BLOCK,
     },
     correctors: [
       {
@@ -1431,6 +1537,7 @@ if (RUN_REQUIREMENTS) {
         agentType: 'requirements-fact-checker',
         model: MODELS.reqFix,
         inputs: [{ port: 'draft', path: REQ_PATH }, ...extractPorts],
+        brief: ORDER_BLOCK,
       },
     ],
     critics: [
@@ -1439,6 +1546,7 @@ if (RUN_REQUIREMENTS) {
         agentType: 'requirements-critic',
         model: MODELS.reqCritic,
         inputs: [{ port: 'draft', path: REQ_PATH }, ...extractPorts],
+        brief: ORDER_BLOCK,
       },
     ],
   })
@@ -1467,6 +1575,111 @@ if (RUN_REQUIREMENTS) {
       other_stage: reqForeign,
       warnings,
     }
+  }
+}
+
+// --- Client edition: the documents the client reads -------------------------------------------
+//
+// The traceable versions are the record: a Source cell on every row, tags, notes on how our own
+// materials were weighed. The Vista run published those, and they were rewritten by hand into
+// editions a quarter and two fifths of the length, with ids renumbered through a map. This stage
+// is that rewrite: requirements first, because the design edition applies the map it leaves.
+if (RUN_CLIENT) {
+  phase('Client')
+  const needed = [REQ_PATH, DESIGN_PATH].filter((p) => !present.has(p))
+  if (needed.length) {
+    throw new Error(
+      `для клиентской редакции нужны принятые ${needed.join(' и ')}, а их нет. Сначала ` +
+        `config.stages=["requirements","design"] в этом же каталоге, потом прочитать результат, потом client.`,
+    )
+  }
+  const EDITION = {
+    type: 'object',
+    required: ['written', 'unplaced'],
+    properties: {
+      written: { type: 'boolean' },
+      unplaced: {
+        type: 'array',
+        items: { type: 'string' },
+        description: 'traceable ids that have no place in the edition or the id map; empty when complete',
+      },
+    },
+  }
+  const reqEdition = await call(
+    task({
+      inputs: [
+        { port: 'traceable', path: REQ_PATH },
+        { port: 'extracts', path: EXTRACTS_DIR },
+      ],
+      output: REQ_CLIENT_PATH,
+      brief: ORDER_BLOCK,
+      extra:
+        `ID MAP\nAlso write ${ID_MAP_PATH}: one JSON object from every traceable id to its client id, ` +
+        `as the profile's Numbering section says.`,
+    }),
+    { agentType: 'client-editor', model: MODELS.client, label: 'client:requirements', phase: 'Client', schema: EDITION },
+  )
+  touched.add(ID_MAP_PATH)
+  if (!reqEdition || !reqEdition.written) {
+    throw new Error(
+      `клиентская редакция требований не написана — редакцию дизайна без карты номеров делать нельзя: ` +
+        `ссылки на требования разойдутся. Запустите этап client ещё раз.`,
+    )
+  }
+  const designEdition = await call(
+    task({
+      inputs: [
+        { port: 'traceable', path: DESIGN_PATH },
+        { port: 'requirements_edition', path: REQ_CLIENT_PATH },
+        { port: 'id_map', path: ID_MAP_PATH },
+        { port: 'extracts', path: EXTRACTS_DIR },
+      ],
+      output: DESIGN_CLIENT_PATH,
+      brief: DESIGN_BRIEF,
+    }),
+    { agentType: 'client-editor', model: MODELS.client, label: 'client:design', phase: 'Client', schema: EDITION },
+  )
+  const editions = [
+    { path: REQ_CLIENT_PATH, what: 'requirements', result: reqEdition, ids: CLIENT_ID_FLAGS },
+    { path: DESIGN_CLIENT_PATH, what: 'design', result: designEdition, ids: [] },
+  ]
+  for (const e of editions) {
+    for (const id of (e.result && e.result.unplaced) || []) warnings.push(`клиентская редакция (${e.what}): ${id} потерян`)
+  }
+  // Two commands per edition, matched by index: the gate, then the quotes against the extracts.
+  const gated = await call(
+    commands(
+      editions.flatMap((e) => [
+        gateCommand(e.path, null, `client edition gate: ${e.what}`, [...CLIENT_GATE_FLAGS, ...e.ids]),
+        `${QUOTES_TOOL} --file ${e.path} --source ${EXTRACTS_DIR} ${noted(`client edition quotes: ${e.what}`)}`,
+      ]),
+    ),
+    { agentType: 'gate-runner', model: MODELS.gate, label: 'client:gate', phase: 'Client', schema: EXISTENCE },
+  )
+  const checks = (gated && gated.checks) || []
+  editions.forEach((e, i) => {
+    const pair = [checks[2 * i], checks[2 * i + 1]]
+    if (pair.some((c) => !c)) {
+      warnings.push(`клиентская редакция (${e.what}): проверка не вернулась`)
+      return
+    }
+    const problems = pair.flatMap((c) => c.problems || [])
+    log(`[client/gate] ${e.what}: ok=${pair.every((c) => c.ok)}${problems.length ? ' | ' + problems.join('; ') : ''}`)
+    for (const pr of problems) warnings.push(`клиентская редакция (${e.what}): ${pr}`)
+  })
+  await recordHandoff()
+  const { onDisk: cOnDisk, orphans: cOrphans, foreign: cForeign } = await auditRun()
+  log(`[итог/client] ${REQ_CLIENT_PATH}, ${DESIGN_CLIENT_PATH}; предупреждений: ${warnings.length}`)
+  return {
+    stages: STAGES,
+    requirements_client: REQ_CLIENT_PATH,
+    design_client: designEdition && designEdition.written ? DESIGN_CLIENT_PATH : null,
+    id_map: ID_MAP_PATH,
+    files_on_disk: cOnDisk.length,
+    files_read_by_agents: touched.size,
+    orphans: cOrphans,
+    other_stage: cForeign,
+    warnings,
   }
 }
 
@@ -1574,7 +1787,7 @@ if (!RUN_DESIGN) {
 phase('Contest')
 const candidates = await parallel(
   CONTEST_MODELS.map((model, i) => () =>
-    call(task({ inputs: [{ port: 'requirements', path: REQ_PATH }], output: candidatePathOf(i + 1) }), {
+    call(task({ inputs: [{ port: 'requirements', path: REQ_PATH }], output: candidatePathOf(i + 1), brief: DESIGN_BRIEF }), {
       agentType: 'solution-designer',
       model,
       label: `design:candidate:${i + 1}`,
@@ -1619,6 +1832,7 @@ if (alive.length === 1) {
     task({
       inputs: alive.map((c) => ({ port: `candidate:${c.n}`, path: c.path })),
       noFile: true,
+      brief: DESIGN_BRIEF,
       extra:
         `The candidates are numbered as their ports are: ${alive.map((c) => c.n).join(', ')}. ` +
         `Return the number of the one to carry forward.`,
@@ -1683,6 +1897,7 @@ const design = await reviseLoop({
       { port: 'requirements', path: REQ_PATH },
       { port: 'draft', path: DESIGN_PATH },
     ],
+    brief: DESIGN_BRIEF,
   },
   critics: [
     {
@@ -1693,6 +1908,7 @@ const design = await reviseLoop({
         { port: 'draft', path: DESIGN_PATH },
         { port: 'requirements', path: REQ_PATH },
       ],
+      brief: DESIGN_BRIEF,
     },
   ],
 })
