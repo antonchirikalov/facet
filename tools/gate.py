@@ -362,6 +362,111 @@ def id_gaps(text: str, pattern: str) -> list[str]:
     return gaps
 
 
+QUOTED = re.compile(r"“[^”]*”|\"[^\"\n]*\"")
+SECTION_REF = re.compile(r"\bsections? (\d+)((?:\s*(?:,|and|or)\s*\d+)*)", re.IGNORECASE)
+NUMBERED_H2 = re.compile(r"^##[ \t]+(\d+)\.", re.MULTILINE)
+
+
+def outside_quotes(text: str) -> str:
+    """The document without its quoted words, straight or curly.
+
+    A proposal quotes the client verbatim, and the client says "you" and "your" to us; a rule
+    against addressing the reader must not fire on their words.
+    """
+    return QUOTED.sub("“Q”", outside_code(text))
+
+
+def tables_of(text: str) -> list[tuple[str, list[str], list[list[str]]]]:
+    """Every markdown table as (nearest heading above it, header cells, body rows)."""
+    out: list[tuple[str, list[str], list[list[str]]]] = []
+    heading = ""
+    lines = outside_code(text).splitlines()
+    i = 0
+    while i < len(lines):
+        found = HEADING.match(lines[i])
+        if found:
+            heading = found.group(2).strip()
+        if TABLE_LINE.match(lines[i]) and i + 1 < len(lines) and TABLE_RULE.match(lines[i + 1]):
+            header = split_row(lines[i])
+            rows: list[list[str]] = []
+            i += 2
+            while i < len(lines) and TABLE_LINE.match(lines[i]):
+                rows.append(split_row(lines[i]))
+                i += 1
+            out.append((heading, header, rows))
+            continue
+        i += 1
+    return out
+
+
+def empty_cells(text: str, allow: str | None = None) -> list[str]:
+    """Empty body cells, as "<heading>: row N, <column>", except in columns named by `allow`.
+
+    An empty cell reads as something forgotten: a Vista table had three blank cells under
+    "Cloud API service" and the reader asked what was missing. A column the reader is meant
+    to fill in (a price for the manager) is exempt by its header.
+    """
+    exempt = re.compile(allow, re.IGNORECASE) if allow else None
+    found: list[str] = []
+    for heading, header, rows in tables_of(text):
+        for n, row in enumerate(rows, 1):
+            for c, name in enumerate(header):
+                cell = row[c] if c < len(row) else ""
+                if cell.strip():
+                    continue
+                if exempt is not None and exempt.search(name):
+                    continue
+                found.append(f"{heading or 'table'}: row {n}, {name or 'column ' + str(c + 1)}")
+    return found
+
+
+def unresolved_section_refs(text: str) -> list[str]:
+    """ "section N" references with no "## N." heading, in first-seen order.
+
+    A Word edition regrouped the sections and every "see section 7" pointed at the wrong
+    chapter; the reference is only as good as the heading it names.
+    """
+    headings = {int(n) for n in NUMBERED_H2.findall(text)}
+    missing: list[str] = []
+    for match in SECTION_REF.finditer(outside_code(text)):
+        numbers = [int(match.group(1))] + [int(x) for x in re.findall(r"\d+", match.group(2))]
+        for n in numbers:
+            ref = f"section {n}"
+            if n not in headings and ref not in missing:
+                missing.append(ref)
+    return missing
+
+
+IMAGE_LINE = re.compile(r"^!\[[^\]]*\]\(([^)]+)\)\s*$")
+FIGURE_CAPTION = re.compile(r"^\*(?:Figure|Рисунок) (\d+)\.\s+\S.*\*\s*$")
+
+
+def figure_caption_problems(text: str) -> list[str]:
+    """Figures without a numbered caption, or numbered out of order, as "<path>: <what>".
+
+    A client reads "see the figure above" as a guess; a number and a line that says what the
+    figure shows is what makes it citable. The caption is the first non-empty line after the
+    image, in italics, "Figure N." (or "Рисунок N." in a Russian document), numbered 1, 2, 3
+    through the whole document. Images inside fenced code are not figures.
+    """
+    lines = outside_code(text).splitlines()
+    problems: list[str] = []
+    expected = 1
+    for i, line in enumerate(lines):
+        image = IMAGE_LINE.match(line.strip())
+        if image is None:
+            continue
+        path = image.group(1)
+        following = next((x.strip() for x in lines[i + 1 : i + 4] if x.strip()), "")
+        caption = FIGURE_CAPTION.match(following)
+        if caption is None:
+            problems.append(f"{path}: no numbered caption")
+        elif int(caption.group(1)) != expected:
+            problems.append(f"{path}: numbered {caption.group(1)}, expected {expected}")
+        expected += 1
+    return problems
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="Deterministic content gates.")
     p.add_argument("--file", type=Path, help="document to check")
@@ -429,6 +534,33 @@ def main() -> int:
         type=Path,
         metavar="PATH",
         help="the file must be in the same script (Cyrillic/Latin) as this reference file",
+    )
+    p.add_argument(
+        "--figures-numbered",
+        action="store_true",
+        help='every image is followed by an italic caption "Figure N." numbered 1, 2, 3 in order',
+    )
+    p.add_argument(
+        "--forbid-outside-quotes",
+        action="append",
+        default=[],
+        metavar="REGEX",
+        help="pattern that must not appear outside quoted words (case-insensitive); repeatable",
+    )
+    p.add_argument(
+        "--no-empty-cells",
+        action="store_true",
+        help="no empty body cell in any table",
+    )
+    p.add_argument(
+        "--empty-cells-allow",
+        metavar="REGEX",
+        help="with --no-empty-cells: columns whose header matches may stay empty",
+    )
+    p.add_argument(
+        "--section-refs",
+        action="store_true",
+        help='every "section N" has a "## N." heading',
     )
     p.add_argument("--min-entries", type=int, help="floor on entries directly inside --dir")
     p.add_argument("--strict", action="store_true", help="also exit 1 when the gate fails")
@@ -503,6 +635,43 @@ def main() -> int:
                 if weak:
                     sample = "; ".join(f"{rid} «{phrase}»" for rid, phrase in weak[:10])
                     problems.append(f"weak words in requirement cells ({len(weak)}): {sample}")
+
+            if args.figures_numbered:
+                figures = figure_caption_problems(text)
+                measures["figure_captions"] = figures
+                if figures:
+                    problems.append(
+                        f"figures without a numbered caption ({len(figures)}): "
+                        + "; ".join(figures[:8])
+                    )
+
+            if args.forbid_outside_quotes:
+                plain = outside_quotes(text)
+                addressed: dict[str, int] = {}
+                for pattern in args.forbid_outside_quotes:
+                    found = re.findall(pattern, plain, flags=re.IGNORECASE)
+                    addressed[pattern] = len(found)
+                    if found:
+                        sample = ", ".join(sorted({str(f) for f in found})[:3])
+                        problems.append(
+                            f"outside quotes, matched {len(found)}x: {pattern} ({sample})"
+                        )
+                measures["outside_quotes"] = addressed
+
+            if args.no_empty_cells:
+                blanks = empty_cells(text, args.empty_cells_allow)
+                measures["empty_cells"] = blanks
+                if blanks:
+                    problems.append(f"empty table cells ({len(blanks)}): " + "; ".join(blanks[:8]))
+
+            if args.section_refs:
+                dangling = unresolved_section_refs(text)
+                measures["unresolved_section_refs"] = dangling
+                if dangling:
+                    problems.append(
+                        f"section references without a heading ({len(dangling)}): "
+                        + ", ".join(dangling)
+                    )
 
             if args.language_of is not None:
                 mismatch = language_mismatch(text, args.language_of)

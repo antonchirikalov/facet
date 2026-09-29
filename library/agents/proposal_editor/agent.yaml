@@ -1,0 +1,18 @@
+name: proposal_editor
+version: 1
+description: >
+  Answers a proposal reviewer's numbered remarks and the gate's problems by
+  editing the proposal in place, in batches, and records every remark as fixed
+  or declined with the reason. Keeps sections, numbering and figure references
+  stable; never rewrites the file whole.
+consumes:
+  - { port: draft, type: proposal@v1 }
+  - { port: remarks, type: verdict@v1 }
+  - { port: sources, type: collection<source@v1> }
+produces:
+  - { port: doc, type: proposal@v1 }
+needs: [read, edit]
+# The proposal profile holds the document contract the edits must keep.
+skills: [proposal-profile]
+defaults:
+  timeout_s: 2400

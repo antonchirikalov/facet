@@ -176,6 +176,7 @@ const DISCOVERY_GATE_FLAGS = cfg.discoveryGateFlags || [
 const CLIENT_ID_PATTERN = cfg.clientIdPattern || '\\b(?:FR|NFR|BR|C|G|A)-\\d{3}\\b'
 const CLIENT_GATE_FLAGS = cfg.clientGateFlags || [
   '--no-empty-sections',
+  '--figures-numbered',
   '--forbid-file library/style/forbid/client-meta.txt',
   '--forbid-file library/style/forbid/no-bold.txt',
   '--forbid "\\x60"',
@@ -186,6 +187,7 @@ const QUOTES_TOOL = cfg.quotesTool || 'python -X utf8 tools/check_quotes.py'
 const DESIGN_GATE_FLAGS = cfg.designGateFlags || [
   ...[1, 2, 3, 4, 5, 6, 7].map((n) => `--require-heading "^##\\s+${n}\\."`),
   ...['1.1', '1.2', '1.3', '1.4'].map((n) => `--require-heading "^###\\s+${n.replace('.', '\\.')}"`),
+  '--figures-numbered',
   '--forbid-file library/style/forbid/no-bold.txt',
   '--forbid "\\x60"',
 ]

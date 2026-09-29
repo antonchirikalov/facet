@@ -136,11 +136,13 @@ const PLAN = {
         properties: {
           kind: {
             type: 'string',
-            enum: ['exact', 'illustration'],
+            enum: ['exact', 'screen', 'illustration'],
             description:
               'exact: its value is which box connects to which, in what order or on which week ' +
-              '(sequence, component, deployment, state, flow, timeline); illustration: a mockup, ' +
-              'a scene or a hero picture whose value is the look',
+              '(sequence, component, deployment, state, flow, timeline); screen: a product screen ' +
+              'or panel whose numbers, counts and words the text relies on (items on a plan, a ' +
+              'price list, a banner, a disclaimer); illustration: a scene or a hero picture whose ' +
+              'value is the look',
           },
           slug: { type: 'string', description: 'latin, hyphenated, the filename without .png' },
           caption: { type: 'string', description: 'the caption from the placeholder, verbatim' },
@@ -317,9 +319,10 @@ const TOOL_RULES =
 // bridge cannot read its tokens and answers 401. That is exactly how the first redraw round
 // died after the first draw round had worked: same script, same agent, different call
 // boundary.
-function drawCommand(slug, caption) {
+function drawCommand(slug, caption, tag = '') {
   return (
     `${ENV_BLOCK}\n` +
+    `mkdir -p ${WORK_DIR}/logs\n` +
     `<bin> generate \\\n` +
     `  --input ${WORK_DIR}/brief-${slug}.txt \\\n` +
     `  --caption "${caption}" \\\n` +
@@ -328,7 +331,34 @@ function drawCommand(slug, caption) {
     `  --vlm-provider claude_code --vlm-model sonnet \\\n` +
     CRITIC_FLAGS +
     `  --image-provider ss_gateway \\\n` +
-    `  --aspect-ratio 16:9 --save-prompts`
+    `  --aspect-ratio 16:9 --save-prompts \\\n` +
+    `  2>&1 | tee ${WORK_DIR}/logs/${slug}${tag}.log`
+  )
+}
+
+// Who judged a figure is read from its render log, never taken from the illustrator's word. On
+// the Vista run Kimi began answering 403 halfway through, the tool switched to Claude on its own,
+// and the illustrator reported "critic: Kimi K3" for figures Kimi never saw.
+function criticCommand(logs) {
+  return (
+    `python -X utf8 tools/critic_used.py ` +
+    logs.map((l) => `--log-file ${l}`).join(' ') +
+    ` --log ${WORK_DIR}/tools.jsonl --log-note "who judged the figures"`
+  )
+}
+
+// A screen is not generated: its numbers and words are the point, and a generator does not keep
+// them. The illustrator writes an HTML mockup in the look of the accepted figures, its brief ends
+// with a Facts block that tools/figure_facts.py checks against the document, and headless Chrome
+// renders it. The Vista drawing screen took thirty generated candidates and still needed its
+// text fixed by hand; its brief had asked for five piers where the spacing called for seven.
+function screenCommands(slug) {
+  return (
+    `python -X utf8 tools/figure_facts.py --brief ${WORK_DIR}/brief-${slug}.txt --file ${ARTICLE_PATH} ` +
+    `--log ${WORK_DIR}/tools.jsonl --log-note "facts of ${slug}"\n` +
+    `python -X utf8 tools/render_html.py --html ${WORK_DIR}/mockup-${slug}.html ` +
+    `--out ${WORK_DIR}/render-${slug}.png --width 1600 --height 900 ` +
+    `--log ${WORK_DIR}/tools.jsonl --log-note "render of ${slug}"`
   )
 }
 
@@ -401,7 +431,9 @@ const plan = await agent(
     `Return the list of figures: slug, caption verbatim, the section it stands after, what it ` +
     `is good for, and its kind: exact when its value is which box connects to which, in what ` +
     `order or on which week (sequence, component, deployment, state, flow, timeline), ` +
-    `illustration when its value is the look (a product mockup, a scene, a hero picture). ` +
+    `screen when it is a product screen whose numbers, counts or words the text relies on ` +
+    `(items placed on a plan, a price list, a banner, a disclaimer), illustration when its ` +
+    `value is the look (a scene, a hero picture). ` +
     `Return also the language the document is written in, named in English — every worded ` +
     `label on every figure will be in that language.\n\n` +
     (IN_PLACE
@@ -450,7 +482,19 @@ let drawn = await agent(
     `PostgreSQL) stay exactly as the text writes them — they have no language. Keep the worded ` +
     `labels few and short: an image generator draws a non-Latin script worse than Latin, and a ` +
     `long phrase is likelier to come out mangled than a short one.\n` +
-    `2. Run the tool once with this command, substituting your bin, the slug and the caption:\n\n` +
+    `   For a SCREEN the brief ends with a Facts block, one line each: "- text: <words the ` +
+    `screen shows, copied from the document>" for every banner, disclaimer, label and price line ` +
+    `the text also has, and "- check: <arithmetic that must hold>" for every count the screen ` +
+    `derives, written with the document's numbers (for piers on a wall: ceil((wall - 2 * corner) ` +
+    `/ spacing) + 1 == piers). A screen is NOT drawn with the tool: write it as one self-contained ` +
+    `HTML file ${WORK_DIR}/mockup-<slug>.html (inline CSS, no external files, the style line above, ` +
+    `every text from the brief verbatim, every counted item drawn exactly that many times), then ` +
+    `run these two commands and ship render-<slug>.png through the same web-copy command as below. ` +
+    `A false check or a text not in the document is fixed in the brief and the HTML before ` +
+    `rendering, never waved through:\n\n` +
+    screenCommands('<slug>') +
+    `\n\n2. For every other figure run the tool once with this command, substituting your bin, ` +
+    `the slug and the caption:\n\n` +
     drawCommand('<slug>', '<caption>') +
     `\n\n3. The tool names its own run directory and renders ${CANDIDATES} candidates into ` +
     `<run directory>/candidates/cand_<n>/ (with one candidate: final_output.png in the run ` +
@@ -492,6 +536,22 @@ for (const d of drawn.done) {
   log(`[draw/${d.slug}] critic=${d.critic_provider} iterations=${d.iterations} run=${d.run_dir}`)
 }
 for (const f of drawn.failed) log(`[draw/failed] ${f.slug}: ${f.reason}`)
+
+const renderLogs = plan.figures
+  .filter((f) => f.kind !== 'screen' && drawn.done.some((d) => d.slug === f.slug))
+  .map((f) => `${WORK_DIR}/logs/${f.slug}.log`)
+if (renderLogs.length) {
+  const judged = await agent(
+    `Run exactly this command from the repository root and return its result unchanged:\n\n` +
+      `${criticCommand(renderLogs)}\n\n` +
+      `Return the parsed report in the report field and the raw output in stdout. Correct nothing.`,
+    { agentType: 'gate-runner', model: 'haiku', label: 'critic-used', phase: 'Draw', schema: GATE },
+  )
+  for (const [name, facts] of Object.entries((judged.report.measures && judged.report.measures.logs) || {})) {
+    log(`[draw/critic] ${name}: configured=${facts.configured} judged_by=${(facts.judged_by || []).join(',') || 'none'} fell_back=${facts.fell_back}`)
+  }
+  for (const problem of judged.report.problems) log(`[draw/critic] PROBLEM: ${problem}`)
+}
 
 if (!drawn.gateway_ok) {
   // Loud and specific: this is a credential in the OS keychain, not something a prompt fixes.
@@ -579,7 +639,9 @@ while (redraws < MAX_REDRAWS && looked.checks.some((c) => !c.ok)) {
       `rules ("message 7 starts on the Cloud API lifeline and ends on the Technician tablet ` +
       `lifeline"), save it as ${WORK_DIR}/brief-<slug>-r<N>.txt, and render afresh with the ` +
       `ordinary command pointed at the revised brief — ${CANDIDATES} candidates again:\n\n` +
-      drawCommand('<slug>', '<caption>').replace(`brief-<slug>.txt`, `brief-<slug>-r<N>.txt`) +
+      drawCommand('<slug>', '<caption>', '-r<N>').replace(`brief-<slug>.txt`, `brief-<slug>-r<N>.txt`) +
+      `\n\nA SCREEN is redrawn by editing its brief and its HTML mockup and running its two ` +
+      `commands again, never with the tool:\n\n${screenCommands('<slug>')}` +
       `\n\nChoose the clean candidate by the same full-size check as before, then make the web ` +
       `copy again, over the old one:\n\n${shrinkCommand('<the chosen png>', '<slug>')}\n\n` +
       `Update ${MANIFEST_PATH}.` +

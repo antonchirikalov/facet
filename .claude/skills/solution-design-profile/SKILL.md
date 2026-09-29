@@ -126,8 +126,12 @@ Wherever a diagram explains better than prose, the designer declares a placehold
 the context view (who talks to the system), the component or container view, the main data
 flow, the deployment topology, and one sequence or state that prose carries badly. The caption
 is in the document's language and names the elements the figure must show; the slug is Latin
-and hyphenated. A separate illustration step draws them from the caption and the surrounding
-section. **The placeholder is the deliverable at this stage**: a reviewer never flags a figure
+and hyphenated. On its own line after each placeholder comes the figure's number and what it
+shows, in italics: *Figure 1. Who uses the app and what it connects to.* (the word for figure
+in the document's language when it is not English). The numbers run 1, 2, 3 through the whole document in the order the figures
+appear, so the text and the client can cite a figure by number; the line says what the reader
+sees, not what the figure is for. A separate illustration step draws them from the caption and
+the surrounding section. **The placeholder is the deliverable at this stage**: a reviewer never flags a figure
 as missing because the file is not there yet.
 
 ## Style
@@ -195,6 +199,7 @@ Deterministic, run by the script before the critic sees the draft:
 - no heading with nothing under it (--no-empty-sections);
 - no bold in the body (--forbid-file library/style/forbid/no-bold.txt);
 - no backtick character anywhere (--forbid);
+- every figure followed by its italic "Figure N." line, numbered 1, 2, 3 in order (--figures-numbered);
 - a prose floor from the order when the order gives one; no ceiling the order did not name.
 
 ## Exemplar

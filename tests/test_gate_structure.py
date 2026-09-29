@@ -199,3 +199,89 @@ def test_sequential_ids_via_cli(
     report, _ = run(capsys, monkeypatch, "--file", str(doc), "--sequential-ids", r"\bFR-\d{3}\b")
     assert report["measures"]["id_gaps"] == ["FR-003 after FR-001"]
     assert any("out of sequence" in p for p in report["problems"])
+
+
+# --- numbered figure captions -----------------------------------------------------------
+
+
+def test_figures_numbered_in_order_pass() -> None:
+    text = (
+        "Text.\n\n![A](figures/a.png)\n\n*Figure 1. What A shows.*\n\n"
+        "More.\n\n![B](figures/b.png)\n*Figure 2. What B shows.*\n"
+    )
+    assert gate.figure_caption_problems(text) == []
+
+
+def test_figure_without_caption_is_named_by_path() -> None:
+    """Картинка без подписи: клиент не может на неё сослаться, и гейт называет её по пути."""
+    text = "![A](figures/a.png)\n\nPlain paragraph.\n"
+    assert gate.figure_caption_problems(text) == ["figures/a.png: no numbered caption"]
+
+
+def test_figure_numbered_out_of_order() -> None:
+    text = "![A](figures/a.png)\n*Figure 1. A.*\n\n![B](figures/b.png)\n*Figure 3. B.*\n"
+    assert gate.figure_caption_problems(text) == ["figures/b.png: numbered 3, expected 2"]
+
+
+def test_figure_caption_in_russian() -> None:
+    text = "![А](figures/a.png)\n\n*Рисунок 1. Что показано.*\n"
+    assert gate.figure_caption_problems(text) == []
+
+
+def test_image_inside_code_is_not_a_figure() -> None:
+    text = "```\n![x](figures/x.png)\n```\n\n![A](figures/a.png)\n*Figure 1. A.*\n"
+    assert gate.figure_caption_problems(text) == []
+
+
+def test_figures_numbered_via_cli(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    doc = write(tmp_path, "![A](figures/a.png)\n\nNo caption here.\n")
+    report, _ = run(capsys, monkeypatch, "--file", str(doc), "--figures-numbered")
+    assert report["measures"]["figure_captions"] == ["figures/a.png: no numbered caption"]
+    assert any("numbered caption" in p for p in report["problems"])
+
+
+# --- proposal style rules ----------------------------------------------------------------
+
+
+def test_outside_quotes_keeps_the_clients_words() -> None:
+    """Клиент в цитате говорит «you»; обращение к читателю ищется только вне цитат."""
+    text = (
+        '\u201cis it just something you can download\u201d. Vista decides. We said "your call".\n'
+    )
+    assert "you" not in gate.outside_quotes(text).lower().replace("\u201cq\u201d", "")
+
+
+def test_forbid_outside_quotes_via_cli(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    doc = write(tmp_path, "\u201cyou said\u201d is fine. You are not.\n")
+    report, _ = run(capsys, monkeypatch, "--file", str(doc), "--forbid-outside-quotes", r"\byou\b")
+    assert report["measures"]["outside_quotes"] == {r"\byou\b": 1}
+    assert any("outside quotes" in p for p in report["problems"])
+
+
+def test_empty_cells_are_named_and_allowed_columns_skipped() -> None:
+    """Пустая ячейка читается как забытая; колонку цены для ПМ разрешено оставить пустой."""
+    text = (
+        "### Backend\n\n| Service | Part | What |\n| --- | --- | --- |\n"
+        "| API | Users | a |\n| | Keys | b |\n\n"
+        "### Costs\n\n| Phase | Cost, $ |\n| --- | --- |\n| Discovery | |\n"
+    )
+    assert gate.empty_cells(text, r"cost") == ["Backend: row 2, Service"]
+    assert len(gate.empty_cells(text)) == 2
+
+
+def test_section_refs_resolve_against_numbered_headings() -> None:
+    """После перегруппировки разделов «see section 7» указывал не туда."""
+    text = "## 1. One\n\nSee section 2 and sections 1 and 3.\n\n## 2. Two\n"
+    assert gate.unresolved_section_refs(text) == ["section 3"]
+
+
+def test_section_refs_via_cli(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    doc = write(tmp_path, "## 1. One\n\nSee section 9.\n")
+    report, _ = run(capsys, monkeypatch, "--file", str(doc), "--section-refs")
+    assert report["measures"]["unresolved_section_refs"] == ["section 9"]

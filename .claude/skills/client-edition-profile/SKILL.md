@@ -51,7 +51,8 @@ of source locators, tags and notes about our own materials, and they were rewrit
   design proportionate; an edition that drops it hands the next reader a flat list.
 - Every number exactly as the traceable version has it.
 - The figure placeholders ![caption](figures/<slug>.png), with the same slugs; a caption may be
-  shortened.
+  shortened. Each is followed by its italic line *Figure N. <what the figure shows>.*; where the
+  edition drops a figure, the rest are renumbered so the numbers run 1, 2, 3 without a gap.
 - For a design: every decision, the timeline section if the traceable version has one, the
   risks, the assumptions to confirm. Decision ids may stay if the design text refers to them.
 
@@ -125,6 +126,7 @@ Deterministic, run by the script on each client edition:
 - no process or internal-material trace (--forbid-file library/style/forbid/client-meta.txt);
 - no bold, no backtick;
 - ids unique and sequential per prefix (--unique-ids, --sequential-ids);
+- every figure followed by its italic "Figure N." line, numbered 1, 2, 3 in order (--figures-numbered);
 - every attributed quote found in the extracts (tools/check_quotes.py).
 
 ## Output language

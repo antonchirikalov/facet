@@ -44,6 +44,7 @@ PROFILE_AGENTS = {
         "solution_design_selector",
     },
     "discovery-questions-profile": {"arch_probe", "arch_critic"},
+    "proposal-profile": {"coverage_mapper", "proposal_reviewer", "proposal_editor"},
 }
 
 # Кто требует MCP по состоянию библиотеки: три Tavily, один pdf-reader, source_finder оба.
@@ -253,8 +254,8 @@ def test_missing_prompt_is_named_in_the_error(tmp_path: Path) -> None:
 
 def test_emits_every_agent_of_the_library(tmp_path: Path) -> None:
     written = emit_all(LIBRARY_AGENTS, tmp_path)
-    assert len(written) == 23
-    assert len(list(tmp_path.glob("*.md"))) == 23
+    assert len(written) == 26
+    assert len(list(tmp_path.glob("*.md"))) == 26
 
 
 def test_every_emitted_file_parses_and_has_tools(tmp_path: Path) -> None:

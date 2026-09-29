@@ -164,6 +164,20 @@ def test_client_stage_passes_the_id_map_and_checks_quotes(tmp_path: Path) -> Non
     assert gate.count("--sequential-ids") == 1
 
 
+def test_design_and_client_gates_check_figure_numbers(tmp_path: Path) -> None:
+    """Каждый рисунок подписан «Figure N.» по порядку: это проверяет гейт, а не критик."""
+    design = prompts(
+        tmp_path, {**RUN, "config": {"stages": ["requirements", "design"], "fresh": True}}
+    )
+    design_gates = [
+        p for p in by_agent(design, "gate-runner") if "--require-heading" in p and r"1\.1" in p
+    ]
+    assert design_gates and all("--figures-numbered" in p for p in design_gates)
+    client = prompts(tmp_path, {**RUN, "config": {"stages": ["client"]}})
+    client_gate = next(p for p in by_agent(client, "gate-runner") if "client-meta.txt" in p)
+    assert client_gate.count("--figures-numbered") == 2
+
+
 def test_client_stage_runs_alone(tmp_path: Path) -> None:
     done = subprocess.run(
         [
@@ -180,3 +194,33 @@ def test_client_stage_runs_alone(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     assert done.returncode != 0 and "client" in done.stderr
+
+
+PROPOSAL = ROOT / ".claude" / "workflows" / "proposal-review.js"
+
+
+def test_proposal_review_gates_carry_the_profile_rules(tmp_path: Path) -> None:
+    """Правила профиля пропозала проверяет гейт, а не читатель: «you», пустые ячейки, ссылки, рисунки, покрытие."""
+    out = tmp_path / "prompts.json"
+    args = {"runDir": "dry/prop", "document": "dry/prop/prop.md", "sources": ["dry/prop/t.md"]}
+    done = subprocess.run(
+        ["node", str(DRY_RUN), str(PROPOSAL), "ok", json.dumps(args)],
+        cwd=ROOT,
+        check=False,
+        env={**os.environ, "DRY_PROMPTS_OUT": str(out)},
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    assert done.returncode == 0, done.stderr
+    items = json.loads(out.read_text(encoding="utf-8"))
+    gate = next(p for p in by_agent(items, "gate-runner"))
+    for flag in (
+        "--forbid-outside-quotes",
+        "--no-empty-cells",
+        "--section-refs",
+        "--figures-numbered",
+    ):
+        assert flag in gate
+    assert "tools/coverage.py" in gate and "tools/check_quotes.py" in gate
+    assert by_agent(items, "coverage-mapper") and by_agent(items, "proposal-reviewer")

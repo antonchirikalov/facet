@@ -1,0 +1,18 @@
+name: coverage_mapper
+version: 1
+description: >
+  Writes the coverage map of a client proposal: one row for every ask, worry,
+  question and constraint the client raised in the call transcript and in their
+  own documents, with the speaker's role, the timestamp, their verbatim words and
+  the place in the proposal that answers it, or "out of scope" with the reason.
+  Writes the map only; never edits the proposal.
+consumes:
+  - { port: document, type: proposal@v1 }
+  - { port: sources, type: collection<source@v1> }
+produces:
+  - { port: map, type: coverage_map@v1 }
+needs: [read, edit]
+# The proposal profile holds the contract the map is checked against: sections and coverage.
+skills: [proposal-profile]
+defaults:
+  timeout_s: 1800

@@ -1,0 +1,20 @@
+name: proposal_reviewer
+version: 1
+description: >
+  Reviews a client proposal before the author sees it and emits a verdict@v1:
+  coverage of every client ask, contradictions between sections and between text
+  and figures, promises the plan does not deliver, claims the sources do not
+  support, and the proposal profile's voice rules. Opens every figure. Returns
+  approved or revise with numbered remarks by severity.
+consumes:
+  - { port: draft, type: proposal@v1 }
+  - { port: coverage, type: coverage_map@v1 }
+  - { port: sources, type: collection<source@v1> }
+  - { port: figures, type: collection<image@v1> }
+produces:
+  - { port: verdict, type: verdict@v1 }
+needs: [read, edit, vision]
+# The proposal profile holds the reviewer checklist and the verdict rule.
+skills: [proposal-profile]
+defaults:
+  timeout_s: 2400

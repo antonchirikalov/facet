@@ -27,6 +27,10 @@ python -X utf8 tools/listing.py --dir <run>/sources --recursive
 python -X utf8 tools/busy.py --file <run>/tools.jsonl --now "<ISO>"
 python -X utf8 tools/sweep_junk.py --dry-run
 python -X utf8 tools/confluence_publish.py --draft <file> --parent-id <id> --json <out.json>
+python -X utf8 tools/coverage.py --map <run>/coverage-map.md --file <doc> --source <transcript>
+python -X utf8 tools/figure_facts.py --brief <brief> --file <doc>          # exact screen: Facts hold
+python -X utf8 tools/render_html.py --html <mockup.html> --out <png>          # exact screen, headless Chrome
+python -X utf8 tools/critic_used.py --log-file <render.log>                   # who really judged the figure
 ```
 
 Done means: pytest green, mypy green, ruff clean, generated files rebuilt and committed, and
@@ -63,7 +67,7 @@ never here.
 
 ## Layout
 
-- `library/agents/<name>/{agent.yaml,prompt.md}` — source of truth for the 22 agents;
+- `library/agents/<name>/{agent.yaml,prompt.md}` — source of truth for the 26 agents;
   `library/agents-archive/` — six agents no script calls, plus the refract compiler's
   pipeline templates and type schemas, kept for history;
 - `.claude/agents/` — **generated** by `emit_agents`, committed; edit the source only;
