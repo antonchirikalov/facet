@@ -156,6 +156,12 @@ function scoreOf(remarks, gateProblems) {
   return score
 }
 
+// The reviewer numbers its remarks itself ("1. [HIGH] ..."); the number is dropped so the
+// severity is the first thing on the line, for the score and for the round record alike.
+function bare(remark) {
+  return String(remark).replace(/^\s*\d+[.)]\s*/, '')
+}
+
 function record(path, heading, items) {
   return `FILE\n${path}\n\nHEADING\n${heading}\n\nITEMS\n` + items.map((r, i) => `${i + 1}. ${r}`).join('\n')
 }
@@ -213,7 +219,7 @@ for (let round = 1; round <= MAX_ROUNDS; round++) {
       ),
       { agentType: 'proposal-reviewer', model: 'opus', label: `review:${round}`, phase: 'Review', schema: VERDICT },
     )) || { verdict: 'revise', remarks: ['[HIGH] the reviewer returned no verdict: an open item, not agreement'] }
-  const remarks = verdict.remarks || []
+  const remarks = (verdict.remarks || []).map(bare)
   const score = scoreOf(remarks, gateProblems)
   log(`[review/${round}] verdict=${verdict.verdict} remarks=${remarks.length} score=${score}`)
 

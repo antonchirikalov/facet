@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -224,3 +225,23 @@ def test_proposal_review_gates_carry_the_profile_rules(tmp_path: Path) -> None:
         assert flag in gate
     assert "tools/coverage.py" in gate and "tools/check_quotes.py" in gate
     assert by_agent(items, "coverage-mapper") and by_agent(items, "proposal-reviewer")
+
+
+def test_numbered_remarks_still_score_by_severity() -> None:
+    """Проверяющий Vista нумеровал замечания сам («1. [HIGH] ...»): счёт кругов 2 и 3 вышел 0 при
+    открытых HIGH, а полка сравнивала нули. Номер снимается до подсчёта и до записи круга."""
+    text = PROPOSAL.read_text(encoding="utf-8")
+    funcs = [
+        m.group(0)
+        for m in re.finditer(r"^function (bare|scoreOf)\(.*?^\}", text, re.DOTALL | re.MULTILINE)
+    ]
+    assert len(funcs) == 2
+    probe = (
+        "\n".join(funcs)
+        + "\nconst r = ['1. [HIGH] a', '2) [MEDIUM] b', '[LOW] c'].map(bare);"
+        + "console.log(JSON.stringify([r, scoreOf(r, ['g'])]))"
+    )
+    done = subprocess.run(
+        ["node", "-e", probe], check=True, capture_output=True, text=True, encoding="utf-8"
+    )
+    assert json.loads(done.stdout) == [["[HIGH] a", "[MEDIUM] b", "[LOW] c"], 12]
