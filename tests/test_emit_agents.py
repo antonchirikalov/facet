@@ -2,7 +2,7 @@
 
 Две части. Первая — отображение возможностей контракта в инструменты: таблица из
 `docs/decisions/2026-08-13-collimator-plan.md`, включая слипание `read` и `vision` в один `Read`. Вторая — сборка на
-настоящей библиотеке: 23 агента, и MCP ровно у тех пяти, у которых его называет `needs`.
+настоящей библиотеке: 28 агентов, и MCP ровно у тех пяти, у которых его называет `needs`.
 """
 
 from __future__ import annotations
@@ -33,6 +33,7 @@ SKILLS = ROOT / ".claude" / "skills"
 # Кто читает какой профиль (SPEC §6): писатель, корректор и критик одного типа — один профиль.
 PROFILE_AGENTS = {
     "client-edition-profile": {"client_editor"},
+    "client-voice-profile": {"client_voice"},
     "requirements-profile": {
         "requirements_writer",
         "requirements_fact_checker",
@@ -47,9 +48,9 @@ PROFILE_AGENTS = {
     "proposal-profile": {"coverage_mapper", "proposal_reviewer", "proposal_editor"},
 }
 
-# Кто требует MCP по состоянию библиотеки: три Tavily, один pdf-reader, source_finder оба.
+# Кто требует MCP по состоянию библиотеки: четыре Tavily, три pdf-reader, source_finder оба.
 TAVILY_AGENTS = {"arch_probe", "requirements_writer", "solution_designer", "source_finder"}
-PDF_AGENTS = {"source_processor", "source_finder"}
+PDF_AGENTS = {"source_processor", "source_finder", "client_voice"}
 
 
 def spec_of(
@@ -254,8 +255,8 @@ def test_missing_prompt_is_named_in_the_error(tmp_path: Path) -> None:
 
 def test_emits_every_agent_of_the_library(tmp_path: Path) -> None:
     written = emit_all(LIBRARY_AGENTS, tmp_path)
-    assert len(written) == 26
-    assert len(list(tmp_path.glob("*.md"))) == 26
+    assert len(written) == 28
+    assert len(list(tmp_path.glob("*.md"))) == 28
 
 
 def test_every_emitted_file_parses_and_has_tools(tmp_path: Path) -> None:

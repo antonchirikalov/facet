@@ -1,5 +1,6 @@
 name: proposal_reviewer
 version: 1
+summary: "Независимо проверяет пропозал до автора: покрытие просьб заказчика, противоречия между разделами и рисунками, обещания без плана, утверждения без опоры, голос по профилю."
 description: >
   Reviews a client proposal before the author sees it and emits a verdict@v1:
   coverage of every client ask, contradictions between sections and between text
@@ -11,6 +12,9 @@ consumes:
   - { port: coverage, type: coverage_map@v1 }
   - { port: sources, type: collection<source@v1> }
   - { port: figures, type: collection<image@v1> }
+  - { port: answers, type: answers@v1, optional: true }
+  # the client's words, ranked concerns, weights and vocabulary (client-voice); present once written
+  - { port: client_voice, type: client_voice@v1, optional: true }
 produces:
   - { port: verdict, type: verdict@v1 }
 needs: [read, edit, vision]

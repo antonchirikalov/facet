@@ -16,6 +16,7 @@ a ruler an agent calls: it measures, it never decides (SPEC R2, R6).
 ```bash
 uv run python -c "from pathlib import Path; from facet.emit_agents import emit_all; print([p.name for p in emit_all(Path('library/agents'), Path('.claude/agents'), Path('.claude/skills'))])"   # agents; fails if a named profile is missing from .claude/skills
 uv run pytest                                          # no network, no LLM
+uv run python -m facet.wiring                          # every stage of every script on stubs: agents, ports, lost outputs, meta phases; regenerates the README agent registry
 uv run ruff check --fix . && uv run ruff format .
 uv run mypy facet                                      # strict
 node tools/dry_run.mjs .claude/workflows/<script>.js ok '<args json>'    # stubbed run, EVERY branch
@@ -33,8 +34,10 @@ python -X utf8 tools/render_html.py --html <mockup.html> --out <png>          # 
 python -X utf8 tools/critic_used.py --log-file <render.log>                   # who really judged the figure
 ```
 
-Done means: pytest green, mypy green, ruff clean, generated files rebuilt and committed, and
-`dry_run.mjs` in every mode of any script that was touched.
+Done means: pytest green, mypy green, ruff clean, generated files rebuilt and committed,
+`dry_run.mjs` in every mode of any script that was touched, and `facet.wiring` at zero
+problems with the README registry regenerated. A port a script hands an agent is declared in
+that agent's `agent.yaml`; a new collection is handed as `<singular>:<stem>` or `<singular>_<n>`.
 
 ## Rules that break a run when broken
 
@@ -67,7 +70,7 @@ never here.
 
 ## Layout
 
-- `library/agents/<name>/{agent.yaml,prompt.md}` — source of truth for the 26 agents;
+- `library/agents/<name>/{agent.yaml,prompt.md}` — source of truth for the 28 agents (registry table in README, generated);
   `library/agents-archive/` — six agents no script calls, plus the refract compiler's
   pipeline templates and type schemas, kept for history;
 - `.claude/agents/` — **generated** by `emit_agents`, committed; edit the source only;

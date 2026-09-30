@@ -245,3 +245,17 @@ def test_numbered_remarks_still_score_by_severity() -> None:
         ["node", "-e", probe], check=True, capture_output=True, text=True, encoding="utf-8"
     )
     assert json.loads(done.stdout) == [["[HIGH] a", "[MEDIUM] b", "[LOW] c"], 12]
+
+
+def test_client_voice_reaches_the_requirements_writer_and_critic(tmp_path: Path) -> None:
+    """Вес требования берётся из листа голоса заказчика: лист пишется до писателя и доходит до критика."""
+    items = prompts(tmp_path, {**RUN, "config": {"fresh": True, "stages": ["requirements"]}})
+    labels = [p["label"] for p in items]
+    assert labels.index("voice") < labels.index("req:write:1")
+    voice = by_agent(items, "client-voice")[0]
+    assert "OUTPUT\ndry/run/client-voice.md" in voice and "source:" in voice and "extract:" in voice
+    for agent_type in ("requirements-writer", "requirements-critic"):
+        prompt = by_agent(items, agent_type)[0]
+        assert "client_voice: dry/run/client-voice.md" in prompt and "CLIENT VOICE" in prompt
+    gate = next(p for p in by_agent(items, "gate-runner") if "client voice quotes" in p)
+    assert "check_quotes.py --file dry/run/client-voice.md" in gate

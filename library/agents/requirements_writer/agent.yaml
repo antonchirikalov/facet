@@ -1,5 +1,6 @@
 name: requirements_writer
 version: 1
+summary: "Пишет единый документ требований из извлечений всех источников; вес каждого требования берёт из листа голоса заказчика."
 description: >
   Synthesizes a single requirements document from the collection of per-source
   extracts. The body agent of the Extract pipeline's refine loop: it drafts the
@@ -7,6 +8,8 @@ description: >
   1; the contract is stable now).
 consumes:
   - { port: extracts, type: collection<extract@v1> }
+  # the client's words, ranked concerns, weights and vocabulary (client-voice); present once written
+  - { port: client_voice, type: client_voice@v1, optional: true }
 produces:
   - { port: requirements, type: requirements@v1 }
 needs: [read, edit, "mcp:tavily-remote"]

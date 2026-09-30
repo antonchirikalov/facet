@@ -27,10 +27,12 @@ export const meta = {
   phases: [
     { title: 'Resume', detail: 'what is already on disk, and is anybody else working here' },
     { title: 'Extract', detail: 'one agent per input document, in parallel' },
+    { title: 'Voice', detail: 'the client in their own words: ranking, weights, vocabulary' },
     { title: 'Requirements', detail: 'writer, corrector, gate, critic, in rounds' },
     { title: 'Contest', detail: 'two models design in parallel, a selector picks one' },
     { title: 'Design', detail: 'the winner is refined against a critic, in rounds' },
     { title: 'Discovery', detail: 'what the design could not answer becomes questions' },
+    { title: 'Client', detail: 'the editions the client reads, with the id map, gated' },
     { title: 'Gate', detail: 'records, unresolved items, audit of the run directory' },
   ],
 }
@@ -80,6 +82,7 @@ const UNRESOLVED_PATH = `${run}/UNRESOLVED.md`
 const REQ_CLIENT_PATH = `${run}/requirements.client.md`
 const DESIGN_CLIENT_PATH = `${run}/design.client.md`
 const ID_MAP_PATH = `${run}/client-id-map.json`
+const VOICE_PATH = `${run}/client-voice.md`
 const CANDIDATES_DIR = `${run}/design-candidates`
 const candidatePathOf = (n) => `${CANDIDATES_DIR}/candidate-${n}.md`
 const extractPathOf = (stem) => `${EXTRACTS_DIR}/${stem}.md`
@@ -132,6 +135,7 @@ const MODELS = {
   probe: 'opus',
   discovery: 'opus',
   client: 'opus',
+  voice: 'opus',
   // Carriers run one command and copy its output. Sonnet, not haiku, and this was measured: a
   // haiku carrier read the harness's relayed user request ("check the prompts, run the tests") as
   // its own task, ran pytest and dry-runs for eight minutes, wrote a report into the repository
@@ -183,6 +187,16 @@ const CLIENT_GATE_FLAGS = cfg.clientGateFlags || [
 ]
 const CLIENT_ID_FLAGS = [`--unique-ids "${CLIENT_ID_PATTERN}"`, `--sequential-ids "${CLIENT_ID_PATTERN}"`]
 const QUOTES_TOOL = cfg.quotesTool || 'python -X utf8 tools/check_quotes.py'
+// The client-voice profile's gate rules (.claude/skills/client-voice-profile/SKILL.md).
+const VOICE_GATE_FLAGS = cfg.voiceGateFlags || [
+  ...[1, 2, 3, 4, 5, 6].map((n) => `--require-heading "^##\\s+${n}\\."`),
+  '--forbid "\\x60"',
+]
+// What a consumer of the voice sheet is told about it, next to the port.
+const VOICE_NOTE =
+  `CLIENT VOICE\nThe port client_voice is the client's own words, ranked by what mattered to them. ` +
+  `Take each requirement's weight and frequency from its section 2 and the client's terms from its ` +
+  `section 3. A weight the sheet gives and the document drops is a defect.`
 // The design profile's gate rules (.claude/skills/solution-design-profile/SKILL.md, "Gate rules").
 const DESIGN_GATE_FLAGS = cfg.designGateFlags || [
   ...[1, 2, 3, 4, 5, 6, 7].map((n) => `--require-heading "^##\\s+${n}\\."`),
@@ -222,6 +236,7 @@ const STAGE_OWNED = [
   { prefix: `${run}/probe-questions.md`, mine: RUN_DISCOVERY },
   { prefix: DISCOVERY_PATH, mine: RUN_DISCOVERY },
   { prefix: UNRESOLVED_PATH, mine: !RUN_CLIENT },
+  { prefix: VOICE_PATH, mine: RUN_REQUIREMENTS },
   { prefix: REQ_CLIENT_PATH, mine: RUN_CLIENT },
   { prefix: DESIGN_CLIENT_PATH, mine: RUN_CLIENT },
   { prefix: ID_MAP_PATH, mine: RUN_CLIENT },
@@ -781,7 +796,7 @@ if (!now) {
 const present = new Set()
 {
   phase('Resume')
-  const resumePaths = [REQ_PATH, DESIGN_PATH]
+  const resumePaths = [REQ_PATH, DESIGN_PATH, VOICE_PATH]
   const onDisk = await call(existenceCommands(resumePaths, 'resume: what is already on disk'), {
     agentType: 'gate-runner',
     model: MODELS.gate,
@@ -816,6 +831,15 @@ const present = new Set()
         `Новый прогон — новый каталог: python -X utf8 tools/newrun.py --base docs-runs --label <о чём>. ` +
         `Продолжить прерванный — config.continue=true. Пересобрать здесь же с нуля — config.fresh=true.`,
     )
+  }
+  // Rebuilding means rebuilding. Found by the wiring check: with `fresh` the old requirements.md
+  // still counted as an unjudged draft, the first round skipped the writer, and "from scratch"
+  // reviewed the previous document. Only this launch's own artifacts are forgotten: a design-only
+  // rebuild still stands on the requirements it was given.
+  if (cfg.fresh) {
+    if (RUN_REQUIREMENTS) present.delete(REQ_PATH)
+    if (RUN_REQUIREMENTS) present.delete(VOICE_PATH)
+    if (RUN_DESIGN) present.delete(DESIGN_PATH)
   }
 }
 
@@ -881,10 +905,13 @@ async function reviseLoop({
   // same reason as everything else here: the cache does not outlive the process. Without this,
   // `maxRounds` is a limit per launch instead of per document, and three restarts give nine
   // rounds where the caller allowed three.
-  const recorded = await call(
-    commands([`${ROUNDS_TOOL} --dir ${roundsDir} --last-only ${noted(`how many ${loop} rounds are already done`)}`]),
-    { agentType: 'gate-runner', model: MODELS.gate, label: `${loop}:resume-rounds`, phase: phaseName, schema: ROUNDS },
-  )
+  // A fresh rebuild starts at round 1 whatever the records say; the new records overwrite them.
+  const recorded = cfg.fresh
+    ? null
+    : await call(
+        commands([`${ROUNDS_TOOL} --dir ${roundsDir} --last-only ${noted(`how many ${loop} rounds are already done`)}`]),
+        { agentType: 'gate-runner', model: MODELS.gate, label: `${loop}:resume-rounds`, phase: phaseName, schema: ROUNDS },
+      )
   // Trusted only when it has the shape rounds.py prints: the report's own `rounds` count equals
   // the number of rounds returned AND the number of counts. A carrier that answered something else
   // — one invented a repository health report here — fails this and is announced, not believed.
@@ -1376,6 +1403,8 @@ async function reviseLoop({
 // that arrives through an agent, and a carrier that silently returns three of five documents would
 // cost two extracts nobody notices are missing.
 let sources = []
+// Inputs the inventory marked as our own notes: never quoted as the client.
+const ourNotes = []
 let extractPorts = []
 let requirements = null
 
@@ -1414,7 +1443,10 @@ if (RUN_REQUIREMENTS) {
     if (f.duplicate_of) log(`[extract/опись] дубль: ${f.path} = ${f.duplicate_of}`)
     else if (nested && f.kind !== 'media' && !listedNames.has(f.path.split('/').pop()))
       log(`[extract/опись] во вложенной папке и не обрабатывается: ${f.path} — переложите в ${INPUTS_DIR}, если это часть заказа`)
-    if (f.kind === 'ours') log(`[extract/опись] наша заметка, не слова клиента: ${f.path}`)
+    if (f.kind === 'ours') {
+      ourNotes.push(`${INPUTS_DIR}/${f.path}`)
+      log(`[extract/опись] наша заметка, не слова клиента: ${f.path}`)
+    }
     if (f.kind === 'unknown') log(`[extract/опись] не ясно, чей это документ: ${f.path}`)
   }
 
@@ -1517,6 +1549,46 @@ if (RUN_REQUIREMENTS) {
     )
   }
 
+  // --- The client's voice: what they said, how much it weighed, the words they use ---------------
+  //
+  // Before the requirements, because the weight of a requirement comes from here. On the Vista run
+  // "no signal is rare" reached the design without "rare", and the design built an offline store;
+  // the drafts said "estimate" where the client said "quote". Warnings, not a stop: the requirements
+  // can still be written from the extracts, only without the sheet.
+  phase('Voice')
+  const voiced = await call(
+    task({
+      inputs: [...sources.map((s) => ({ port: `source:${stemOf(s)}`, path: s })), ...extractPorts],
+      output: VOICE_PATH,
+      brief: ORDER_BLOCK,
+      extra: ourNotes.length
+        ? `OUR NOTES, NOT THE CLIENT'S WORDS\n${ourNotes.map((n) => `- ${n}`).join('\n')}`
+        : '',
+    }),
+    { agentType: 'client-voice', model: MODELS.voice, label: 'voice', phase: 'Voice', schema: WROTE },
+  )
+  let voicePort = []
+  if (!voiced || !voiced.written) {
+    warnings.push('лист голоса клиента не написан: вес требований берётся только из извлечений')
+    log('[voice] не написан — требования пишутся без листа голоса клиента')
+  } else {
+    const vgate = await call(
+      commands([
+        gateCommand(VOICE_PATH, null, 'client voice gate', VOICE_GATE_FLAGS),
+        `${QUOTES_TOOL} --file ${VOICE_PATH} --source ${EXTRACTS_DIR} --source ${INPUTS_DIR} ${noted('client voice quotes')}`,
+      ]),
+      { agentType: 'gate-runner', model: MODELS.gate, label: 'voice:gate', phase: 'Voice', schema: EXISTENCE },
+    )
+    const vchecks = (vgate && vgate.checks) || []
+    const vproblems = vchecks.flatMap((c) => c.problems || [])
+    if (vchecks.length !== 2) vproblems.push('проверка листа голоса вернула не два отчёта')
+    log(`[voice/gate] ok=${!vproblems.length}${vproblems.length ? ' | ' + vproblems.join('; ') : ''}`)
+    for (const pr of vproblems) warnings.push(`лист голоса клиента: ${pr}`)
+    voicePort = [{ port: 'client_voice', path: VOICE_PATH }]
+    present.add(VOICE_PATH)
+  }
+  const voiceBrief = [ORDER_BLOCK, voicePort.length ? VOICE_NOTE : ''].filter(Boolean).join('\n\n')
+
   // --- Requirements: the first revision loop -------------------------------------------------
   requirements = await reviseLoop({
     loop: 'req',
@@ -1527,8 +1599,8 @@ if (RUN_REQUIREMENTS) {
     writer: {
       agentType: 'requirements-writer',
       model: MODELS.reqWrite,
-      inputs: [...extractPorts],
-      brief: ORDER_BLOCK,
+      inputs: [...extractPorts, ...voicePort],
+      brief: voiceBrief,
     },
     correctors: [
       {
@@ -1547,8 +1619,8 @@ if (RUN_REQUIREMENTS) {
         tag: 'REQUIREMENTS',
         agentType: 'requirements-critic',
         model: MODELS.reqCritic,
-        inputs: [{ port: 'draft', path: REQ_PATH }, ...extractPorts],
-        brief: ORDER_BLOCK,
+        inputs: [{ port: 'draft', path: REQ_PATH }, ...extractPorts, ...voicePort],
+        brief: voiceBrief,
       },
     ],
   })
@@ -1569,6 +1641,7 @@ if (RUN_REQUIREMENTS) {
       inputs: sources,
       extracts: extractPorts.map((e) => e.path),
       requirements: REQ_PATH,
+      client_voice: voicePort.length ? VOICE_PATH : null,
       rounds: requirements.rounds,
       accepted: requirements.accepted,
       open_items: requirements.open.length,
@@ -1612,6 +1685,7 @@ if (RUN_CLIENT) {
       inputs: [
         { port: 'traceable', path: REQ_PATH },
         { port: 'extracts', path: EXTRACTS_DIR },
+        ...(present.has(VOICE_PATH) ? [{ port: 'client_voice', path: VOICE_PATH }] : []),
       ],
       output: REQ_CLIENT_PATH,
       brief: ORDER_BLOCK,
@@ -1635,6 +1709,7 @@ if (RUN_CLIENT) {
         { port: 'requirements_edition', path: REQ_CLIENT_PATH },
         { port: 'id_map', path: ID_MAP_PATH },
         { port: 'extracts', path: EXTRACTS_DIR },
+        ...(present.has(VOICE_PATH) ? [{ port: 'client_voice', path: VOICE_PATH }] : []),
       ],
       output: DESIGN_CLIENT_PATH,
       brief: DESIGN_BRIEF,
@@ -1947,6 +2022,7 @@ return {
   inputs: sources,
   extracts: extractPorts.map((e) => e.path),
   requirements: REQ_PATH,
+  client_voice: present.has(VOICE_PATH) ? VOICE_PATH : null,
   requirements_rounds: requirements ? requirements.rounds : null,
   requirements_accepted: requirements ? requirements.accepted : null,
   contest_models: CONTEST_MODELS,

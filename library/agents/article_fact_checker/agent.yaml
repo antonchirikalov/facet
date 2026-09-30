@@ -1,5 +1,6 @@
 name: article_fact_checker
 version: 1
+summary: "Сверяет утверждения статьи с источниками и исправляет на месте: имена, годы, наборы данных, конфигурации, преувеличения."
 description: >
   Corrects an article's sourced claims against the notes it was written from and returns the
   same article. Not a reviewer: it fixes names, years, corpora, model configurations, quoted
@@ -10,7 +11,12 @@ consumes:
   - { port: draft, type: article@v1 }
   # the per-source notes, not the analysis: the analysis is already a reading of them, and a
   # claim has to be checked against what a source actually says
-  - { port: notes, type: collection<study_note@v1> }
+  # what the finders brought back, as explainer-article.js hands it: one summary per aspect
+  # (sources:<aspect>), one file per source read (source:<aspect>/<file>) and each finder's
+  # index of where every file came from (index:<aspect>)
+  - { port: sources, type: collection<source_summary@v1> }
+  - { port: source, type: collection<source@v1>, optional: true }
+  - { port: index, type: collection<source_index@v1>, optional: true }
   - { port: brief, type: brief@v1 }
   # optional, and the reason it is here is a live round: the checker weakened five overclaims
   # correctly and the style critic flipped from ok to revise on the same draft. Corrections

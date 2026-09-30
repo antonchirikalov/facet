@@ -1,5 +1,6 @@
 name: coverage_mapper
 version: 1
+summary: "Карта покрытия пропозала: каждая просьба, опасение и вопрос заказчика с ролью, таймкодом и дословными словами, и раздел пропозала, который отвечает, или «вне рамок» с причиной."
 description: >
   Writes the coverage map of a client proposal: one row for every ask, worry,
   question and constraint the client raised in the call transcript and in their
@@ -9,6 +10,8 @@ description: >
 consumes:
   - { port: document, type: proposal@v1 }
   - { port: sources, type: collection<source@v1> }
+  # the client's words, ranked concerns, weights and vocabulary (client-voice); present once written
+  - { port: client_voice, type: client_voice@v1, optional: true }
 produces:
   - { port: map, type: coverage_map@v1 }
 needs: [read, edit]

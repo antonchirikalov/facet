@@ -67,6 +67,10 @@ function task(inputs, output, brief) {
 }
 
 const sourceInputs = SOURCES.map((s, i) => [`source_${i + 1}`, s])
+// The client-voice sheet of solution-design.js, when the proposal has one: their ranking, weights
+// and vocabulary. Optional, and named by the caller, because a script cannot look for a file.
+const VOICE = (args && args.voice) || ''
+const voiceInputs = VOICE ? [['client_voice', VOICE]] : []
 const sourceFlags = SOURCES.map((s) => `--source ${s}`).join(' ')
 
 const REPORT = {
@@ -173,7 +177,7 @@ log(`[start] run=${run} document=${DOC} sources=${SOURCES.length} rounds<=${MAX_
 phase('Coverage')
 const mapped = await agent(
   task(
-    [['document', DOC], ...sourceInputs],
+    [['document', DOC], ...voiceInputs, ...sourceInputs],
     MAP_PATH,
     `Write the coverage map of this proposal from the client's sources, as your instructions and ` +
       `the proposal profile describe.`,
@@ -191,6 +195,8 @@ let previous = ''
 let accepted = false
 let open = []
 let rounds = 0
+// Every answers file the editor wrote: read by the next reviewer, returned for the person.
+const answerFiles = []
 
 for (let round = 1; round <= MAX_ROUNDS; round++) {
   rounds = round
@@ -208,10 +214,21 @@ for (let round = 1; round <= MAX_ROUNDS; round++) {
   const verdict =
     (await agent(
       task(
-        [['draft', DOC], ['coverage', MAP_PATH], ['figures', FIGURES_DIR], ...sourceInputs],
+        [
+          ['draft', DOC],
+          ['coverage', MAP_PATH],
+          ['figures', FIGURES_DIR],
+          ...(round > 1 ? [['answers', answersPath(round - 1)]] : []),
+          ...voiceInputs,
+          ...sourceInputs,
+        ],
         null,
         `Review this proposal as your instructions and the proposal profile describe. Open every ` +
           `figure the proposal references in ${FIGURES_DIR}.` +
+          (round > 1
+            ? ` The answers file is the editor's reply to your previous remarks: a remark declined ` +
+              `with a reason is raised again only if the reason does not hold, and then say why.`
+            : '') +
           (gateProblems.length
             ? `\n\nThe gates already found these; do not repeat them as remarks:\n` +
               gateProblems.map((p) => `- ${p}`).join('\n')
@@ -271,6 +288,7 @@ for (let round = 1; round <= MAX_ROUNDS; round++) {
     ),
     { agentType: 'proposal-editor', model: 'opus', label: `edit:${round}`, phase: 'Edit', schema: ANSWERED },
   )
+  answerFiles.push(answersPath(round))
   if (answered) {
     log(`[edit/${round}] fixed=${answered.fixed.length} declined=${answered.declined.length}`)
     for (const d of answered.declined) log(`[edit/${round}] declined ${d.n}: ${d.reason}`)
@@ -294,4 +312,12 @@ if (open.length) {
 }
 log(`[summary] rounds=${rounds} accepted=${accepted} open=${open.length}`)
 
-return { document: DOC, coverage: MAP_PATH, rounds, accepted, open: open.length, unresolved: open.length ? UNRESOLVED_PATH : null }
+return {
+  document: DOC,
+  coverage: MAP_PATH,
+  rounds,
+  accepted,
+  open: open.length,
+  unresolved: open.length ? UNRESOLVED_PATH : null,
+  answers: answerFiles,
+}

@@ -1,5 +1,6 @@
 name: illustrator
 version: 1
+summary: "Рисует рисунки по плейсхолдерам документа через figgybanana: пишет бриф, рендерит трёх кандидатов, выбирает, ведёт манифест с командами для перерисовки."
 description: >
   Fulfils the figure placeholders an article declared. For every
   ![caption](figures/<slug>.png) in the text it runs the figgybanana CLI once and writes

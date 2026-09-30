@@ -1,0 +1,21 @@
+name: figure_critic
+version: 1
+summary: "Смотрит отрисованные рисунки глазами читателя: выписывает каждую подпись, сверяет блоки и стрелки со списками брифа, числа с текстом, орфографию и язык. Только судит."
+description: >
+  Looks at rendered figures the way a reader of the document would and reports,
+  per figure, every label it sees and every defect: wrong or reversed connections
+  against the brief's lists, numbers the text does not carry, misspellings, labels
+  in the wrong language, invented elements. Judges only; never draws or edits.
+consumes:
+  - { port: document, type: document@v1 }
+  - { port: figures, type: collection<image@v1> }
+  # the illustrator's briefs: for an exact figure the Boxes and Connections lists are the check
+  - { port: briefs, type: collection<figure_brief@v1>, optional: true }
+produces:
+  - { port: checks, type: figure_checks@v1 }
+# Read only, and it can see images through Read. The critic of the figure loop was a
+# general-purpose agent with every tool and the whole CLAUDE.md; a judge that can edit is one
+# inference away from "fixing" what it was asked to judge.
+needs: [read]
+defaults:
+  timeout_s: 1800

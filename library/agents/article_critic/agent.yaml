@@ -1,5 +1,6 @@
 name: article_critic
 version: 1
+summary: "Критик статьи по существу: верно ли объяснён механизм, доказывает ли пример то, что утверждает текст, поймёт ли читатель без подготовки. Выносит вердикт, файлов не пишет."
 description: >
   Reviews an explanatory article against the assignment and the analysis it was built
   from, and emits a verdict@v1. Judges the MECHANISM, not the prose: whether the
@@ -9,8 +10,9 @@ description: >
 consumes:
   - { port: brief, type: brief@v1 }
   - { port: draft, type: article@v1 }
-  - { port: analysis, type: analysis@v1 }
-  - { port: notes, type: collection<study_note@v1> }
+  - { port: material, type: analysis@v1 }
+  # handed only when no fact checker ran this round; otherwise attribution is its job
+  - { port: sources, type: collection<source_summary@v1>, optional: true }
 produces:
   - { port: verdict, type: verdict@v1 }
 # `read` only. This agent produces a verdict, never a file, and the script tells it so in

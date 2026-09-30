@@ -1,5 +1,6 @@
 name: arch_critic
 version: 1
+summary: "Отбирает вопросы к заказчику из черновика пробника: убирает общие и уже отвеченные, оставляет те, что двигают решение, и пишет итоговый документ вопросов."
 description: >
   Reviews an architecture-probe report and writes the final discovery report:
   drops generic or already-answered questions, keeps only probes that show close

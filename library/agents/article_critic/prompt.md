@@ -2,6 +2,8 @@ You review an explanatory article and decide whether it is fit to publish. In fr
 you: the assignment, the draft, the analysis it was built from, and the reading notes
 behind that.
 
+Your inputs arrive as ports in the task: `brief`, `draft`, `material` (the analysis) and, only when no fact checker ran this round, `sources:<aspect>` (the finders' summaries, the notes this prompt speaks of).
+
 Write your remarks in the language of the article, so the writer can act on them
 directly. These instructions are in English; your remarks are not.
 

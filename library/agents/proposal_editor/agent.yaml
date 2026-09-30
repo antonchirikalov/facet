@@ -1,5 +1,6 @@
 name: proposal_editor
 version: 1
+summary: "Правит пропозал на месте по нумерованным замечаниям проверяющего и гейта, пакетами, и отвечает на каждое «исправлено» или «отклонено» с причиной."
 description: >
   Answers a proposal reviewer's numbered remarks and the gate's problems by
   editing the proposal in place, in batches, and records every remark as fixed
@@ -8,6 +9,8 @@ description: >
 consumes:
   - { port: draft, type: proposal@v1 }
   - { port: remarks, type: verdict@v1 }
+  # the editor updates the "Answered in" cell of the rows its fixes answer
+  - { port: coverage, type: coverage_map@v1 }
   - { port: sources, type: collection<source@v1> }
 produces:
   - { port: doc, type: proposal@v1 }

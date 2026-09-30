@@ -1,5 +1,6 @@
 name: gate_runner
 version: 1
+summary: "Носильщик детерминированных проверок: запускает данные команды и приносит отчёт без изменений. Ничего не измеряет, не судит и не создаёт."
 description: >
   Carries a deterministic check and brings its output back unchanged. Runs the exact
   commands it is given from the repository root and returns their parsed reports and their

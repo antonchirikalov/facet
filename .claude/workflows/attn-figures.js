@@ -606,6 +606,7 @@ const lookTask = (slugs) =>
 
 phase('Look')
 let looked = await agent(lookTask(drawn.done.map((d) => d.slug)), {
+  agentType: 'figure-critic',
   model: 'sonnet',
   label: 'look:1',
   phase: 'Look',
@@ -660,6 +661,7 @@ while (redraws < MAX_REDRAWS && looked.checks.some((c) => !c.ok)) {
   for (const f of again.failed) log(`[redraw/${redraws}/failed] ${f.slug}: ${f.reason}`)
 
   looked = await agent(lookTask(bad.map((c) => c.slug)), {
+    agentType: 'figure-critic',
     model: 'sonnet',
     label: `look:${redraws + 1}`,
     phase: 'Redraw',
@@ -677,7 +679,7 @@ const gate = await agent(
   `Run exactly this command from the repository root and return its result unchanged:\n\n` +
     `python -X utf8 tools/gate.py --dir ${FIGURES_DIR} --min-entries ${plan.figures.length + 1}\n\n` +
     `Return the parsed report in the report field and the raw output in stdout. Correct nothing.`,
-  { model: 'haiku', label: 'gate', phase: 'Gate', schema: GATE },
+  { agentType: 'gate-runner', model: 'haiku', label: 'gate', phase: 'Gate', schema: GATE },
 )
 log(
   `[gate] ok=${gate.report.ok} problems=${gate.report.problems.length} ` +

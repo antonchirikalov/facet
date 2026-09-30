@@ -1,0 +1,21 @@
+name: client_voice
+version: 1
+summary: "Лист голоса заказчика: что он сказал дословно и кто, что для него важнее по времени и эмоциям в звонке, во что каждая фраза нас обязывает и с каким весом, его словарь, кто чего хочет, порядок пропозала и чего он не сказал."
+description: >
+  Writes the client voice sheet from the client's own sources: what matters to
+  them ranked by the evidence of the call, each phrase verbatim with its role and
+  place translated into a checkable commitment with its weight, their vocabulary
+  and the words not to replace it with, who wants what, a proposal structure in
+  their order and what they never mentioned.
+consumes:
+  # the input documents themselves: the transcript's emphasis and wording are what this reads
+  - { port: sources, type: collection<source@v1> }
+  # the per-source extracts, where the quotes the gate checks against already sit
+  - { port: extracts, type: collection<extract@v1> }
+produces:
+  - { port: voice, type: client_voice@v1 }
+needs: [read, edit, "mcp:pdf-reader"]
+# The client-voice profile holds the contract: sections, what counts as the client's words, weights.
+skills: [client-voice-profile]
+defaults:
+  timeout_s: 1800

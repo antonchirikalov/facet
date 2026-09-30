@@ -40,6 +40,7 @@ export const meta = {
   name: 'explainer-article',
   description: 'Explanatory article from a topic: find sources, reconcile them, write under critics',
   phases: [
+    { title: 'Resume', detail: 'is anybody else working here, what is already on disk' },
     { title: 'Brief', detail: 'free-text order to brief.md, aspects and thresholds' },
     { title: 'Research', detail: 'source finders per aspect, in parallel' },
     { title: 'Analyse', detail: 'the analyst reconciles the sources into material' },

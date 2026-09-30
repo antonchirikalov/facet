@@ -1,5 +1,6 @@
 name: requirements_critic
 version: 1
+summary: "Критик требований: сверяет черновик с намерением источников и выносит вердикт с нумерованными замечаниями."
 description: >
   Reviews a requirements draft and emits a verdict@v1. The critic of the Extract
   pipeline's refine loop: it judges the draft against the source extracts' intent
@@ -7,6 +8,8 @@ description: >
 consumes:
   - { port: draft, type: requirements@v1 }
   - { port: extracts, type: collection<extract@v1> }
+  # the client's words, ranked concerns, weights and vocabulary (client-voice); present once written
+  - { port: client_voice, type: client_voice@v1, optional: true }
 produces:
   - { port: verdict, type: verdict@v1 }
 needs: [read, edit]

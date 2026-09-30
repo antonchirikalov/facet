@@ -1,5 +1,6 @@
 name: solution_design_selector
 version: 1
+summary: "Выбирает лучший из кандидатов дизайна, написанных разными моделями, и записывает, почему."
 description: >
   Chooses the best design from a collection of candidate solution designs and emits
   a selection@v1. The selector of the Solution Design pipeline's select node: given

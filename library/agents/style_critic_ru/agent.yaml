@@ -1,5 +1,6 @@
 name: style_critic_ru
 version: 1
+summary: "Критик русского стиля: машинные обороты, типографика, кальки, рассинхрон терминов, сверка с профилем голоса автора. Вердикт с цитатами."
 description: >
   Style critic for Russian technical prose, and the pipeline copy of the author's personal
   ru-style-critic. Hunts the mechanical defects of typography and the syntactic patterns

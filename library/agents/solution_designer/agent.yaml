@@ -1,5 +1,6 @@
 name: solution_designer
 version: 1
+summary: "Пишет технический дизайн из требований: кандидат в конкурсе моделей и писатель в кругах правки."
 description: >
   Produces a solution design from a requirements document. Serves two roles in the
   Solution Design pipeline: a map_over candidate generator (one design per model)

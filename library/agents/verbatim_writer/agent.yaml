@@ -1,5 +1,6 @@
 name: verbatim_writer
 version: 1
+summary: "Записывает в файл пункты ровно как получил: заголовок и строки. Так незакрытые замечания и передачи попадают на диск, а не пропадают."
 description: >
   Writes a file that records items exactly as it received them: a heading and the items,
   one per line, in the language they arrived in. Adds no judgement, rephrases nothing,

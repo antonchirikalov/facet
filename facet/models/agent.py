@@ -51,6 +51,9 @@ class AgentSpec(BaseModel):
     name: str
     version: int
     description: str = ""
+    # For the person reading the agent registry in README, in Russian. Never emitted into the
+    # generated agent: what an agent reads is English, and this is not for the agent.
+    summary: str = ""
     consumes: list[Port] = Field(default_factory=list)
     produces: list[Port] = Field(default_factory=list)
     needs: list[str] = Field(default_factory=list)

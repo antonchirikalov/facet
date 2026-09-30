@@ -1,5 +1,6 @@
 name: client_editor
 version: 1
+summary: "Делает из трассируемых требований и дизайна редакции для заказчика: убирает источники, метки и следы кухни, сохраняет каждое требование с весом и цитатами клиента, перенумеровывает и ведёт карту номеров."
 description: >
   Writes the client edition of a traceable requirements document or solution
   design: drops source locators, tags and every trace of our internal materials
@@ -9,6 +10,11 @@ description: >
 consumes:
   - { port: traceable, type: requirements@v1 }
   - { port: extracts, type: collection<extract@v1> }
+  # The design edition only: the requirements edition and its id map, so references agree.
+  - { port: requirements_edition, type: client_edition@v1, optional: true }
+  - { port: id_map, type: id_map@v1, optional: true }
+  # the client's words, ranked concerns, weights and vocabulary (client-voice); present once written
+  - { port: client_voice, type: client_voice@v1, optional: true }
 produces:
   - { port: edition, type: client_edition@v1 }
 needs: [read, edit]

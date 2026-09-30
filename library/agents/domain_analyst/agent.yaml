@@ -1,5 +1,6 @@
 name: domain_analyst
 version: 1
+summary: "Сводит заметки по источникам в анализ: что источники устанавливают вместе, где расходятся, хронологии и сравнения, которых нет ни в одной заметке."
 description: >
   Does the subject-matter work between reading and writing: takes the whole set of
   per-source study notes and produces the analysis the report is built on — what the
@@ -9,9 +10,14 @@ description: >
 consumes:
   # the aspects are the analysis's skeleton, so the assignment is not optional here
   - { port: brief, type: brief@v1 }
-  - { port: notes, type: collection<study_note@v1> }
+  # what the finders brought back, as explainer-article.js hands it: one summary per aspect
+  # (sources:<aspect>), one file per source read (source:<aspect>/<file>) and each finder's
+  # index of where every file came from (index:<aspect>)
+  - { port: sources, type: collection<source_summary@v1> }
+  - { port: source, type: collection<source@v1>, optional: true }
+  - { port: index, type: collection<source_index@v1>, optional: true }
 produces:
-  - { port: analysis, type: analysis@v1 }
+  - { port: material, type: analysis@v1 }
 # no search, for the same reason the writer has none: every finding must trace back
 # to a note and through it to a fetched source. An analyst that can look things up
 # will quietly supply the connective tissue the sources do not carry.
