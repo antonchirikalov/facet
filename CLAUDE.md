@@ -60,7 +60,8 @@ that agent's `agent.yaml`; a new collection is handed as `<singular>:<stem>` or 
   rebuilding is `config.fresh`. The script refuses to guess.
 - **One launch is one stage** (`config.stages`); stages share nothing but files on disk.
 - **A pipeline is assembled from library agents, never alongside new ones.** Building a
-  pipeline creates no agent: if a role is missing, stop and name the missing role. A new
+  pipeline creates no agent: if a role is missing, stop and name the missing role. Every
+  step that writes a file is followed by a gate run through `gate-runner`. A new
   agent is separate, careful work (the README section on a new agent): role, contract with an `about`
   for every input, profile, tests, one live call on real material before any pipeline
   uses it.

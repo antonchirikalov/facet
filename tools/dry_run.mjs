@@ -103,6 +103,12 @@ function fill(schema, prompt) {
             : [{ round: 1, items: 3 }]
           continue
         }
+        // DRY_INPUTS="a.docx,b.md" makes a listing return these names, so the branch that turns
+        // office documents into markdown runs: the default stub names no file with an extension.
+        if (key === 'files' && process.env.DRY_INPUTS && sub && sub.type === 'array' && (sub.items ?? {}).type === 'string') {
+          out[key] = process.env.DRY_INPUTS.split(',')
+          continue
+        }
         if (key === 'count') {
           const files = out.files
           out[key] = Array.isArray(files)

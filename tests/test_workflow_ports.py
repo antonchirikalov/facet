@@ -282,3 +282,41 @@ def test_slop_critic_reads_both_client_editions(tmp_path: Path) -> None:
     assert len(slop) == 2
     assert "draft: dry/run/requirements.client.md" in slop[0]
     assert "draft: dry/run/design.client.md" in slop[1]
+
+
+def word_prompts(tmp_path: Path, mode: str) -> list[dict[str, str]]:
+    out = tmp_path / f"word-{mode}.json"
+    args = {**RUN, "config": {"fresh": True, "stages": ["requirements"]}}
+    env = {
+        **os.environ,
+        "DRY_PROMPTS_OUT": str(out),
+        "DRY_INPUTS": "dry/run/inputs/scope.docx,dry/run/inputs/call.md",
+    }
+    subprocess.run(
+        ["node", str(DRY_RUN), str(SCRIPT), mode, json.dumps(args)],
+        cwd=ROOT,
+        check=False,
+        env=env,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    loaded: list[dict[str, str]] = json.loads(out.read_text(encoding="utf-8"))
+    return loaded
+
+
+def test_word_documents_become_markdown_before_extraction(tmp_path: Path) -> None:
+    """Read не читает .docx: конвейер сам переводит его в .md и отдаёт агенту текст."""
+    items = word_prompts(tmp_path, "ok")
+    convert = next(p for p in by_agent(items, "file-copier") if "to_text.py" in p)
+    assert "--dir dry/run/inputs" in convert and "scope.docx" not in convert
+    extracts = by_agent(items, "source-processor")
+    assert any("source: dry/run/inputs/scope.docx.md" in p for p in extracts)
+    assert not any("source: dry/run/inputs/scope.docx\n" in p for p in extracts)
+
+
+def test_failed_conversion_never_hands_a_missing_markdown(tmp_path: Path) -> None:
+    """Если pandoc не сработал, агент получает исходный файл, а не несуществующий .md."""
+    items = word_prompts(tmp_path, "bad")
+    extracts = by_agent(items, "source-processor")
+    assert not any("scope.docx.md" in p for p in extracts)

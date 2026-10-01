@@ -258,6 +258,7 @@ const GATE_TOOL = cfg.gateTool || 'python -X utf8 tools/gate.py'
 const ROUNDS_TOOL = cfg.roundsTool || 'python -X utf8 tools/rounds.py'
 const LISTING_TOOL = cfg.listingTool || 'python -X utf8 tools/listing.py'
 const INTAKE_TOOL = cfg.intakeTool || 'python -X utf8 tools/intake.py'
+const TO_TEXT_TOOL = cfg.toTextTool || 'python -X utf8 tools/to_text.py'
 const SNAPSHOT_TOOL = cfg.snapshotTool || 'python -X utf8 tools/snapshot.py'
 const BUSY_TOOL = cfg.busyTool || 'python -X utf8 tools/busy.py'
 const APPLY_TOOL = cfg.applyTool || 'python -X utf8 tools/apply_edits.py'
@@ -1440,6 +1441,37 @@ if (RUN_REQUIREMENTS) {
       `в ${INPUTS_DIR} нет входных документов. Этому конвейеру их не из чего искать — ` +
         `положите заявку, стенограмму, переписку, RFP, и запускайте снова.`,
     )
+  }
+  // Office documents become markdown before anyone reads them: the extracting agent reads with
+  // Read, and Read refuses a .docx. The tool takes the folder, never a file name, and writes
+  // <name>.docx.md next to each; the script knows those names without asking for them.
+  const OFFICE = /\.(docx|pptx|odt|rtf|epub)$/i
+  const office = sources.filter((s) => OFFICE.test(s) && !sources.includes(`${s}.md`))
+  sources = sources.filter((s) => !(OFFICE.test(s) && sources.includes(`${s}.md`)))
+  if (office.length) {
+    const converted = await call(
+      commands([`${TO_TEXT_TOOL} --dir ${INPUTS_DIR} ${noted('office documents to markdown')}`]),
+      { agentType: 'file-copier', model: MODELS.copy, label: 'inputs:to-text', phase: 'Extract', schema: GATE },
+    )
+    const report = (converted && converted.report) || { ok: false, problems: ['the conversion did not report'] }
+    for (const pr of report.problems || []) {
+      log(`[extract/word] ${pr}`)
+      warnings.push(`входной документ не переведён в текст: ${pr}`)
+    }
+    // A problem that names a file fails that file; any other (pandoc missing, no report) fails all,
+    // so no agent is ever handed a .md that was never written.
+    const nameOf = (s) => s.replace(/\\/g, '/').split('/').pop()
+    const problems = report.problems || []
+    const perFile = problems.every((pr) => office.some((o) => pr.startsWith(`${nameOf(o)}:`)))
+    const allFailed = !converted || (!report.ok && !perFile)
+    sources = sources.map((s) => {
+      if (!office.includes(s)) return s
+      touched.add(s)
+      const name = nameOf(s)
+      if (allFailed || problems.some((pr) => pr.startsWith(`${name}:`))) return s
+      log(`[extract/word] ${name} → ${name}.md`)
+      return `${s}.md`
+    })
   }
   log(`[extract] входных документов: ${sources.length}`)
   for (const s of sources) log(`[extract/вход] ${s}`)
