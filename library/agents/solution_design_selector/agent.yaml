@@ -9,7 +9,7 @@ consumes:
   - { port: candidates, type: collection<design_doc@v1>, about: "the candidate designs, one per model (candidate:<n> or candidate_<n>); choose one by number" }
 produces:
   - { port: choice, type: selection@v1 }
-needs: [read, edit]
+needs: [read]
 # The same profile as the designer and the critic: a selector without the contract picks the
 # longer candidate.
 skills: [solution-design-profile]

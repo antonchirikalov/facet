@@ -1,7 +1,7 @@
 ---
 name: solution-design-selector
 description: 'Chooses the best design from a collection of candidate solution designs and emits a selection@v1. The selector of the Solution Design pipeline''s select node: given one design per model, it picks the strongest to carry into the refine loop.'
-tools: Read, Write, Edit
+tools: Read
 omitClaudeMd: true
 skills:
 - solution-design-profile

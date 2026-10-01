@@ -1613,8 +1613,8 @@ if (RUN_REQUIREMENTS) {
   )
   let voicePort = []
   if (!voiced || !voiced.written) {
-    warnings.push('лист голоса клиента не написан: вес требований берётся только из извлечений')
-    log('[voice] не написан — требования пишутся без листа голоса клиента')
+    warnings.push('сводка «Голос клиента» не написана: вес требований берётся только из извлечений')
+    log('[voice] сводка не написана — требования пишутся без неё')
   } else {
     const vgate = await call(
       commands([
@@ -1625,9 +1625,9 @@ if (RUN_REQUIREMENTS) {
     )
     const vchecks = (vgate && vgate.checks) || []
     const vproblems = vchecks.flatMap((c) => c.problems || [])
-    if (vchecks.length !== 2) vproblems.push('проверка листа голоса вернула не два отчёта')
+    if (vchecks.length !== 2) vproblems.push('проверка сводки «Голос клиента» вернула не два отчёта')
     log(`[voice/gate] ok=${!vproblems.length}${vproblems.length ? ' | ' + vproblems.join('; ') : ''}`)
-    for (const pr of vproblems) warnings.push(`лист голоса клиента: ${pr}`)
+    for (const pr of vproblems) warnings.push(`сводка «Голос клиента»: ${pr}`)
     voicePort = [{ port: 'client_voice', path: VOICE_PATH }]
     present.add(VOICE_PATH)
   }

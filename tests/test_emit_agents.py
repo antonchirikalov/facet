@@ -301,7 +301,19 @@ def test_agents_without_mcp_declare_no_servers(tmp_path: Path) -> None:
     assert head["tools"] == "Read, Write, Edit"
 
 
-@pytest.mark.parametrize("critic", ["article-critic", "style-critic-ru"])
+@pytest.mark.parametrize(
+    "critic",
+    [
+        "article-critic",
+        "figure-critic",
+        "proposal-reviewer",
+        "requirements-critic",
+        "slop-critic",
+        "solution-design-critic",
+        "solution-design-selector",
+        "style-critic-ru",
+    ],
+)
 def test_critics_cannot_write(tmp_path: Path, critic: str) -> None:
     """Критик выносит вердикт, а не правит текст.
 
