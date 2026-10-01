@@ -61,7 +61,7 @@ that agent's `agent.yaml`; a new collection is handed as `<singular>:<stem>` or 
 - **One launch is one stage** (`config.stages`); stages share nothing but files on disk.
 - **A pipeline is assembled from library agents, never alongside new ones.** Building a
   pipeline creates no agent: if a role is missing, stop and name the missing role. A new
-  agent is separate, careful work (README, «Новый агент»): role, contract with an `about`
+  agent is separate, careful work (the README section on a new agent): role, contract with an `about`
   for every input, profile, tests, one live call on real material before any pipeline
   uses it.
 
