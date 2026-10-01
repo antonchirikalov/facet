@@ -7,11 +7,11 @@ description: >
   or declined with the reason. Keeps sections, numbering and figure references
   stable; never rewrites the file whole.
 consumes:
-  - { port: draft, type: proposal@v1 }
-  - { port: remarks, type: verdict@v1 }
+  - { port: draft, type: proposal@v1, about: "the proposal you edit in place, in batches" }
+  - { port: remarks, type: verdict@v1, about: "the numbered remarks of this round: reviewer, slop critic and gate; answer every number fixed or declined" }
   # the editor updates the "Answered in" cell of the rows its fixes answer
-  - { port: coverage, type: coverage_map@v1 }
-  - { port: sources, type: collection<source@v1> }
+  - { port: coverage, type: coverage_map@v1, about: "the coverage map; update the Answered in cell of every row a fix answers" }
+  - { port: sources, type: collection<source@v1>, about: "the client's own material: the call transcript and their documents; quotes come from here, verbatim, attributed to a role" }
 produces:
   - { port: doc, type: proposal@v1 }
 needs: [read, edit]

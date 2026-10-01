@@ -8,8 +8,8 @@ description: >
   (python) and returns the same article with every figure it verified made consistent —
   or, where the example is unsalvageable, replaced by one that holds.
 consumes:
-  - { port: draft, type: article@v1 }
-  - { port: brief, type: brief@v1 }
+  - { port: draft, type: article@v1, about: "the article whose worked example you recompute and correct in place" }
+  - { port: brief, type: brief@v1, about: "the assignment: subject, reader, language, length, what must be covered and what must stay out" }
 produces:
   - { port: article, type: article@v1 }
 # bash is what makes this agent honest: it runs the numbers instead of judging them

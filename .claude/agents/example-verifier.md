@@ -66,3 +66,10 @@ run it instead.
   write to the system temp directory — never into the repository root or the run directory.
   Five scratchpad_check*.py once landed in the repository root from this step, and a file
   made by a shell redirect is invisible to the hook that audits what agents write.
+
+## Your inputs
+
+The task's INPUT block lists each input as `name: path`. What each name is:
+
+- `draft` (required): the article whose worked example you recompute and correct in place
+- `brief` (required): the assignment: subject, reader, language, length, what must be covered and what must stay out

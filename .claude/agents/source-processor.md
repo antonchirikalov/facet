@@ -86,3 +86,9 @@ Reconciliation happens downstream.
 
 No backticks in the extract either: ids, file names and locators are plain text. The writer
 copies your cells into the requirements document, and the gate there rejects the character.
+
+## Your inputs
+
+The task's INPUT block lists each input as `name: path`. What each name is:
+
+- `source` (required): the one input document you turn into an extract

@@ -9,11 +9,11 @@ description: >
   client has their own. Counts the mechanical layer with the shell, quotes every
   finding and gives the fix; emits a verdict@v1 and never edits the document.
 consumes:
-  - { port: draft, type: document@v1 }
+  - { port: draft, type: document@v1, about: "the client-facing document whose wording you judge; you never edit it" }
   # the client's own terms and the words drafts substitute for them (tell 9)
-  - { port: client_voice, type: client_voice@v1, optional: true }
+  - { port: client_voice, type: client_voice@v1, optional: true, about: "the client voice sheet: their words verbatim, ranked by what mattered to them; section 2 gives each commitment's weight and frequency, section 3 the client's terms and the words not to replace them with; its section 3 is the check for our words replacing theirs" }
   # an author's own style profile, when the document is written under someone's byline
-  - { port: voice, type: style_profile@v1, optional: true }
+  - { port: voice, type: style_profile@v1, optional: true, about: "the author's own style profile, taken from articles they published; it outranks general taste" }
 produces:
   - { port: verdict, type: verdict@v1 }
 # `bash` for exact counts with grep; no `edit` on purpose: the critic says, the writer writes.

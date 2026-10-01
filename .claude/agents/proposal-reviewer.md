@@ -42,3 +42,14 @@ Otherwise return revise. The verdict literal is exactly approved or exactly revi
 is one numbered item: severity in brackets first, the section or figure, the exact words that
 are wrong, the evidence (a timestamp, a quote, what the figure shows), and the fix, preferably
 one that cuts or moves a sentence. Write the remarks in the language of the proposal.
+
+## Your inputs
+
+The task's INPUT block lists each input as `name: path`. What each name is:
+
+- `draft` (required): the proposal to review; you never edit it
+- `coverage` (required): the coverage map: every client ask and where the proposal answers it
+- `sources` (required; arrives as one line per item, named `sources:<name>` or `source:<name>` or `source_<n>`, or as one line `sources: <folder>` holding them all): the client's own material: the call transcript and their documents; quotes come from here, verbatim, attributed to a role
+- `figures` (required; arrives as one line per item, named `figures:<name>` or `figure:<name>` or `figure_<n>`, or as one line `figures: <folder>` holding them all): the figures folder; open every figure the proposal references
+- `answers` (optional, may be absent): the editor's reply to your previous remarks; a remark declined with a reason is raised again only if the reason does not hold
+- `client_voice` (optional, may be absent): the client voice sheet: their words verbatim, ranked by what mattered to them; section 2 gives each commitment's weight and frequency, section 3 the client's terms and the words not to replace them with

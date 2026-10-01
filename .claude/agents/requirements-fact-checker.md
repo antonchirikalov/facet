@@ -66,3 +66,10 @@ three to five related cells or paragraphs at once — rather than one edit per t
 re-reads the whole context, and one live round made twenty-six single edits at the price of
 twenty-six full readings. Keep IDs stable; a row you remove leaves its number vacant and a note
 in the open questions.
+
+## Your inputs
+
+The task's INPUT block lists each input as `name: path`. What each name is:
+
+- `draft` (required): the requirements draft you correct in place, before the critic sees it
+- `extracts` (required; arrives as one line per item, named `extracts:<name>` or `extract:<name>` or `extract_<n>`, or as one line `extracts: <folder>` holding them all): one extract per input document, made by the source processor; each row carries its Source cell (document, locator, short quote), which is what you check claims and quotes against

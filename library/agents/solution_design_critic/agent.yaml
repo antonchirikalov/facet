@@ -6,8 +6,8 @@ description: >
   Solution Design pipeline's refine loop: it judges whether the design satisfies
   its requirements and is technically sound, and returns approved or revise.
 consumes:
-  - { port: draft, type: design_doc@v1 }
-  - { port: requirements, type: requirements@v1 }
+  - { port: draft, type: design_doc@v1, about: "the design draft to judge; you never edit it" }
+  - { port: requirements, type: requirements@v1, about: "the requirements document the design is built from; cite its ids (FR-012, NFR-003) for every decision" }
 produces:
   - { port: verdict, type: verdict@v1 }
 needs: [read]

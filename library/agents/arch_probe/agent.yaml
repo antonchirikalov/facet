@@ -7,7 +7,7 @@ description: >
   discovery questions grounded in what the material actually says. May run
   targeted domain research to sharpen the probes.
 consumes:
-  - { port: requirements, type: requirements@v1 }
+  - { port: requirements, type: requirements@v1, about: "the requirements document to mine for gaps, contradictions and unstated trade-offs" }
 produces:
   - { port: arch_report, type: arch_report@v1 }
 needs: [read, edit, "mcp:tavily-remote"]

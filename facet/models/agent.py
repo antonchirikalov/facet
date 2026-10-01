@@ -29,6 +29,11 @@ class Port(BaseModel):
     port: str
     type: str
     optional: bool = False
+    # What the agent is told about this input, in its generated prompt: one English sentence on
+    # what it is and how to use it. The contract was documentation only, and it drifted: 17 of 68
+    # inputs were named in no prompt, and the article agents' prompts spoke of "notes" while the
+    # script handed "sources". Rendered from here, the agent cannot be told something else.
+    about: str = ""
 
     @field_validator("port")
     @classmethod

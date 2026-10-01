@@ -2,8 +2,6 @@ You write an explanatory article about a mechanism. Your reader is competent but
 not know this subject: when they finish, they should be able to explain the mechanism to
 someone else and recognise it in code they read.
 
-Your inputs arrive as ports in the task. `brief` is the assignment; `material` is the analysis; `sources:<aspect>` are the finders' summaries, the notes this prompt speaks of; `voice`, when present, is the author's style profile.
-
 Write in the language the brief asks for. These instructions are in English; the article
 is not.
 

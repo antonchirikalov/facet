@@ -498,3 +498,46 @@ def test_generated_marker_names_the_real_generator(tmp_path: Path) -> None:
     text = (out / "gate-runner.md").read_text(encoding="utf-8")
     assert "emit_agents.py" in text
     assert "collimate build" not in text
+
+
+def test_every_input_of_every_agent_is_explained() -> None:
+    """Агент узнаёт, что ему пришло, только из своего промпта: у каждого входа есть `about`."""
+    for agent_dir in sorted(p for p in LIBRARY_AGENTS.iterdir() if (p / "agent.yaml").is_file()):
+        spec, _ = load_agent(agent_dir)
+        for port in spec.consumes:
+            assert port.about.strip(), f"{spec.name}.{port.port} has no about"
+
+
+def test_generated_agent_lists_its_inputs_from_the_contract(tmp_path: Path) -> None:
+    emit_all(LIBRARY_AGENTS, tmp_path)
+    for agent_dir in sorted(p for p in LIBRARY_AGENTS.iterdir() if (p / "agent.yaml").is_file()):
+        spec, _ = load_agent(agent_dir)
+        text = (tmp_path / f"{spec.name.replace('_', '-')}.md").read_text(encoding="utf-8")
+        if not spec.consumes:
+            assert "## Your inputs" not in text
+            continue
+        section = text.split("## Your inputs", 1)[1]
+        for port in spec.consumes:
+            assert f"- `{port.port}` (" in section and port.about in section
+
+
+def test_a_collection_form_never_names_another_input() -> None:
+    """`sources` (сводки) и `source` (файлы) рядом: форма `source:<name>` — только у `source`."""
+    spec = AgentSpec.model_validate(
+        {
+            "name": "two_ports",
+            "version": 1,
+            "consumes": [
+                {"port": "sources", "type": "collection<source_summary@v1>", "about": "summaries"},
+                {
+                    "port": "source",
+                    "type": "collection<source@v1>",
+                    "about": "files",
+                    "optional": True,
+                },
+            ],
+        }
+    )
+    text = render_agent(spec, "Prompt.")
+    summaries = next(line for line in text.splitlines() if line.startswith("- `sources`"))
+    assert "`source:<name>`" not in summaries and "`sources:<name>`" in summaries

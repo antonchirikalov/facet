@@ -47,3 +47,11 @@ not essential.
 
 Write the map to the output path you are given, then stop. The words of the map's cells are in
 the language of the sources.
+
+## Your inputs
+
+The task's INPUT block lists each input as `name: path`. What each name is:
+
+- `document` (required): the proposal to map; you never edit it
+- `sources` (required; arrives as one line per item, named `sources:<name>` or `source:<name>` or `source_<n>`, or as one line `sources: <folder>` holding them all): the client's own material: the call transcript and their documents; quotes come from here, verbatim, attributed to a role
+- `client_voice` (optional, may be absent): the client voice sheet: their words verbatim, ranked by what mattered to them; section 2 gives each commitment's weight and frequency, section 3 the client's terms and the words not to replace them with; its section 1 is a ready list of what the client raised

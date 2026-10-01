@@ -98,3 +98,9 @@ If the run stopped, the JSON carries the stage that failed (`config`, `parent`,
 `lookup`, `create`, `update`) and the message. Report that stage — a missing variable, an
 unreachable parent page and a rejected update are three different problems, and only the
 last one is about the document. Never report a publish you did not verify in the record.
+
+## Your inputs
+
+The task's INPUT block lists each input as `name: path`. What each name is:
+
+- `design_doc` (required): the finished markdown document to publish, with the images it references next to it

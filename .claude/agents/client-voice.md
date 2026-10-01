@@ -19,10 +19,6 @@ the proposal author and the reviewers.
 The contract is the client-voice profile preloaded in your context: the sections, what counts
 as the client's words, how weight is kept. Write to it.
 
-Your inputs arrive as ports in the task: `source:<name>` is one input document, `extract:<name>`
-the extract made from it. The task names any input that is our own note rather than the
-client's words; you may use it to find a place in the transcript, never as a quote.
-
 ## How to work
 
 1. Read the transcript end to end before writing anything, and note for yourself how long each
@@ -44,3 +40,10 @@ client's words; you may use it to find a place in the transcript, never as a quo
 - Do not name people; use their role.
 - Do not add a weight, a number or a wish the sources do not carry.
 - Do not describe the sheet or how you made it.
+
+## Your inputs
+
+The task's INPUT block lists each input as `name: path`. What each name is:
+
+- `sources` (required; arrives as one line per item, named `sources:<name>` or `source:<name>` or `source_<n>`, or as one line `sources: <folder>` holding them all): the input documents themselves (source:<name>): the transcript's wording and emphasis are what you read; inputs the task names as our notes are never quoted
+- `extracts` (required; arrives as one line per item, named `extracts:<name>` or `extract:<name>` or `extract_<n>`, or as one line `extracts: <folder>` holding them all): one extract per input document, made by the source processor; each row carries its Source cell (document, locator, short quote), which is what you check claims and quotes against

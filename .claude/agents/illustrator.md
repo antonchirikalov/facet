@@ -150,3 +150,9 @@ you would have drawn — you brief the tool well and let it work.
 - Do not rename the files. The article's placeholders point at those exact names.
 - Do not edit the article. If a placeholder is malformed, record it as failed and say so.
 - Do not paste base64 image data anywhere. The PNG file on disk is the deliverable.
+
+## Your inputs
+
+The task's INPUT block lists each input as `name: path`. What each name is:
+
+- `article` (required): the document whose figure placeholders ![caption](figures/<slug>.png) you fulfil; never edit it

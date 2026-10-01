@@ -33,3 +33,11 @@ For every figure:
 
 You judge; you do not draw, edit, rename or delete anything. Return the result in the schema
 the task gives.
+
+## Your inputs
+
+The task's INPUT block lists each input as `name: path`. What each name is:
+
+- `document` (required): the document the figures belong to; numbers, labels and language are checked against it
+- `figures` (required; arrives as one line per item, named `figures:<name>` or `figure:<name>` or `figure_<n>`, or as one line `figures: <folder>` holding them all): the rendered figure files; open every one at full size
+- `briefs` (optional, may be absent; arrives as one line per item, named `briefs:<name>` or `brief:<name>` or `brief_<n>`, or as one line `briefs: <folder>` holding them all): the illustrator's briefs; for an exact figure the Boxes and Connections lists are the check

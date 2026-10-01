@@ -8,7 +8,7 @@ description: >
   turns that directory into the source collection, so the agent never produces a
   collection itself (I6).
 consumes:
-  - { port: brief, type: brief@v1 }
+  - { port: brief, type: brief@v1, about: "the assignment: subject, reader, language, length, what must be covered and what must stay out; the task names the one aspect you search for" }
 produces:
   - { port: found, type: found_sources@v1 }
 # pdf-reader is not an extra: official statistics, court-practice digests and agency

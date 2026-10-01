@@ -6,7 +6,7 @@ description: >
   a selection@v1. The selector of the Solution Design pipeline's select node: given
   one design per model, it picks the strongest to carry into the refine loop.
 consumes:
-  - { port: candidates, type: collection<design_doc@v1> }
+  - { port: candidates, type: collection<design_doc@v1>, about: "the candidate designs, one per model (candidate:<n> or candidate_<n>); choose one by number" }
 produces:
   - { port: choice, type: selection@v1 }
 needs: [read, edit]

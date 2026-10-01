@@ -52,3 +52,10 @@ do. Write the remarks in the language of the document.
 Unverifiable claims stated as fact, and constraints declared satisfied over an
 unexamined path, are **blocking** — they are exactly the defects a reader cannot catch
 without the sources in front of them.
+
+## Your inputs
+
+The task's INPUT block lists each input as `name: path`. What each name is:
+
+- `draft` (required): the design draft to judge; you never edit it
+- `requirements` (required): the requirements document the design is built from; cite its ids (FR-012, NFR-003) for every decision

@@ -6,10 +6,6 @@ the proposal author and the reviewers.
 The contract is the client-voice profile preloaded in your context: the sections, what counts
 as the client's words, how weight is kept. Write to it.
 
-Your inputs arrive as ports in the task: `source:<name>` is one input document, `extract:<name>`
-the extract made from it. The task names any input that is our own note rather than the
-client's words; you may use it to find a place in the transcript, never as a quote.
-
 ## How to work
 
 1. Read the transcript end to end before writing anything, and note for yourself how long each

@@ -9,13 +9,13 @@ description: >
   brief's required aspects.
 consumes:
   # the aspects are the analysis's skeleton, so the assignment is not optional here
-  - { port: brief, type: brief@v1 }
+  - { port: brief, type: brief@v1, about: "the assignment: subject, reader, language, length, what must be covered and what must stay out; its aspects are the skeleton of the analysis" }
   # what the finders brought back, as explainer-article.js hands it: one summary per aspect
   # (sources:<aspect>), one file per source read (source:<aspect>/<file>) and each finder's
   # index of where every file came from (index:<aspect>)
-  - { port: sources, type: collection<source_summary@v1> }
-  - { port: source, type: collection<source@v1>, optional: true }
-  - { port: index, type: collection<source_index@v1>, optional: true }
+  - { port: sources, type: collection<source_summary@v1>, about: "one finder's summary per research aspect (sources:<aspect>); it tells you where to look, not what a source says; with the other source inputs, these are the notes your instructions speak of" }
+  - { port: source, type: collection<source@v1>, optional: true, about: "one file per source a finder read (source:<aspect>/<file>); this is what a claim is checked against; with the other source inputs, these are the notes your instructions speak of" }
+  - { port: index, type: collection<source_index@v1>, optional: true, about: "each finder's index (index:<aspect>): which file came from which URL and whether it is primary or a retelling" }
 produces:
   - { port: material, type: analysis@v1 }
 # no search, for the same reason the writer has none: every finding must trace back

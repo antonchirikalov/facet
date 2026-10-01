@@ -7,10 +7,10 @@ description: >
   against the brief's lists, numbers the text does not carry, misspellings, labels
   in the wrong language, invented elements. Judges only; never draws or edits.
 consumes:
-  - { port: document, type: document@v1 }
-  - { port: figures, type: collection<image@v1> }
+  - { port: document, type: document@v1, about: "the document the figures belong to; numbers, labels and language are checked against it" }
+  - { port: figures, type: collection<image@v1>, about: "the rendered figure files; open every one at full size" }
   # the illustrator's briefs: for an exact figure the Boxes and Connections lists are the check
-  - { port: briefs, type: collection<figure_brief@v1>, optional: true }
+  - { port: briefs, type: collection<figure_brief@v1>, optional: true, about: "the illustrator's briefs; for an exact figure the Boxes and Connections lists are the check" }
 produces:
   - { port: checks, type: figure_checks@v1 }
 # Read only, and it can see images through Read. The critic of the figure loop was a

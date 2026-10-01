@@ -7,8 +7,8 @@ description: >
   reading and would move a real design decision, and organizes them into a
   workshop-ready discovery document (spectra's arch_critic).
 consumes:
-  - { port: draft, type: arch_report@v1 }
-  - { port: requirements, type: requirements@v1 }
+  - { port: draft, type: arch_report@v1, about: "the probe's candidate questions: raw material to curate, not a document to polish" }
+  - { port: requirements, type: requirements@v1, about: "the requirements the questions were drawn from; check every cited gap or number against it before keeping a question" }
 produces:
   - { port: report, type: discovery_report@v1 }
 needs: [read, edit]

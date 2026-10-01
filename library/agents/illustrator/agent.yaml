@@ -9,7 +9,7 @@ description: >
   figure, styling it, looking at the render and correcting it — happens inside that
   tool, which has its own visualiser/critic loop; this step is execution.
 consumes:
-  - { port: article, type: article@v1 }
+  - { port: article, type: article@v1, about: "the document whose figure placeholders ![caption](figures/<slug>.png) you fulfil; never edit it" }
 produces:
   - { port: illustration, type: illustration@v1 }
 # bash, because the work is invoking a CLI. A knowing exception: the workdir guard does

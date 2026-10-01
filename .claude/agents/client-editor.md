@@ -36,3 +36,13 @@ survive, the client's words, the numbering, the shape. Write to it.
 - Do not add a fact, a number, a product or a promise the traceable version does not contain.
 - Do not describe the edition, the traceable version or how either was made.
 - Do not edit the traceable version or the id map of an earlier step.
+
+## Your inputs
+
+The task's INPUT block lists each input as `name: path`. What each name is:
+
+- `traceable` (required): the accepted traceable document (requirements or design) the edition is written from; never edit it
+- `extracts` (required; arrives as one line per item, named `extracts:<name>` or `extract:<name>` or `extract_<n>`, or as one line `extracts: <folder>` holding them all): one extract per input document, made by the source processor; each row carries its Source cell (document, locator, short quote), which is what you check claims and quotes against
+- `requirements_edition` (optional, may be absent): the client edition of the requirements, already written; the design edition must agree with it
+- `id_map` (optional, may be absent): JSON object from every traceable id to its client id; apply it to every requirement reference in the design edition
+- `client_voice` (optional, may be absent): the client voice sheet: their words verbatim, ranked by what mattered to them; section 2 gives each commitment's weight and frequency, section 3 the client's terms and the words not to replace them with

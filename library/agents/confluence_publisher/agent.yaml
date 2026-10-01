@@ -8,7 +8,7 @@ description: >
   document references, and returns the tool's record of the page URL, id, version, and
   attachment count.
 consumes:
-  - { port: design_doc, type: design_doc@v1 }
+  - { port: design_doc, type: design_doc@v1, about: "the finished markdown document to publish, with the images it references next to it" }
 produces:
   - { port: publication, type: publication@v1 }
 # bash, because publishing is invoking a CLI. The same knowing exception as the

@@ -163,7 +163,47 @@ def render_agent(spec: AgentSpec, prompt: str) -> str:
         default_flow_style=False,
     )
     marker = GENERATED_MARKER.format(name=spec.name)
-    return f"---\n{frontmatter}---\n\n{marker}\n\n{prompt.strip()}\n"
+    inputs = render_inputs(spec)
+    tail = f"\n\n{inputs}" if inputs else ""
+    return f"---\n{frontmatter}---\n\n{marker}\n\n{prompt.strip()}{tail}\n"
+
+
+def render_inputs(spec: AgentSpec) -> str:
+    """The agent's inputs from its contract, appended to its prompt.
+
+    The contract in ``agent.yaml`` is what ``facet.wiring`` holds the scripts to; this puts the
+    same text in front of the agent, so what a script hands and what the agent is told it gets
+    come from one place.
+    """
+    if not spec.consumes:
+        return ""
+    lines = [
+        "## Your inputs",
+        "",
+        "The task's INPUT block lists each input as `name: path`. What each name is:",
+        "",
+    ]
+    names = {p.port for p in spec.consumes}
+    for p in spec.consumes:
+        need = "optional, may be absent" if p.optional else "required"
+        how = ""
+        if p.type.startswith("collection<"):
+            one = p.port.removesuffix("s")
+            # A form that is another input's own name belongs to that input, as in facet.wiring:
+            # `sources` and `source` side by side are summaries and the files they summarise.
+            stems = [p.port] + ([one] if one == p.port or one not in names else [])
+            forms = list(
+                dict.fromkeys(
+                    [f"`{s}:<name>`" for s in stems] + [f"`{s}_<n>`" for s in stems[1:] or stems]
+                )
+            )
+            how = (
+                "; arrives as one line per item, named "
+                + " or ".join(forms)
+                + f", or as one line `{p.port}: <folder>` holding them all"
+            )
+        lines.append(f"- `{p.port}` ({need}{how}): {p.about}")
+    return "\n".join(lines)
 
 
 def emit_agent(agent_dir: Path, out_dir: Path, skills_dir: Path | None = None) -> Path:

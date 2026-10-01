@@ -28,3 +28,9 @@ a criterion. Compare the candidates on:
 Pick the one best candidate. Do not blend candidates or invent a new design — your
 job is selection, not authorship. Record the reasoning for your choice so the
 decision is auditable.
+
+## Your inputs
+
+The task's INPUT block lists each input as `name: path`. What each name is:
+
+- `candidates` (required; arrives as one line per item, named `candidates:<name>` or `candidate:<name>` or `candidate_<n>`, or as one line `candidates: <folder>` holding them all): the candidate designs, one per model (candidate:<n> or candidate_<n>); choose one by number

@@ -103,3 +103,10 @@ leaves its number vacant and a note in the open questions.
 Do not use the backtick character anywhere in the document — not around ids, not around
 file names, paths, field names or values. Plain text: FR-012, 03-chat, PostgreSQL 14. The gate
 rejects the character, and a round spent removing markup is a round lost.
+
+## Your inputs
+
+The task's INPUT block lists each input as `name: path`. What each name is:
+
+- `extracts` (required; arrives as one line per item, named `extracts:<name>` or `extract:<name>` or `extract_<n>`, or as one line `extracts: <folder>` holding them all): one extract per input document, made by the source processor; each row carries its Source cell (document, locator, short quote), which is what you check claims and quotes against
+- `client_voice` (optional, may be absent): the client voice sheet: their words verbatim, ranked by what mattered to them; section 2 gives each commitment's weight and frequency, section 3 the client's terms and the words not to replace them with; take each requirement's weight from it

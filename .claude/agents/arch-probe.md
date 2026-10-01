@@ -59,3 +59,9 @@ Mark with an asterisk the ones that block an estimate or the architecture, and b
 more than a third are marked, you have not decided.
 
 Write in the language of the requirements document.
+
+## Your inputs
+
+The task's INPUT block lists each input as `name: path`. What each name is:
+
+- `requirements` (required): the requirements document to mine for gaps, contradictions and unstated trade-offs

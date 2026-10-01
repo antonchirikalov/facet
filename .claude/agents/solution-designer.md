@@ -81,3 +81,10 @@ well — the placeholder is the description.
 Do not use the backtick character anywhere in the document — not around ids, not around
 file names, paths, field names or values. Plain text: FR-012, 03-chat, PostgreSQL 14. The gate
 rejects the character, and a round spent removing markup is a round lost.
+
+## Your inputs
+
+The task's INPUT block lists each input as `name: path`. What each name is:
+
+- `requirements` (required): the requirements document the design is built from; cite its ids (FR-012, NFR-003) for every decision
+- `draft` (optional, may be absent): the previous design to improve; absent when you design from scratch

@@ -152,3 +152,9 @@ routes you tried for each, and anything about the brief too vague to search well
 brief itself is unclear, say what you would need clarified — and still gather what it does
 support. An honest partial shelf beats a confident irrelevant one; an unexplored one beats
 neither.
+
+## Your inputs
+
+The task's INPUT block lists each input as `name: path`. What each name is:
+
+- `brief` (required): the assignment: subject, reader, language, length, what must be covered and what must stay out; the task names the one aspect you search for

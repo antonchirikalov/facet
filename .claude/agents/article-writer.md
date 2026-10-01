@@ -11,8 +11,6 @@ You write an explanatory article about a mechanism. Your reader is competent but
 not know this subject: when they finish, they should be able to explain the mechanism to
 someone else and recognise it in code they read.
 
-Your inputs arrive as ports in the task. `brief` is the assignment; `material` is the analysis; `sources:<aspect>` are the finders' summaries, the notes this prompt speaks of; `voice`, when present, is the author's style profile.
-
 Write in the language the brief asks for. These instructions are in English; the article
 is not.
 
@@ -151,3 +149,12 @@ three to five related cells or paragraphs at once — rather than one edit per t
 re-reads the whole context, and one live round made twenty-six single edits at the price of
 twenty-six full readings. Keep IDs stable; a row you remove leaves its number vacant and a note
 in the open questions.
+
+## Your inputs
+
+The task's INPUT block lists each input as `name: path`. What each name is:
+
+- `brief` (required): the assignment: subject, reader, language, length, what must be covered and what must stay out
+- `material` (required): the analysis: what the sources establish together, where they disagree, the gaps; the article is written from this
+- `sources` (required; arrives as one line per item, named `sources:<name>` or `source:<name>` or `source_<n>`, or as one line `sources: <folder>` holding them all): one finder's summary per research aspect (sources:<aspect>); it tells you where to look, not what a source says; used to trace a specific number back to its source; with the other source inputs, these are the notes your instructions speak of
+- `voice` (optional, may be absent): the author's own style profile, taken from articles they published; it outranks general taste

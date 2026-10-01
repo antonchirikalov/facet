@@ -8,13 +8,13 @@ description: >
   support, and the proposal profile's voice rules. Opens every figure. Returns
   approved or revise with numbered remarks by severity.
 consumes:
-  - { port: draft, type: proposal@v1 }
-  - { port: coverage, type: coverage_map@v1 }
-  - { port: sources, type: collection<source@v1> }
-  - { port: figures, type: collection<image@v1> }
-  - { port: answers, type: answers@v1, optional: true }
+  - { port: draft, type: proposal@v1, about: "the proposal to review; you never edit it" }
+  - { port: coverage, type: coverage_map@v1, about: "the coverage map: every client ask and where the proposal answers it" }
+  - { port: sources, type: collection<source@v1>, about: "the client's own material: the call transcript and their documents; quotes come from here, verbatim, attributed to a role" }
+  - { port: figures, type: collection<image@v1>, about: "the figures folder; open every figure the proposal references" }
+  - { port: answers, type: answers@v1, optional: true, about: "the editor's reply to your previous remarks; a remark declined with a reason is raised again only if the reason does not hold" }
   # the client's words, ranked concerns, weights and vocabulary (client-voice); present once written
-  - { port: client_voice, type: client_voice@v1, optional: true }
+  - { port: client_voice, type: client_voice@v1, optional: true, about: "the client voice sheet: their words verbatim, ranked by what mattered to them; section 2 gives each commitment's weight and frequency, section 3 the client's terms and the words not to replace them with" }
 produces:
   - { port: verdict, type: verdict@v1 }
 needs: [read, vision]

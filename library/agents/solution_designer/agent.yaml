@@ -7,8 +7,8 @@ description: >
   and the body of a refine loop (improving the selected design). The optional draft
   input is the prior design to improve; when absent, it designs from scratch.
 consumes:
-  - { port: requirements, type: requirements@v1 }
-  - { port: draft, type: design_doc@v1, optional: true }
+  - { port: requirements, type: requirements@v1, about: "the requirements document the design is built from; cite its ids (FR-012, NFR-003) for every decision" }
+  - { port: draft, type: design_doc@v1, optional: true, about: "the previous design to improve; absent when you design from scratch" }
 produces:
   - { port: design_doc, type: design_doc@v1 }
 needs: [read, edit, "mcp:tavily-remote"]

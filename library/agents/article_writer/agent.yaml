@@ -9,18 +9,18 @@ description: >
   illustrator later fulfils.
 consumes:
   # the assignment: subject, audience, what must be covered, how long, which figures
-  - { port: brief, type: brief@v1 }
+  - { port: brief, type: brief@v1, about: "the assignment: subject, reader, language, length, what must be covered and what must stay out" }
   # what the sources establish TOGETHER — the article's material. Writing from the notes
   # directly makes an article about its sources; this port is why the analysis stage exists
-  - { port: material, type: analysis@v1 }
+  - { port: material, type: analysis@v1, about: "the analysis: what the sources establish together, where they disagree, the gaps; the article is written from this" }
   # the notes stay available so a specific number can be traced back to the source that
   # carries it, not just to the analysis that summarised it
-  - { port: sources, type: collection<source_summary@v1> }
+  - { port: sources, type: collection<source_summary@v1>, about: "one finder's summary per research aspect (sources:<aspect>); it tells you where to look, not what a source says; used to trace a specific number back to its source; with the other source inputs, these are the notes your instructions speak of" }
   # the author's own style profile. Optional: a pipeline writing for someone else's byline
   # supplies nothing here and the general anti-slop rules still apply. When it IS supplied
   # the same file goes to the style critic, so writer and judge share one description of
   # the voice instead of two that drift
-  - { port: voice, type: style_profile@v1, optional: true }
+  - { port: voice, type: style_profile@v1, optional: true, about: "the author's own style profile, taken from articles they published; it outranks general taste" }
 produces:
   - { port: article, type: article@v1 }
 needs: [read, edit]

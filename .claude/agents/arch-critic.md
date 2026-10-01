@@ -48,3 +48,10 @@ Do not explain your review, do not list what you rejected, do not describe your 
 client reads the questions.
 
 Write in the language of the requirements document.
+
+## Your inputs
+
+The task's INPUT block lists each input as `name: path`. What each name is:
+
+- `draft` (required): the probe's candidate questions: raw material to curate, not a document to polish
+- `requirements` (required): the requirements the questions were drawn from; check every cited gap or number against it before keeping a question
