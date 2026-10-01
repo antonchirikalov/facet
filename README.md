@@ -1,16 +1,17 @@
 # facet
 
-Конвейеры на Claude Code для документов пресейла: требования из материалов клиента,
-технический дизайн (техническая часть пропозала), вопросы клиенту, редакции для клиента,
-проверка пропозала, обзорная статья со схемами. Конвейер собирается из готовых агентов, как из
-деталей конструктора, а проверки (гейты, аудит, хук) работают одинаково при любой сборке.
+Детали для конвейеров, которые пишут документы на Claude Code Dynamic Workflows: агенты с
+контрактами, профили типов документов, гейты на Python и учёт каждого шага. Конвейер под свой
+документ собирается из этих деталей, как из конструктора, а проверки работают одинаково при
+любой сборке. В репозитории есть готовые сборки: требования, технический дизайн, вопросы и
+редакции для клиента, проверка пропозала, обзорная статья, схемы.
 
 ## Какую проблему решает facet
 
 Один запрос к модели даёт документ, который выглядит готовым. Проверить его трудно: откуда
-взято требование, не придумана ли цитата, не потерян ли документ из входной папки, не выпала ли
-оговорка «это бывает редко». На Vista всё перечисленное произошло, и документы пришлось
-переделывать вручную.
+взят каждый факт, не придумана ли цитата, не потерян ли входной файл, не выпала ли оговорка,
+от которой зависит вывод. На одном пресейле (Vista) случилось всё перечисленное, и документы
+пришлось переделывать вручную.
 
 Dynamic Workflow решает половину задачи: скрипт вызывает подагентов по очереди, у каждого своя
 роль. Вторая половина — убедиться, что каждый шаг сделан и результат дошёл до следующего. Для
@@ -26,34 +27,22 @@ Dynamic Workflow решает половину задачи: скрипт выз
 Скрипт конвейера собирает эти детали: называет пути, вызывает агентов и по отчётам гейтов
 решает, что делать дальше.
 
-## Примеры: конвейеры, собранные из этих агентов
+## Круг правки
 
-Это готовые сборки. Из тех же агентов собирается и другое, см. «Как собрать свой конвейер».
-
-| Конвейер | На входе | На выходе |
-|---|---|---|
-| Требования | материалы клиента: стенограммы, письма, RFP, ответы на вопросы | лист голоса клиента (его слова, вес каждой просьбы, его словарь) и документ требований с источником у каждой строки, противоречиями, пробелами и допущениями |
-| Технический дизайн | требования, решения архитектора, заказ | дизайн с одной архитектурой, ссылкой каждого решения на требование, рисками, допущениями; схемы |
-| Вопросы клиенту | требования | вопросы по пробелам и противоречиям, каждый со ссылкой на пункт |
-| Редакция для клиента | принятые требования и дизайн | те же документы без источников, меток и следов внутренней работы, с цитатами клиента и сквозной нумерацией |
-| Проверка пропозала | черновик, стенограмма, документы клиента, рисунки | пропозал после кругов проверки и карта покрытия: каждая просьба клиента и место, где на неё ответ |
-| Статья | одна фраза: тема, читатель, объём, язык | статья с источниками из сети, пересчитанными числами и схемами |
-
-Документ выходит на языке исходных материалов.
-
-## Как устроен один круг правки
+Главный повторяемый узел сборки. Документ, которому нужна правка под критиком, проходит круги:
 
 1. Писатель пишет или правит документ.
-2. Корректор исправляет то, что проверяется сверкой: числа, ссылки на источник, формулировки.
+2. Корректор, если он есть в сборке, исправляет то, что проверяется сверкой: числа, ссылки на
+   источник, формулировки.
 3. Гейт проверяет файл по правилам профиля.
-4. Два критика читают параллельно. Первый судит содержание: полноту, корректность,
-   соразмерность. Второй судит текст: в документах для клиента это `slop-critic`, в статьях —
-   критик стиля по профилю голоса автора.
+4. Критики читают параллельно, обычно двое: один судит содержание, другой текст (например,
+   `slop-critic` или критик стиля по профилю голоса автора).
 5. Замечания гейта и критиков идут одним нумерованным списком. Писатель отвечает на каждый
    номер: `fixed` или `declined` с причиной.
 
-Круги идут, пока оба критика не примут документ, пока не кончится лимит или пока число
-замечаний не перестанет падать. Незакрытое записывается в `UNRESOLVED.md`.
+Круги идут, пока все критики не примут документ, пока не кончится лимит или пока число
+замечаний не перестанет падать. Незакрытое записывается в `UNRESOLVED.md`. Шаги без круга
+(извлечение, рисунки, редакции) проверяются гейтом один раз.
 
 Писатель, корректор и критик одного типа документа читают один профиль. Правило меняется в
 одном месте: в профиле.
@@ -96,7 +85,8 @@ gate-runner  -> запускает команду и возвращает отч
 ```
 
 `gate-runner` не исправляет, не создаёт и не оценивает. Скрипт сопоставляет отчёты с командами
-по номеру. Набор флагов для каждого типа документа задан в скрипте по правилам его профиля:
+по номеру. Флаги гейта для каждого типа документа скрипт берёт из правил его профиля. В готовых
+сборках они такие:
 
 | Документ | Что проверяет гейт |
 |---|---|
@@ -189,12 +179,138 @@ consumes:
 | `agent()` возвращает `null`, если агент упал | скрипт проверяет каждый ответ: пустой пишет в лог или останавливает этап |
 | кэш прогона не переживает перезапуск процесса | скрипт ищет готовое на диске и берёт число пройденных кругов из `rounds/` |
 | у скрипта нет часов (`Date.now()` недоступен) | время передаётся аргументом `now`, по нему проверяется занятость папки |
-| нет `import()`, общий код не подключить | правила документа живут в профиле, а не в коде; агенты и их контракты — в библиотеке |
+| нет `import()`, общий код не подключить | правила документа вынесены в профили, роли — в библиотеку агентов; общий код скриптов (круг правки, аудит) пока копируется из `solution-design.js` |
 | ничто не проверяет, что скрипт передаёт агенту ожидаемое и что агент понимает, что получил | контракт агента в `agent.yaml`: из него собирается раздел входов в промпте, по нему `facet.wiring` проверяет скрипты |
 | агент, созданный в этом ходе, ещё не виден реестру | сборка проверяет, что профиль агента на месте; если ни один агент не ответил, скрипт называет эту причину в ошибке |
 | скрипт с CRLF не запускается | окончания строк закреплены в `.gitattributes`, тест проверяет байты |
 
-## Как пользоваться
+## Как собрать свой конвейер
+
+Конвейер — это скрипт, который передаёт готовым агентам пути и проверяет каждый шаг гейтом.
+
+1. **Подберите агентов** по таблице в разделе «Агенты»: столбцы «Берёт» и «Отдаёт» — их
+   контракты. Выход одного агента должен подходить по типу ко входу следующего. Это на вас:
+   `facet.wiring` сверяет имена входов, а не типы.
+2. **Профиль для нового типа документа.** Если тип новый, напишите
+   `.claude/skills/<тип>-profile/SKILL.md`: разделы, таблицы, чек-лист критика, правила гейта.
+   Писатель, корректор и критик подключают его через `skills:` в `agent.yaml`.
+3. **Новый агент, только если роли нет.** `library/agents/<имя>/agent.yaml`: контракт (у каждого
+   входа `port`, `type` и `about` — что это и как с ним работать), инструменты, профиль. И
+   `prompt.md`: роль, по-английски. Входы в промпте описывать не нужно: раздел «Your inputs»
+   сборка добавит сама. Сборка:
+   `uv run python -c "from pathlib import Path; from facet.emit_agents import emit_all; emit_all(Path('library/agents'), Path('.claude/agents'), Path('.claude/skills'))"`.
+4. **Скрипт** `.claude/workflows/<имя>.js`. Основа:
+
+   ```js
+   export const meta = { name: 'my-doc', description: 'One extract from one source, gated', phases: [{ title: 'Write' }, { title: 'Gate' }] }
+
+   const WROTE = { type: 'object', required: ['written'], properties: { written: { type: 'boolean' } } }
+   const REPORT = { type: 'object', required: ['ok', 'problems'], properties: { ok: { type: 'boolean' }, problems: { type: 'array', items: { type: 'string' } } } }
+   const run = args.runDir
+   const DOC = `${run}/extracts/brief.md`
+
+   phase('Write')
+   await agent(`INPUT\nsource: ${run}/inputs/brief.md\n\nOUTPUT\n${DOC}`,
+     { agentType: 'source-processor', model: 'sonnet', label: 'write', phase: 'Write', schema: WROTE })
+
+   phase('Gate')
+   const gate = await agent(`COMMANDS\n1. python -X utf8 tools/gate.py --file ${DOC} --min-length 500 --rows-have-source`,
+     { agentType: 'gate-runner', model: 'sonnet', label: 'gate', phase: 'Gate', schema: REPORT })
+   if (!gate || !gate.ok) log(`[gate] ${(gate && gate.problems.join('; ')) || 'no report'}`)
+   return { document: DOC, ok: Boolean(gate && gate.ok) }
+   ```
+
+   Правила скрипта:
+   - пути называет скрипт, у агента их не спрашивает;
+   - после каждого пишущего шага идёт гейт;
+   - имена входов совпадают с портами из `agent.yaml`;
+   - `meta` — чистый литерал;
+   - в настоящем скрипте в конце идёт аудит папки (в примере опущен).
+
+   Круг правки, запись кругов, аудит и проверку на занятость папки целиком возьмите из
+   `solution-design.js` (`reviseLoop`, `auditRun`, `recordUnresolved`): подключить их через
+   `import` нельзя.
+5. **Проверка без запуска агентов:**
+   ```bash
+   node tools/dry_run.mjs .claude/workflows/<имя>.js ok '<args json>'
+   node tools/dry_run.mjs .claude/workflows/<имя>.js bad '<args json>'
+   uv run python -m facet.wiring    # добавьте сценарий в facet/wiring.py: SCENARIOS
+   uv run pytest
+   ```
+6. **Запуск.** Новый агент виден со следующего сообщения в сессии. Каждый прогон — в новую папку
+   из `newrun.py`.
+
+## Агенты
+
+Каждый агент — роль (`prompt.md`), контракт (`agent.yaml`) и, если он работает с документом
+определённого типа, профиль. Описания входов (`about`) — в контракте и в сгенерированном
+промпте агента. «Берёт» и «Отдаёт» — порты контракта, «(opt.)» — необязательный.
+Порт-коллекция (`collection<...>`) передаётся построчно: `extract:<имя>`, `source_1`. Последний
+столбец получен из прогона на заглушках. Таблица генерируется командой
+`uv run python -m facet.wiring`, тест падает, если она устарела.
+
+Права записи нет ни у одного агента, который только судит: `article-critic`, `figure-critic`,
+`proposal-reviewer`, `requirements-critic`, `slop-critic`, `solution-design-critic`,
+`style-critic-ru`. Судья, который может править, — в одном шаге от «исправления» того, что судит.
+
+Детали двух видов. Без профиля, для любой сборки: носильщики `gate-runner`, `file-copier`,
+`verbatim-writer`; `source-processor` (документ в извлечение с источниками), `source-finder`
+(поиск в сети), `illustrator` и `figure-critic` (рисунки), `slop-critic` (нейрослоп). С профилем,
+под свой тип документа: писатели, корректоры и критики требований, дизайна, вопросов, редакций,
+пропозала, статьи. Для нового типа документа такую тройку делают по образцу существующей и
+дают ей новый профиль.
+
+<!-- agents:begin (generated by facet.wiring.render_registry; do not edit by hand) -->
+| Агент | Что делает | Берёт | Отдаёт | Профиль | Кто вызывает (скрипт: шаги) |
+|---|---|---|---|---|---|
+| `arch-critic` | Отбирает вопросы к заказчику из черновика пробника: убирает общие и уже отвеченные, оставляет те, что двигают решение, и пишет итоговый документ вопросов. | `draft`: `arch_report@v1`<br>`requirements`: `requirements@v1` | `report`: `discovery_report@v1` | `discovery-questions-profile` | `solution-design`: discovery:curate |
+| `arch-probe` | Ищет в требованиях архитектурные пробелы, противоречия и невысказанные компромиссы и превращает их в вопросы к заказчику со ссылками на пункты требований. | `requirements`: `requirements@v1` | `arch_report`: `arch_report@v1` | `discovery-questions-profile` | `solution-design`: discovery:probe |
+| `article-critic` | Критик статьи по существу: верно ли объяснён механизм, доказывает ли пример то, что утверждает текст, поймёт ли читатель без подготовки. Выносит вердикт, файлов не пишет. | `brief`: `brief@v1`<br>`draft`: `article@v1`<br>`material`: `analysis@v1`<br>`sources`: `collection<source_summary@v1>` (opt.) | `verdict`: `verdict@v1` | — | `explainer-article`: critic |
+| `article-fact-checker` | Сверяет утверждения статьи с источниками и исправляет на месте: имена, годы, наборы данных, конфигурации, преувеличения. | `draft`: `article@v1`<br>`sources`: `collection<source_summary@v1>`<br>`source`: `collection<source@v1>` (opt.)<br>`index`: `collection<source_index@v1>` (opt.)<br>`brief`: `brief@v1`<br>`voice`: `style_profile@v1` (opt.) | `article`: `article@v1` | — | `explainer-article`: factcheck |
+| `article-writer` | Пишет объясняющую статью из анализа источников, с примером, посчитанным вручную, и плейсхолдерами рисунков. В attn-figures планирует рисунки, если их нет в тексте. | `brief`: `brief@v1`<br>`material`: `analysis@v1`<br>`sources`: `collection<source_summary@v1>`<br>`voice`: `style_profile@v1` (opt.) | `article`: `article@v1` | — | `attn-figures`: plan<br>`explainer-article`: write |
+| `brief-writer` | Превращает свободный текст заказа в бриф: тема, читатель, язык, объём, что обязательно и что исключено; разбивает тему на аспекты для поиска. | — | `brief`: `brief@v1` | — | `explainer-article`: brief |
+| `client-editor` | Делает из трассируемых требований и дизайна редакции для заказчика: убирает источники, метки и следы кухни, сохраняет каждое требование с весом и цитатами клиента, перенумеровывает и ведёт карту номеров. | `traceable`: `requirements@v1`<br>`extracts`: `collection<extract@v1>`<br>`requirements_edition`: `client_edition@v1` (opt.)<br>`id_map`: `id_map@v1` (opt.)<br>`client_voice`: `client_voice@v1` (opt.) | `edition`: `client_edition@v1` | `client-edition-profile` | `solution-design`: client:design, client:requirements |
+| `client-voice` | Лист голоса заказчика: что он сказал дословно и кто, что для него важнее по времени и эмоциям в звонке, во что каждая фраза нас обязывает и с каким весом, его словарь, кто чего хочет, порядок пропозала и чего он не сказал. | `sources`: `collection<source@v1>`<br>`extracts`: `collection<extract@v1>` | `voice`: `client_voice@v1` | `client-voice-profile` | `solution-design`: voice |
+| `confluence-publisher` | Публикует готовый документ в Confluence через tools/confluence_publish.py: создаёт или обновляет страницу, загружает рисунки, возвращает адрес и версию. | `design_doc`: `design_doc@v1` | `publication`: `publication@v1` | — | пока ни один скрипт — деталь для следующего конвейера |
+| `coverage-mapper` | Карта покрытия пропозала: каждая просьба, опасение и вопрос заказчика с ролью, таймкодом и дословными словами, и раздел пропозала, который отвечает, или «вне рамок» с причиной. | `document`: `proposal@v1`<br>`sources`: `collection<source@v1>`<br>`client_voice`: `client_voice@v1` (opt.) | `map`: `coverage_map@v1` | `proposal-profile` | `proposal-review`: coverage |
+| `domain-analyst` | Сводит заметки по источникам в анализ: что источники устанавливают вместе, где расходятся, хронологии и сравнения, которых нет ни в одной заметке. | `brief`: `brief@v1`<br>`sources`: `collection<source_summary@v1>`<br>`source`: `collection<source@v1>` (opt.)<br>`index`: `collection<source_index@v1>` (opt.) | `material`: `analysis@v1` | — | `explainer-article`: analyse, analyse:fill |
+| `example-verifier` | Пересчитывает сквозной пример статьи кодом и исправляет числа на месте; безнадёжный пример заменяет рабочим. | `draft`: `article@v1`<br>`brief`: `brief@v1` | `article`: `article@v1` | — | `explainer-article`: verify-example |
+| `figure-critic` | Смотрит отрисованные рисунки глазами читателя: выписывает каждую подпись, сверяет блоки и стрелки со списками брифа, числа с текстом, орфографию и язык. Только судит. | `document`: `document@v1`<br>`figures`: `collection<image@v1>`<br>`briefs`: `collection<figure_brief@v1>` (opt.) | `checks`: `figure_checks@v1` | — | `attn-figures`: look |
+| `file-copier` | Выполняет команды копирования и применения правок писателя и отчитывается, что сделала каждая. Без суждений. | — | `copies`: `gate_report@v1` | — | `explainer-article`: snapshot<br>`proposal-review`: snapshot<br>`solution-design`: design:promote, design:snapshot, req:snapshot |
+| `gate-runner` | Носильщик детерминированных проверок: запускает данные команды и приносит отчёт без изменений. Ничего не измеряет, не судит и не создаёт. | — | `report`: `gate_report@v1` | — | `attn-figures`: critic-used, gate, preflight<br>`explainer-article`: audit, busy, gate, gate:final, sources:list, verify, verify:structure<br>`proposal-review`: gate<br>`solution-design`: audit, busy, client:gate, design:candidates-verify, design:exists, design:gate, design:requirements-exist, design:resume-rounds, discovery:gate, extract:verify, inputs:intake, inputs:list, req:exists, req:gate, resume, voice:gate |
+| `illustrator` | Рисует рисунки по плейсхолдерам документа через figgybanana: пишет бриф, рендерит трёх кандидатов, выбирает, ведёт манифест с командами для перерисовки. | `article`: `article@v1` | `illustration`: `illustration@v1` | — | `attn-figures`: draw, redraw |
+| `proposal-editor` | Правит пропозал на месте по нумерованным замечаниям проверяющего и гейта, пакетами, и отвечает на каждое «исправлено» или «отклонено» с причиной. | `draft`: `proposal@v1`<br>`remarks`: `verdict@v1`<br>`coverage`: `coverage_map@v1`<br>`sources`: `collection<source@v1>` | `doc`: `proposal@v1` | `proposal-profile` | `proposal-review`: edit |
+| `proposal-reviewer` | Независимо проверяет пропозал до автора: покрытие просьб заказчика, противоречия между разделами и рисунками, обещания без плана, утверждения без опоры, голос по профилю. | `draft`: `proposal@v1`<br>`coverage`: `coverage_map@v1`<br>`sources`: `collection<source@v1>`<br>`figures`: `collection<image@v1>`<br>`answers`: `answers@v1` (opt.)<br>`client_voice`: `client_voice@v1` (opt.) | `verdict`: `verdict@v1` | `proposal-profile` | `proposal-review`: review |
+| `requirements-critic` | Критик требований: сверяет черновик с намерением источников и выносит вердикт с нумерованными замечаниями. | `draft`: `requirements@v1`<br>`extracts`: `collection<extract@v1>`<br>`client_voice`: `client_voice@v1` (opt.) | `verdict`: `verdict@v1` | `requirements-profile` | `solution-design`: req:REQUIREMENTS |
+| `requirements-fact-checker` | Исправляет черновик требований по извлечениям до критика: числа, атрибуцию, ссылки на источники. | `draft`: `requirements@v1`<br>`extracts`: `collection<extract@v1>` | `doc`: `requirements@v1` | `requirements-profile` | `solution-design`: req:factcheck |
+| `requirements-writer` | Пишет единый документ требований из извлечений всех источников; вес каждого требования берёт из листа голоса заказчика. | `extracts`: `collection<extract@v1>`<br>`client_voice`: `client_voice@v1` (opt.) | `requirements`: `requirements@v1` | `requirements-profile` | `solution-design`: req:write |
+| `slop-critic` | Критик нейрослопа в документах для заказчика, на любом языке: пустые обороты, утверждения без механизма, тройки и контрасты для ритма, раздутые глаголы, однообразный ритм, наши слова вместо слов заказчика. Считает по данным library/style, выносит вердикт с цитатами и правкой «было → стало». | `draft`: `document@v1`<br>`client_voice`: `client_voice@v1` (opt.)<br>`voice`: `style_profile@v1` (opt.) | `verdict`: `verdict@v1` | — | `proposal-review`: slop<br>`solution-design`: client:slop:design, client:slop:requirements, design:SLOP, req:SLOP |
+| `solution-design-critic` | Критик дизайна: закрыто ли каждое требование, нет ли лишних тяжёлых механизмов, соблюдены ли решения архитектора. Выносит вердикт. | `draft`: `design_doc@v1`<br>`requirements`: `requirements@v1` | `verdict`: `verdict@v1` | `solution-design-profile` | `solution-design`: design:DESIGN |
+| `solution-design-selector` | Выбирает лучший из кандидатов дизайна, написанных разными моделями, и записывает, почему. | `candidates`: `collection<design_doc@v1>` | `choice`: `selection@v1` | `solution-design-profile` | `solution-design`: design:select |
+| `solution-designer` | Пишет технический дизайн из требований: кандидат в конкурсе моделей и писатель в кругах правки. | `requirements`: `requirements@v1`<br>`draft`: `design_doc@v1` (opt.) | `design_doc`: `design_doc@v1` | `solution-design-profile` | `solution-design`: design:candidate |
+| `source-finder` | Ищет и сохраняет источники по аспекту брифа: каждый источник отдельным файлом, со сводкой по аспекту и указателем, откуда что взято. | `brief`: `brief@v1` | `found`: `found_sources@v1` | — | `explainer-article`: find |
+| `source-processor` | Разбирает один входной документ (стенограмма, RFP, PDF, заметки, таблица) в извлечение: факты, требования, вопросы, у каждой строки источник. | `source`: `source@v1` | `extract`: `extract@v1` | — | `solution-design`: extract |
+| `style-critic-ru` | Критик русского стиля: машинные обороты, типографика, кальки, рассинхрон терминов, сверка с профилем голоса автора. Вердикт с цитатами. | `draft`: `article@v1`<br>`brief`: `brief@v1`<br>`voice`: `style_profile@v1` (opt.) | `verdict`: `verdict@v1` | — | `explainer-article`: style |
+| `verbatim-writer` | Записывает в файл пункты ровно как получил: заголовок и строки. Так незакрытые замечания и передачи попадают на диск, а не пропадают. | — | `document`: `document@v1` | — | `explainer-article`: handoff, record, unresolved<br>`proposal-review`: record, unresolved<br>`solution-design`: design:record, handoff, req:record, unresolved |
+<!-- agents:end -->
+
+## Готовые сборки: как пользоваться
+
+Это примеры того, что собирается из библиотеки. Свои сборки делаются так же, см. «Как собрать
+свой конвейер».
+
+### Что в них на входе и на выходе
+
+| Конвейер | На входе | На выходе |
+|---|---|---|
+| Требования | материалы клиента: стенограммы, письма, RFP, ответы на вопросы | лист голоса клиента (его слова, вес каждой просьбы, его словарь) и документ требований с источником у каждой строки, противоречиями, пробелами и допущениями |
+| Технический дизайн | требования, решения архитектора, заказ | дизайн с одной архитектурой, ссылкой каждого решения на требование, рисками, допущениями; схемы |
+| Вопросы клиенту | требования | вопросы по пробелам и противоречиям, каждый со ссылкой на пункт |
+| Редакция для клиента | принятые требования и дизайн | те же документы без источников, меток и следов внутренней работы, с цитатами клиента и сквозной нумерацией |
+| Проверка пропозала | черновик, стенограмма, документы клиента, рисунки | пропозал после кругов проверки и карта покрытия: каждая просьба клиента и место, где на неё ответ |
+| Статья | одна фраза: тема, читатель, объём, язык | статья с источниками из сети, пересчитанными числами и схемами |
+
+Документ выходит на языке исходных материалов.
 
 ### Что нужно один раз
 
@@ -312,108 +428,6 @@ python -X utf8 tools/newrun.py --base docs-runs --label "Клиент А"
 - Разобраться, что произошло: `<папка>/tools.jsonl` (отчёт каждой проверки),
   `logs/stop-audit.jsonl` (что записал каждый агент), `<папка>/handoff.md` (что кому
   передавалось).
-
-## Как собрать свой конвейер
-
-Конвейер — это скрипт, который передаёт готовым агентам пути и проверяет каждый шаг гейтом.
-
-1. **Подберите агентов** по таблице ниже: столбцы «Берёт» и «Отдаёт» — их контракты. Выход
-   одного агента должен подходить по типу ко входу следующего.
-2. **Профиль для нового типа документа.** Если тип новый, напишите
-   `.claude/skills/<тип>-profile/SKILL.md`: разделы, таблицы, чек-лист критика, правила гейта.
-   Писатель, корректор и критик подключают его через `skills:` в `agent.yaml`.
-3. **Новый агент, только если роли нет.** `library/agents/<имя>/agent.yaml`: контракт (у каждого
-   входа `port`, `type` и `about` — что это и как с ним работать), инструменты, профиль. И
-   `prompt.md`: роль, по-английски. Входы в промпте описывать не нужно: раздел «Your inputs»
-   сборка добавит сама. Сборка:
-   `uv run python -c "from pathlib import Path; from facet.emit_agents import emit_all; emit_all(Path('library/agents'), Path('.claude/agents'), Path('.claude/skills'))"`.
-4. **Скрипт** `.claude/workflows/<имя>.js`. Основа:
-
-   ```js
-   export const meta = { name: 'my-doc', description: 'One extract from one source, gated', phases: [{ title: 'Write' }, { title: 'Gate' }] }
-
-   const WROTE = { type: 'object', required: ['written'], properties: { written: { type: 'boolean' } } }
-   const REPORT = { type: 'object', required: ['ok', 'problems'], properties: { ok: { type: 'boolean' }, problems: { type: 'array', items: { type: 'string' } } } }
-   const run = args.runDir
-   const DOC = `${run}/extracts/brief.md`
-
-   phase('Write')
-   await agent(`INPUT\nsource: ${run}/inputs/brief.md\n\nOUTPUT\n${DOC}`,
-     { agentType: 'source-processor', model: 'sonnet', label: 'write', phase: 'Write', schema: WROTE })
-
-   phase('Gate')
-   const gate = await agent(`COMMANDS\n1. python -X utf8 tools/gate.py --file ${DOC} --min-length 500 --rows-have-source`,
-     { agentType: 'gate-runner', model: 'sonnet', label: 'gate', phase: 'Gate', schema: REPORT })
-   if (!gate || !gate.ok) log(`[gate] ${(gate && gate.problems.join('; ')) || 'no report'}`)
-   return { document: DOC, ok: Boolean(gate && gate.ok) }
-   ```
-
-   Правила скрипта:
-   - пути называет скрипт, у агента их не спрашивает;
-   - после каждого пишущего шага идёт гейт;
-   - имена входов совпадают с портами из `agent.yaml`;
-   - `meta` — чистый литерал;
-   - в конце — аудит папки.
-
-   Круг правки, запись кругов, аудит и проверку на занятость папки целиком возьмите из
-   `solution-design.js` (`reviseLoop`, `auditRun`, `recordUnresolved`): подключить их через
-   `import` нельзя.
-5. **Проверка без запуска агентов:**
-   ```bash
-   node tools/dry_run.mjs .claude/workflows/<имя>.js ok '<args json>'
-   node tools/dry_run.mjs .claude/workflows/<имя>.js bad '<args json>'
-   uv run python -m facet.wiring    # добавьте сценарий в facet/wiring.py: SCENARIOS
-   uv run pytest
-   ```
-6. **Запуск.** Новый агент виден со следующего сообщения в сессии. Каждый прогон — в новую папку
-   из `newrun.py`.
-
-## Агенты
-
-Каждый агент — роль (`prompt.md`), контракт (`agent.yaml`) и, если он работает с документом
-определённого типа, профиль. Описания входов (`about`) — в контракте и в сгенерированном
-промпте агента. «Берёт» и «Отдаёт» — порты контракта, «(opt.)» — необязательный.
-Порт-коллекция (`collection<...>`) передаётся построчно: `extract:<имя>`, `source_1`. Последний
-столбец получен из прогона на заглушках. Таблица генерируется командой
-`uv run python -m facet.wiring`, тест падает, если она устарела.
-
-Права записи нет ни у одного агента, который только судит: `article-critic`, `figure-critic`,
-`proposal-reviewer`, `requirements-critic`, `slop-critic`, `solution-design-critic`,
-`style-critic-ru`. Судья, который может править, — в одном шаге от «исправления» того, что судит.
-
-<!-- agents:begin (generated by facet.wiring.render_registry; do not edit by hand) -->
-| Агент | Что делает | Берёт | Отдаёт | Профиль | Кто вызывает (скрипт: шаги) |
-|---|---|---|---|---|---|
-| `arch-critic` | Отбирает вопросы к заказчику из черновика пробника: убирает общие и уже отвеченные, оставляет те, что двигают решение, и пишет итоговый документ вопросов. | `draft`: `arch_report@v1`<br>`requirements`: `requirements@v1` | `report`: `discovery_report@v1` | `discovery-questions-profile` | `solution-design`: discovery:curate |
-| `arch-probe` | Ищет в требованиях архитектурные пробелы, противоречия и невысказанные компромиссы и превращает их в вопросы к заказчику со ссылками на пункты требований. | `requirements`: `requirements@v1` | `arch_report`: `arch_report@v1` | `discovery-questions-profile` | `solution-design`: discovery:probe |
-| `article-critic` | Критик статьи по существу: верно ли объяснён механизм, доказывает ли пример то, что утверждает текст, поймёт ли читатель без подготовки. Выносит вердикт, файлов не пишет. | `brief`: `brief@v1`<br>`draft`: `article@v1`<br>`material`: `analysis@v1`<br>`sources`: `collection<source_summary@v1>` (opt.) | `verdict`: `verdict@v1` | — | `explainer-article`: critic |
-| `article-fact-checker` | Сверяет утверждения статьи с источниками и исправляет на месте: имена, годы, наборы данных, конфигурации, преувеличения. | `draft`: `article@v1`<br>`sources`: `collection<source_summary@v1>`<br>`source`: `collection<source@v1>` (opt.)<br>`index`: `collection<source_index@v1>` (opt.)<br>`brief`: `brief@v1`<br>`voice`: `style_profile@v1` (opt.) | `article`: `article@v1` | — | `explainer-article`: factcheck |
-| `article-writer` | Пишет объясняющую статью из анализа источников, с примером, посчитанным вручную, и плейсхолдерами рисунков. В attn-figures планирует рисунки, если их нет в тексте. | `brief`: `brief@v1`<br>`material`: `analysis@v1`<br>`sources`: `collection<source_summary@v1>`<br>`voice`: `style_profile@v1` (opt.) | `article`: `article@v1` | — | `attn-figures`: plan<br>`explainer-article`: write |
-| `brief-writer` | Превращает свободный текст заказа в бриф: тема, читатель, язык, объём, что обязательно и что исключено; разбивает тему на аспекты для поиска. | — | `brief`: `brief@v1` | — | `explainer-article`: brief |
-| `client-editor` | Делает из трассируемых требований и дизайна редакции для заказчика: убирает источники, метки и следы кухни, сохраняет каждое требование с весом и цитатами клиента, перенумеровывает и ведёт карту номеров. | `traceable`: `requirements@v1`<br>`extracts`: `collection<extract@v1>`<br>`requirements_edition`: `client_edition@v1` (opt.)<br>`id_map`: `id_map@v1` (opt.)<br>`client_voice`: `client_voice@v1` (opt.) | `edition`: `client_edition@v1` | `client-edition-profile` | `solution-design`: client:design, client:requirements |
-| `client-voice` | Лист голоса заказчика: что он сказал дословно и кто, что для него важнее по времени и эмоциям в звонке, во что каждая фраза нас обязывает и с каким весом, его словарь, кто чего хочет, порядок пропозала и чего он не сказал. | `sources`: `collection<source@v1>`<br>`extracts`: `collection<extract@v1>` | `voice`: `client_voice@v1` | `client-voice-profile` | `solution-design`: voice |
-| `confluence-publisher` | Публикует готовый документ в Confluence через tools/confluence_publish.py: создаёт или обновляет страницу, загружает рисунки, возвращает адрес и версию. | `design_doc`: `design_doc@v1` | `publication`: `publication@v1` | — | пока ни один скрипт — деталь для следующего конвейера |
-| `coverage-mapper` | Карта покрытия пропозала: каждая просьба, опасение и вопрос заказчика с ролью, таймкодом и дословными словами, и раздел пропозала, который отвечает, или «вне рамок» с причиной. | `document`: `proposal@v1`<br>`sources`: `collection<source@v1>`<br>`client_voice`: `client_voice@v1` (opt.) | `map`: `coverage_map@v1` | `proposal-profile` | `proposal-review`: coverage |
-| `domain-analyst` | Сводит заметки по источникам в анализ: что источники устанавливают вместе, где расходятся, хронологии и сравнения, которых нет ни в одной заметке. | `brief`: `brief@v1`<br>`sources`: `collection<source_summary@v1>`<br>`source`: `collection<source@v1>` (opt.)<br>`index`: `collection<source_index@v1>` (opt.) | `material`: `analysis@v1` | — | `explainer-article`: analyse, analyse:fill |
-| `example-verifier` | Пересчитывает сквозной пример статьи кодом и исправляет числа на месте; безнадёжный пример заменяет рабочим. | `draft`: `article@v1`<br>`brief`: `brief@v1` | `article`: `article@v1` | — | `explainer-article`: verify-example |
-| `figure-critic` | Смотрит отрисованные рисунки глазами читателя: выписывает каждую подпись, сверяет блоки и стрелки со списками брифа, числа с текстом, орфографию и язык. Только судит. | `document`: `document@v1`<br>`figures`: `collection<image@v1>`<br>`briefs`: `collection<figure_brief@v1>` (opt.) | `checks`: `figure_checks@v1` | — | `attn-figures`: look |
-| `file-copier` | Выполняет команды копирования и применения правок писателя и отчитывается, что сделала каждая. Без суждений. | — | `copies`: `gate_report@v1` | — | `explainer-article`: snapshot<br>`proposal-review`: snapshot<br>`solution-design`: design:promote, design:snapshot, req:snapshot |
-| `gate-runner` | Носильщик детерминированных проверок: запускает данные команды и приносит отчёт без изменений. Ничего не измеряет, не судит и не создаёт. | — | `report`: `gate_report@v1` | — | `attn-figures`: critic-used, gate, preflight<br>`explainer-article`: audit, busy, gate, gate:final, sources:list, verify, verify:structure<br>`proposal-review`: gate<br>`solution-design`: audit, busy, client:gate, design:candidates-verify, design:exists, design:gate, design:requirements-exist, design:resume-rounds, discovery:gate, extract:verify, inputs:intake, inputs:list, req:exists, req:gate, resume, voice:gate |
-| `illustrator` | Рисует рисунки по плейсхолдерам документа через figgybanana: пишет бриф, рендерит трёх кандидатов, выбирает, ведёт манифест с командами для перерисовки. | `article`: `article@v1` | `illustration`: `illustration@v1` | — | `attn-figures`: draw, redraw |
-| `proposal-editor` | Правит пропозал на месте по нумерованным замечаниям проверяющего и гейта, пакетами, и отвечает на каждое «исправлено» или «отклонено» с причиной. | `draft`: `proposal@v1`<br>`remarks`: `verdict@v1`<br>`coverage`: `coverage_map@v1`<br>`sources`: `collection<source@v1>` | `doc`: `proposal@v1` | `proposal-profile` | `proposal-review`: edit |
-| `proposal-reviewer` | Независимо проверяет пропозал до автора: покрытие просьб заказчика, противоречия между разделами и рисунками, обещания без плана, утверждения без опоры, голос по профилю. | `draft`: `proposal@v1`<br>`coverage`: `coverage_map@v1`<br>`sources`: `collection<source@v1>`<br>`figures`: `collection<image@v1>`<br>`answers`: `answers@v1` (opt.)<br>`client_voice`: `client_voice@v1` (opt.) | `verdict`: `verdict@v1` | `proposal-profile` | `proposal-review`: review |
-| `requirements-critic` | Критик требований: сверяет черновик с намерением источников и выносит вердикт с нумерованными замечаниями. | `draft`: `requirements@v1`<br>`extracts`: `collection<extract@v1>`<br>`client_voice`: `client_voice@v1` (opt.) | `verdict`: `verdict@v1` | `requirements-profile` | `solution-design`: req:REQUIREMENTS |
-| `requirements-fact-checker` | Исправляет черновик требований по извлечениям до критика: числа, атрибуцию, ссылки на источники. | `draft`: `requirements@v1`<br>`extracts`: `collection<extract@v1>` | `doc`: `requirements@v1` | `requirements-profile` | `solution-design`: req:factcheck |
-| `requirements-writer` | Пишет единый документ требований из извлечений всех источников; вес каждого требования берёт из листа голоса заказчика. | `extracts`: `collection<extract@v1>`<br>`client_voice`: `client_voice@v1` (opt.) | `requirements`: `requirements@v1` | `requirements-profile` | `solution-design`: req:write |
-| `slop-critic` | Критик нейрослопа в документах для заказчика, на любом языке: пустые обороты, утверждения без механизма, тройки и контрасты для ритма, раздутые глаголы, однообразный ритм, наши слова вместо слов заказчика. Считает по данным library/style, выносит вердикт с цитатами и правкой «было → стало». | `draft`: `document@v1`<br>`client_voice`: `client_voice@v1` (opt.)<br>`voice`: `style_profile@v1` (opt.) | `verdict`: `verdict@v1` | — | `proposal-review`: slop<br>`solution-design`: client:slop:design, client:slop:requirements, design:SLOP, req:SLOP |
-| `solution-design-critic` | Критик дизайна: закрыто ли каждое требование, нет ли лишних тяжёлых механизмов, соблюдены ли решения архитектора. Выносит вердикт. | `draft`: `design_doc@v1`<br>`requirements`: `requirements@v1` | `verdict`: `verdict@v1` | `solution-design-profile` | `solution-design`: design:DESIGN |
-| `solution-design-selector` | Выбирает лучший из кандидатов дизайна, написанных разными моделями, и записывает, почему. | `candidates`: `collection<design_doc@v1>` | `choice`: `selection@v1` | `solution-design-profile` | `solution-design`: design:select |
-| `solution-designer` | Пишет технический дизайн из требований: кандидат в конкурсе моделей и писатель в кругах правки. | `requirements`: `requirements@v1`<br>`draft`: `design_doc@v1` (opt.) | `design_doc`: `design_doc@v1` | `solution-design-profile` | `solution-design`: design:candidate |
-| `source-finder` | Ищет и сохраняет источники по аспекту брифа: каждый источник отдельным файлом, со сводкой по аспекту и указателем, откуда что взято. | `brief`: `brief@v1` | `found`: `found_sources@v1` | — | `explainer-article`: find |
-| `source-processor` | Разбирает один входной документ (стенограмма, RFP, PDF, заметки, таблица) в извлечение: факты, требования, вопросы, у каждой строки источник. | `source`: `source@v1` | `extract`: `extract@v1` | — | `solution-design`: extract |
-| `style-critic-ru` | Критик русского стиля: машинные обороты, типографика, кальки, рассинхрон терминов, сверка с профилем голоса автора. Вердикт с цитатами. | `draft`: `article@v1`<br>`brief`: `brief@v1`<br>`voice`: `style_profile@v1` (opt.) | `verdict`: `verdict@v1` | — | `explainer-article`: style |
-| `verbatim-writer` | Записывает в файл пункты ровно как получил: заголовок и строки. Так незакрытые замечания и передачи попадают на диск, а не пропадают. | — | `document`: `document@v1` | — | `explainer-article`: handoff, record, unresolved<br>`proposal-review`: record, unresolved<br>`solution-design`: design:record, handoff, req:record, unresolved |
-<!-- agents:end -->
 
 ## Устройство репозитория
 
