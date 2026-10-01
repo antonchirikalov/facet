@@ -1,6 +1,6 @@
 name: verbatim_writer
 version: 1
-summary: "Записывает в файл пункты ровно как получил: заголовок и строки. Так незакрытые замечания и передачи попадают на диск, а не пропадают."
+summary: "Руки скрипта для записей. Скрипт сам файлы не пишет, поэтому записи прогона — круги правки с замечаниями, UNRESOLVED.md, handoff.md — оформляет этот агент: заголовок и пункты ровно как получил, без пересказа. Так незакрытое и переданное остаётся на диске, а не только в логе."
 description: >
   Writes a file that records items exactly as it received them: a heading and the items,
   one per line, in the language they arrived in. Adds no judgement, rephrases nothing,
