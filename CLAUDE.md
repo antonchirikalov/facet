@@ -59,6 +59,11 @@ that agent's `agent.yaml`; a new collection is handed as `<singular>:<stem>` or 
 - **A new run gets a new directory** from `newrun.py`; continuation is `config.continue`,
   rebuilding is `config.fresh`. The script refuses to guess.
 - **One launch is one stage** (`config.stages`); stages share nothing but files on disk.
+- **A pipeline is assembled from library agents, never alongside new ones.** Building a
+  pipeline creates no agent: if a role is missing, stop and name the missing role. A new
+  agent is separate, careful work (README, «Новый агент»): role, contract with an `about`
+  for every input, profile, tests, one live call on real material before any pipeline
+  uses it.
 
 ## Where an agent's instructions live (and only there)
 
