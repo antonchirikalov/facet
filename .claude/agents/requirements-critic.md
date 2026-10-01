@@ -1,7 +1,7 @@
 ---
 name: requirements-critic
 description: 'Reviews a requirements draft and emits a verdict@v1. The critic of the Extract pipeline''s refine loop: it judges the draft against the source extracts'' intent and returns approved or revise with actionable feedback.'
-tools: Read, Write, Edit
+tools: Read
 omitClaudeMd: true
 skills:
 - requirements-profile

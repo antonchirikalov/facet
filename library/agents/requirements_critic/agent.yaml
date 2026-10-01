@@ -12,7 +12,7 @@ consumes:
   - { port: client_voice, type: client_voice@v1, optional: true }
 produces:
   - { port: verdict, type: verdict@v1 }
-needs: [read, edit]
+needs: [read]
 # The requirements profile (facet SPEC §6): the writer, the corrector and the critic of this
 # document type read ONE contract, preloaded at spawn, instead of three copies in three prompts.
 skills: [requirements-profile]

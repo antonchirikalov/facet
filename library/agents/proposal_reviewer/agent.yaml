@@ -17,7 +17,7 @@ consumes:
   - { port: client_voice, type: client_voice@v1, optional: true }
 produces:
   - { port: verdict, type: verdict@v1 }
-needs: [read, edit, vision]
+needs: [read, vision]
 # The proposal profile holds the reviewer checklist and the verdict rule.
 skills: [proposal-profile]
 defaults:

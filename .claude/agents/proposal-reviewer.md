@@ -1,7 +1,7 @@
 ---
 name: proposal-reviewer
 description: 'Reviews a client proposal before the author sees it and emits a verdict@v1: coverage of every client ask, contradictions between sections and between text and figures, promises the plan does not deliver, claims the sources do not support, and the proposal profile''s voice rules. Opens every figure. Returns approved or revise with numbered remarks by severity.'
-tools: Read, Write, Edit
+tools: Read
 omitClaudeMd: true
 skills:
 - proposal-profile
