@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Inventory an input folder before anything reads it: every file, its duplicates, its kind.
 
-The Vista run started from a look at the top of ``input/`` and missed ``input/call-2026-09-23/``
+One live run started from a look at the top of ``input/`` and missed ``input/call-<date>/``
 with the call digest, a cleaner transcript and sixteen screen frames; it was found only when the
 user asked. Our own notes sat next to the client's words without a mark, and five frames existed
 twice under two names. This walks the whole tree and says, per file:
@@ -30,7 +30,7 @@ from typing import Any
 import toollog
 
 # In order of strength: our own notes first, then the client's words, then our name alone. The
-# Vista call transcript was named "... - Sciencesoft initial call.docx": a vendor name in a
+# client's call transcript on one live run was named "... - Sciencesoft initial call.docx": a vendor name in a
 # recording's title does not make the recording ours.
 OURS = re.compile(r"digest|summary|internal|notes?\b|brief|research|call-prep|ours", re.IGNORECASE)
 CLIENT = re.compile(

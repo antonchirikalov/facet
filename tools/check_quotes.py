@@ -3,7 +3,7 @@
 
 A client-facing document puts the client's own words next to each requirement. That is its
 strength and its risk: a quote the client never said, or said differently, is the fastest way to
-lose the reader who was in the room. On the Vista run every quote of the client edition was
+lose the reader who was in the room. On one live run every quote of the client edition was
 checked this way by a throwaway script; the same check caught three wrong speaker attributions in
 our own call digest. It belongs in the gate, not in a scratchpad.
 
@@ -19,8 +19,8 @@ to ignore the report. A quote is checked when it is attributed:
 
 Matching is forgiving only where transcripts are noisy: curly and straight apostrophes, case,
 runs of whitespace and markdown emphasis are normalised; `…` and `...` split a quote into
-fragments that must each occur; a `[bracketed]` insertion (an editor's `[pier]` for a transcript's
-"peer") is skipped. Everything else must match character for character.
+fragments that must each occur; a `[bracketed]` insertion (an editor's `[visit]` for a transcript's
+"misit") is skipped. Everything else must match character for character.
 
 The output envelope matches gate.py's.
 """

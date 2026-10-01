@@ -12,7 +12,7 @@ document with a different reader. Where an agent's own instructions and this pro
 about the document, the profile wins; the agent's instructions describe its role, this file
 describes the document.
 
-The Vista proposal took sixteen full revisions after the first draft. Almost every revision
+One proposal took sixteen full revisions after the first draft. Almost every revision
 answered a rule written below: an addressed reader, a bold lead-in, a quote nobody could place,
 a word used in two senses, an empty table cell, a "preliminary" lost inside a paragraph, a
 promise that read as a commitment, a figure whose numbers did not match the text, and one
@@ -21,8 +21,8 @@ first draft already obeys them.
 
 ## Reader
 
-The client's owner, their engineer and their partners. They are not technical ("I don't know
-what any of that means" was said on the Vista call about Flutter). They read to learn three
+The client's owner, their engineer and their partners. They are not technical (on one call
+the owner said a line about the mobile framework meant nothing to them). They read to learn three
 things: that we understood them, what they get and when, and what is still open. Technology
 appears once, in one line addressed to their IT advisers.
 
@@ -38,7 +38,7 @@ is absent from the sources, never to shorten.
 3. A day with the product: the main scenario step by step with its screens, the secondary
    scenarios, every role in one table, how the product reaches its users (distribution,
    onboarding, training).
-4. The core mechanism the client worries about most (for Vista, the spacing calculator), with
+4. The core mechanism the client worries about most (for Acme Clinics, the price quote), with
    a worked example and who controls it.
 5. How it is built: the parts on the device, the backend service by service, the standard
    cloud services, where it runs, backup and environments, one technology line.
@@ -54,7 +54,7 @@ References between sections are "section N" and must name an existing "## N." he
 ## Voice
 
 - We are ScienceSoft: "we propose", "we expect". The client is named, never addressed:
-  "Vista's engineer", not "your engineer"; no "you" or "your" outside a quote.
+  "Acme Clinics' engineer", not "your engineer"; no "you" or "your" outside a quote.
 - Plain words. A term keeps one meaning in the whole document; when a second meaning appears,
   one of them is renamed (a "job" was a customer order and a queue entry at once).
 - No bold anywhere. A lead-in that names an idea is set in italics.
@@ -70,7 +70,7 @@ References between sections are "section N" and must name an existing "## N." he
 
 Quotes are verbatim, in curly quotes, from the transcript or the client's documents, and a
 quote is used in the sense it had where it was said. A quote without context is not used: the
-cell next to it says what it answers, and a remark such as "that would be killer" that only
+cell next to it says what it answers, and a remark such as "oh, that would be neat" that only
 reacts to our own idea is not a requirement and does not go in section 2.
 
 ## Preliminary
@@ -83,9 +83,9 @@ The publisher turns them into info panels, the Word build into shaded paragraphs
 ## Coverage
 
 Before the draft is accepted, every ask, worry and question the client raised is in the
-coverage map with the place that answers it or an explicit "out of scope". On the Vista call
-the owner asked how the app is distributed, said the technicians would need training, and liked
-standard footprints; each came back from the reader as a separate question because the first
+coverage map with the place that answers it or an explicit "out of scope". On one live call
+the owner asked how the app is distributed, said the front desk would need training, and liked
+standard visit types; each came back from the reader as a separate question because the first
 draft had no place for it.
 
 ## Figures
@@ -96,14 +96,14 @@ in the figure plan (attn-figures.js):
 
 - exact: a diagram whose value is which box connects to which, in what order or on which week
   (context, components, deployment, sequence, timeline); generated, then checked box by box;
-- screen: a product screen whose numbers, counts or words the text relies on (piers on a wall,
+- screen: a product screen whose numbers, counts or words the text relies on (posts along a fence,
   a price list, a banner, a disclaimer). Its brief ends with a Facts block checked against the
   document before anything is drawn (tools/figure_facts.py), and it is written as an HTML mockup
   and rendered by headless Chrome (tools/render_html.py), never generated: a generator does not
   keep counts or text;
 - illustration: a scene or a hero picture whose value is the look; generated.
 
-Every number a figure shows agrees with the text around it: a spacing banner, the piers placed
+Every number a figure shows agrees with the text around it: a spacing banner, the posts placed
 under it and the price that counts them are one example, not three.
 
 ## Reviewer checklist
@@ -142,5 +142,5 @@ Deterministic, run by the script before the reviewer sees the draft:
 
 ## Output language
 
-The language of the client's material. The Vista proposal is in English because the call and the
+The language of the client's material. A proposal is in English when the call and the
 scope document are.

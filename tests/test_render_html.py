@@ -22,7 +22,7 @@ def test_explicit_path_wins(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> 
 
 def test_command_is_headless_with_viewport_and_scale(tmp_path: Path) -> None:
     html = tmp_path / "screen.html"
-    html.write_text("<p>6 piers</p>", encoding="utf-8")
+    html.write_text("<p>6 posts</p>", encoding="utf-8")
     argv = render_html.command("chrome", html, tmp_path / "out.png", 1600, 900, 2.0)
     assert argv[0] == "chrome" and "--headless=new" in argv
     assert "--window-size=1600,900" in argv and "--force-device-scale-factor=2" in argv

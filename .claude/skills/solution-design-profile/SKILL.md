@@ -41,8 +41,8 @@ this do what we asked, within what we said we must live with, and what did they 
    message queue, a CDN or web firewall, an extra service, a second datastore — is added only
    when a MUST requirement with a stated frequency or consequence needs it at the first
    version's scale. Otherwise it goes to "Later" with the requirement that would trigger it.
-   The Vista design built all of these for a call that said "no signal is rare, record the
-   current visit"; a developer saw it in a minute, the loop did not.
+   One design built all of these for a call that said "losing the connection is rare, keep
+   today's list"; a developer saw it in a minute, the loop did not.
 5. **DECISIONS are given.** When the task carries a DECISIONS block, a decided item is taken
    as the design's premise and justified from the requirements, never reopened; a compare item
    is the one exception to rule 1 — both options with their trade-offs, the choice left open in

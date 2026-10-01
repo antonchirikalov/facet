@@ -62,8 +62,8 @@ one line: Based on <requirements document and its version> | Sources: <N> | Outp
 ## Question format
 
 ```
-**Q-07.** * When the crew is under a house with no signal, must the app keep working and sync
-later, or is a cached read of today's jobs enough? [G-004, NFR-002]
+**Q-07.** * When a clinic loses its connection, must the app keep taking bookings and sync
+later, or is a cached read of today's schedule enough? [G-004, NFR-002]
 > Decision impact: full offline sync is a different architecture and a different estimate.
 ```
 

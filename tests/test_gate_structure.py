@@ -248,7 +248,7 @@ def test_figures_numbered_via_cli(
 def test_outside_quotes_keeps_the_clients_words() -> None:
     """Клиент в цитате говорит «you»; обращение к читателю ищется только вне цитат."""
     text = (
-        '\u201cis it just something you can download\u201d. Vista decides. We said "your call".\n'
+        '\u201cis it just an app you download\u201d. Acme Clinics decides. We said "your call".\n'
     )
     assert "you" not in gate.outside_quotes(text).lower().replace("\u201cq\u201d", "")
 

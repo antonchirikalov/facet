@@ -149,11 +149,11 @@ Rules that make the shape worth having:
   when the source mentions it as a thought or a wish. A document where every row is MUST has
   not read its sources.
 - Weight travels with the requirement. When a source says how often something happens or how
-  much it matters — "rare", "99% of jobs", "usually", "nice", "a little over the top", "every
-  visit" — that wording goes into the Requirement cell itself ("Without a signal, which the
-  owner calls rare, the technician can still draw and record"). The design sizes its mechanisms
-  by it: the Vista run lost "rare, only the current visit" on the way from the call to NFR-001,
-  and the design built an encrypted offline store of every job with conflict resolution.
+  much it matters — "rare", "nine visits out of ten", "usually", "nice", "a little over the top", "every
+  visit" — that wording goes into the Requirement cell itself ("Without a connection, which the
+  owner calls rare, the front desk can still book and record"). The design sizes its mechanisms
+  by it: one live run lost "rare, just today's list" on the way from the call to NFR-001,
+  and the design built an encrypted offline store of every booking with conflict resolution.
 
 ## The Source cell
 
@@ -168,14 +168,14 @@ is not a requirement — it is a conclusion, and it moves to 8.3. The cell is bu
   RFP_Questions — the same identifier in every cell, never a paraphrase of the title.
 - <locator> is what lets a reader open the document and find the sentence: a section or
   heading, a page, a question number (Q123), a date and time with the speaker for chats and
-  transcripts (08.09 11:20, Nastya), a table name. A file name alone is not a locator.
+  transcripts (08.09 11:20, project manager), a table name. A file name alone is not a locator.
 - The quote is the source's own words for whatever carries the meaning — the number, the
   name, the threshold, the decisive phrase — kept short. Paraphrase in the Requirement cell,
   quote in the Source cell.
 - Two sources supporting one row are two references separated by ;. A row both documents
   support is stronger than one mentioned in passing, and only the cell shows which is which.
 - When a later source changed an earlier position, the cell names both and says which won:
-  02-meeting: §2 — “not decided”; 03-chat: 08.09 11:30, Anton — “new phone: SMS code” (later,
+  02-meeting: §2 — “not decided”; 03-chat: 08.09 11:30, client lead — “new phone: SMS code” (later,
   explicit).
 - Where the input is a set of client answers, the reference is the answer id and the quote
   (Q317 — “open to either a shared platform or independent solutions”); where a requirement
@@ -230,7 +230,7 @@ MAJOR
    "implementation-free" rule.
 7. A row with several independently checkable statements bundled into one.
 8. Every row MUST; or a priority the source does not support.
-8a. A frequency or importance the source states ("rare", "nice", "99% of jobs", "over the
+8a. A frequency or importance the source states ("rare", "nice", "nine visits out of ten", "over the
    top") dropped from the row it qualifies.
 9. 8.2 missing an open question that an extract raised; 8.3 missing an assumption the text
    relies on; an assumption without a basis.

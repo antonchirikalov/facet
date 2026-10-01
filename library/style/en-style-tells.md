@@ -30,8 +30,8 @@ A paragraph that ends by restating itself, or a section that opens by announcing
 Three adjectives or three parallel nouns where one is meant, the third added for rhythm.
 
 - Defect: "a fast, reliable and intuitive workflow"
-- Fix: keep the one the requirements back, with its number. "the estimate is on the homeowner's
-  email before the tech leaves (FR-031)".
+- Fix: keep the one the requirements back, with its number. "the quote is in the patient's
+  inbox before they leave the front desk (FR-031)".
 
 ## 4. The contrast frame
 
@@ -51,8 +51,8 @@ where nobody proposed X.
 leverage, empower, enable, facilitate, foster, streamline, drive, elevate, harness, robust,
 scalable, comprehensive — where a plain verb or a number would do.
 
-- Defect: "The platform empowers technicians to streamline site visits."
-- Fix: "The tech records the footprint and readings on site, once."
+- Defect: "The platform empowers front-desk staff to streamline patient visits."
+- Fix: "The receptionist books the visit and quotes the price at the desk, once."
 
 ## 7. Uniform rhythm
 
@@ -71,8 +71,8 @@ paragraph after another.
 ## 9. Our words for their things
 
 When a client-voice sheet is given, its section 3 lists the client's terms and the words drafts
-substitute for them. A substituted word in our prose ("field engineer" where the client says
-"tech", "estimate" where they say "quote") is a defect even if it is correct English.
+substitute for them. A substituted word in our prose ("receptionist" where the client says
+"front desk", "appointment" where they say "visit") is a defect even if it is correct English.
 
 ## 10. The document talks about itself or about us
 

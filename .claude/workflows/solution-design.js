@@ -350,7 +350,7 @@ function task({ inputs, output, extra, noFile, brief }) {
 // --- What the person who launched the run decided before it started --------------------------
 //
 // The order used to travel as a port whose path was the inputs directory: a script has no
-// filesystem, so the text was never on disk and no agent ever saw it. The Vista run paid for that
+// filesystem, so the text was never on disk and no agent ever saw it. One live run paid for that
 // twice — frames the order asked for were never embedded, and the stack, the hosting and the MVP
 // bounds the architect had already settled were chosen again by the designer, differently. Both
 // now travel as text inside the task, the only channel a script has.
@@ -417,7 +417,7 @@ const LISTING = {
   },
 }
 
-// The Vista run listed the top of input/ and missed input/call-2026-09-23/ with the call digest,
+// One live run listed the top of input/ and missed input/call-<date>/ with the call digest,
 // a cleaner transcript and sixteen frames; our own notes sat among the client's words unmarked.
 // The inventory walks the whole tree and the script names what the listing will not process.
 const INTAKE = {
@@ -1595,9 +1595,9 @@ if (RUN_REQUIREMENTS) {
 
   // --- The client's voice: what they said, how much it weighed, the words they use ---------------
   //
-  // Before the requirements, because the weight of a requirement comes from here. On the Vista run
-  // "no signal is rare" reached the design without "rare", and the design built an offline store;
-  // the drafts said "estimate" where the client said "quote". Warnings, not a stop: the requirements
+  // Before the requirements, because the weight of a requirement comes from here. On one live run
+  // "losing the connection is rare" reached the design without "rare", and the design built an
+  // offline store; the drafts said "appointment" where the client said "visit". Warnings, not a stop: the requirements
   // can still be written from the extracts, only without the sheet.
   phase('Voice')
   const voiced = await call(
@@ -1703,7 +1703,7 @@ if (RUN_REQUIREMENTS) {
 // --- Client edition: the documents the client reads -------------------------------------------
 //
 // The traceable versions are the record: a Source cell on every row, tags, notes on how our own
-// materials were weighed. The Vista run published those, and they were rewritten by hand into
+// materials were weighed. One live run published those, and they were rewritten by hand into
 // editions a quarter and two fifths of the length, with ids renumbered through a map. This stage
 // is that rewrite: requirements first, because the design edition applies the map it leaves.
 if (RUN_CLIENT) {

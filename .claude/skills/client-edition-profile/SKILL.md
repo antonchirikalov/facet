@@ -23,7 +23,7 @@ not about how the document was made. They must be able to:
 - see what is required, how important it is, and what is still open;
 - sign off or correct it without asking us what a tag or a column means.
 
-A Vista run published the traceable versions first; they were 65 000 and 62 000 characters, full
+On one live run the traceable versions were published first; they were 65 000 and 62 000 characters, full
 of source locators, tags and notes about our own materials, and they were rewritten by hand into
 16 000 and 26 000 characters the client could read. This profile is that rewrite.
 
@@ -47,7 +47,7 @@ of source locators, tags and notes about our own materials, and they were rewrit
   Cutting a row is merging it with its duplicate, never dropping its content. A requirement
   missing from the client edition is a requirement the client never confirms.
 - Its weight: MUST / SHOULD / COULD as the traceable version has it, and every stated frequency,
-  volume or consequence ("rare", "every job", "loses the sale"). The weight is what keeps a
+  volume or consequence ("rare", "every job", "loses the patient"). The weight is what keeps a
   design proportionate; an edition that drops it hands the next reader a flat list.
 - Every number exactly as the traceable version has it.
 - The figure placeholders ![caption](figures/<slug>.png), with the same slugs; a caption may be
@@ -60,7 +60,7 @@ of source locators, tags and notes about our own materials, and they were rewrit
 
 Where a requirement rests on something the client said or wrote, the row carries a short quote
 in a column named "In the client's words" (in the document's language), attributed to a role, not
-a name: “you type in 48 feet” (owner). The quote is copied character for character from the
+a name: “you just pick a free slot” (office manager). The quote is copied character for character from the
 traceable version's Source cell, which copied it from the source; an ellipsis marks a cut, square
 brackets mark an inserted word. A quote that cannot be found in the sources is removed, not
 repaired — the gate checks every attributed quote against the extracts. Rows resting on our own

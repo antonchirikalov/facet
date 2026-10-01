@@ -15,15 +15,15 @@ It is an internal document. The client never reads it; the people writing to the
 
 ## Why it exists
 
-Three things were lost on the Vista run, and each cost a rework:
+Three things were lost on one live run, and each cost a rework:
 
-- the weight of what was said. "No signal is rare, record the current visit" became a full
+- the weight of what was said. "Losing the connection is rare, keep today's list" became a full
   offline store with synchronisation, because the requirement arrived without "rare";
-- the client's words for their own trade. The drafts said "field engineer" and "estimate"
-  where the client said "tech" and "quote", and the proposal read like it was about someone
+- the client's words for their own trade. The drafts said "receptionist" and "appointment"
+  where the client said "front desk" and "visit", and the proposal read like it was about someone
   else's business;
-- the order of what mattered. The call spent most of its time on drawing the footprint fast
-  and on the calculator; the first draft of the proposal opened with the architecture.
+- the order of what mattered. The call spent most of its time on booking a visit in three taps
+  and on the price quote; the first draft of the proposal opened with the architecture.
 
 ## What counts as the client's words
 
@@ -55,10 +55,10 @@ table: # | In their words | Who, where | What it commits us to | Weight
 - In their words: the verbatim quote
 - Who, where: role; timestamp, section or file
 - What it commits us to: the checkable form — a number, a behaviour, a limit ("fast" becomes
-  "the estimate PDF is on the homeowner's email before the tech leaves"); marked "our reading"
+  "the quote is in the patient's inbox before they leave the front desk"); marked "our reading"
   when the translation is ours rather than theirs
 - Weight: MUST / SHOULD / COULD, plus every frequency, volume or consequence they gave
-  ("rare", "every job", "99% of jobs", "loses the sale"). No frequency stated — say so.
+  ("rare", "every visit", "nine visits out of ten", "loses the patient"). No frequency stated — say so.
 
 ## 3. Their vocabulary
 table: Their term | What they mean by it | Do not replace with

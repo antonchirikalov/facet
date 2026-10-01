@@ -1,6 +1,6 @@
 """Тесты сверки цитат с источниками.
 
-Каждое правило здесь оплачено документом для клиента Vista: цитата, которой нет в транскрипте,
+Каждое правило здесь оплачено документом для живого клиента: цитата, которой нет в транскрипте,
 видна заказчику сразу, а подписи интерфейса в кавычках, помеченные как «не найдено», приучают
 не читать отчёт.
 """
@@ -16,14 +16,14 @@ import check_quotes
 import pytest
 
 SOURCE = (
-    "Eric Struben 20:30\nor maybe you draw a line and you type in 48 feet and draw another line.\n"
-    "Curtis Fry 15:00\nI'd like it to be built in and maybe they have a standard price per peer "
+    "Jane Roe 20:30\nor maybe you pick a slot and you type in the patient name and pick another slot.\n"
+    "John Doe 15:00\nI'd rather it came out of the box and maybe they have a flat fee per misit "
     "plus maybe like a custom add-on.\n"
 )
 
 
 def test_attributed_quote_found() -> None:
-    doc = "Typed lengths “you draw a line and you type in 48 feet” (owner)."
+    doc = "Typed names “you pick a slot and you type in the patient name” (office manager)."
     problems, checked = check_quotes.check(doc, SOURCE)
     assert checked == 1 and problems == []
 
@@ -36,18 +36,18 @@ def test_invented_quote_reported() -> None:
 
 
 def test_bracketed_editor_insertion_and_curly_apostrophe() -> None:
-    doc = "“I’d like it to be built in” (engineer) and “a standard price per [pier] plus maybe” (engineer)"
+    doc = "“I’d rather it came out of the box” (engineer) and “a flat fee per [visit] plus maybe” (engineer)"
     problems, checked = check_quotes.check(doc, SOURCE)
     assert checked == 2 and problems == []
 
 
 def test_ellipsis_splits_into_fragments() -> None:
-    doc = "“you draw a line … draw another line” (owner)"
+    doc = "“you pick a slot … pick another slot” (office manager)"
     assert check_quotes.check(doc, SOURCE)[0] == []
 
 
 def test_ui_label_without_attribution_is_not_checked() -> None:
-    doc = "The technician taps “Generate estimate” and the PDF appears."
+    doc = "The receptionist taps “Generate estimate” and the PDF appears."
     problems, checked = check_quotes.check(doc, SOURCE)
     assert checked == 0 and problems == []
 
@@ -56,7 +56,7 @@ def test_quote_column_of_a_table_is_checked() -> None:
     doc = (
         "| ID | Requirement | In the client's words |\n"
         "| --- | --- | --- |\n"
-        "| FR-1 | Typed lengths | “you type in 48 feet” |\n"
+        "| FR-1 | Typed names | “you type in the patient name” |\n"
         "| FR-2 | Deadline | “ship it by Friday” |\n"
     )
     problems, checked = check_quotes.check(doc, SOURCE)
@@ -67,7 +67,7 @@ def test_other_columns_are_not_checked() -> None:
     doc = (
         "| ID | Requirement | In the client's words |\n"
         "| --- | --- | --- |\n"
-        "| FR-1 | Banner “PRELIMINARY ESTIMATE” shown | “you type in 48 feet” |\n"
+        "| FR-1 | Banner “PRELIMINARY ESTIMATE” shown | “you type in the patient name” |\n"
     )
     problems, checked = check_quotes.check(doc, SOURCE)
     assert checked == 1 and problems == []
@@ -91,7 +91,7 @@ def test_cli_report_shape(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     doc, src = tmp_path / "doc.md", tmp_path / "t.md"
-    doc.write_text("“you type in 48 feet” (owner)", encoding="utf-8")
+    doc.write_text("“you type in the patient name” (office manager)", encoding="utf-8")
     src.write_text(SOURCE, encoding="utf-8")
     report = run(capsys, monkeypatch, "--file", str(doc), "--source", str(src))
     assert report["ok"] is True
@@ -114,6 +114,6 @@ def test_cli_source_folder(
     doc, folder = tmp_path / "doc.md", tmp_path / "extracts"
     folder.mkdir()
     (folder / "t.md").write_text(SOURCE, encoding="utf-8")
-    doc.write_text("“you type in 48 feet” (owner)", encoding="utf-8")
+    doc.write_text("“you type in the patient name” (office manager)", encoding="utf-8")
     report = run(capsys, monkeypatch, "--file", str(doc), "--source", str(folder))
     assert report["ok"] is True and report["measures"]["quotes"] == 1

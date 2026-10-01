@@ -2,9 +2,9 @@
 // run the deterministic gates, let an independent reviewer read it with the sources and the
 // figures, and let an editor answer the remarks, round after round.
 //
-// Why this exists. The Vista proposal went to its author after the writer was done, and the
+// Why this exists. On one live run the proposal went to its author after the writer was done, and the
 // author then found, one question at a time, what a reviewer with the transcript would have
-// found in one pass: how the app reaches the installers, that technicians need training, an
+// found in one pass: how the app reaches the clinics, that front-desk staff need training, an
 // addressed reader, bold lead-ins, empty table cells, a disclaimer worded differently from the
 // client's, a screen needed in week 10 but built in week 14. Five independent reviews were run by
 // hand, each after the author had already read the draft, and each found new HIGH items. This

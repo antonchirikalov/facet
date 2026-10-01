@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """Check an exact figure's brief against the document before anything is rendered.
 
-A picture whose numbers are the point (piers on a wall under a spacing banner, a price list, a
-disclaimer, week spans) is only right when every number on it is the document's number. On the
-Vista proposal the brief itself was wrong: five piers on a 36 ft wall under a banner of 6'-0"
-spacing and 2'-0" from corners, which needs seven. Thirty renders later the figure was still
+A picture whose numbers are the point (posts along a fence under a spacing banner, a price list, a
+disclaimer, week spans) is only right when every number on it is the document's number. On one
+live proposal the brief itself was wrong: five posts on a 36 ft fence under a banner of 6'-0"
+spacing and 2'-0" from the ends, which needs seven. Thirty renders later the figure was still
 being corrected, and the error had been in the text given to the renderer from the start.
 
 So an exact brief ends with a Facts block, and this tool checks it:
 
     Facts:
-    - text: PRELIMINARY ESTIMATE: MAX 6'-0" PIER SPACING
+    - text: PRELIMINARY ESTIMATE: MAX 6'-0" POST SPACING
     - check: ceil((29 - 2 * 2) / 6) + 1 == 6
 
 A "text" line must occur in the document verbatim (whitespace and quote styles normalised). A

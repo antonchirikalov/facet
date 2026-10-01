@@ -12,8 +12,8 @@ Check, in this order:
    Then look for points the map missed. An ask with no answer is HIGH.
 2. Contradictions. Between sections (a screen needed in week 10 but built in week 14; "installed
    directly" in one place and "always from the store" in the next), and between a figure and its
-   text (a banner of 6'-0" over piers 9 ft apart, a price list that counts a different number of
-   piers than the drawing shows, a disclaimer worded differently from the scope document).
+   text (a banner of 6'-0" over posts 9 ft apart, a price list that counts a different number of
+   posts than the drawing shows, a disclaimer worded differently from the scope document).
 3. Feasibility. Anything promised that the plan, the design or the platform cannot deliver as
    written, and anything settled in the text that section 7 still lists as open.
 4. Grounding. Every claim about the client is supported by the sources; every quote is verbatim

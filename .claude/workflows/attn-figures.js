@@ -64,7 +64,7 @@ const FIGURE_WIDTH = (args && args.figureWidth) || 2000
 // The vision critic is a parameter, not a sentence in a prompt: `args.critic` is
 // { provider, model } or the string 'none' (the CLI then judges with claude_code sonnet).
 // Kimi K3 by default, for the reasons in the header — but only after the Preflight phase has seen
-// it answer one image. On the Vista run both keys were dead (401, then 429) and every figure went
+// it answer one image. On one live run both keys were dead (401, then 429) and every figure went
 // out "Critic satisfied" unreviewed. Now: no answer in preflight, no Kimi flags at all; an answer
 // in preflight and a quota that runs out later, and figgybanana itself switches to claude_code for
 // the rest of the run and prints who judged each image.
@@ -73,7 +73,7 @@ let CRITIC_FLAGS =
   critic === 'none' ? '' : `  --critic-vlm-provider ${critic.provider} --critic-vlm-model ${critic.model} \\\n`
 let CRITIC_NAME = critic === 'none' ? 'claude_code sonnet (no separate critic)' : `${critic.provider} ${critic.model}`
 // Several candidates per render, and a choice by our own check. One render per figure, repaired
-// by continue-run, was the most expensive habit of the Vista run: 80 renders for 9 figures,
+// by continue-run, was the most expensive habit of one live run: 80 renders for 9 figures,
 // because continuing regenerates the whole picture from text and breaks what was already right.
 // Fresh runs with three candidates were what converged.
 const CANDIDATES = (args && args.candidates) || 3
@@ -337,7 +337,7 @@ function drawCommand(slug, caption, tag = '') {
 }
 
 // Who judged a figure is read from its render log, never taken from the illustrator's word. On
-// the Vista run Kimi began answering 403 halfway through, the tool switched to Claude on its own,
+// one live run Kimi began answering 403 halfway through, the tool switched to Claude on its own,
 // and the illustrator reported "critic: Kimi K3" for figures Kimi never saw.
 function criticCommand(logs) {
   return (
@@ -350,8 +350,8 @@ function criticCommand(logs) {
 // A screen is not generated: its numbers and words are the point, and a generator does not keep
 // them. The illustrator writes an HTML mockup in the look of the accepted figures, its brief ends
 // with a Facts block that tools/figure_facts.py checks against the document, and headless Chrome
-// renders it. The Vista drawing screen took thirty generated candidates and still needed its
-// text fixed by hand; its brief had asked for five piers where the spacing called for seven.
+// renders it. On one live run a drawing screen took thirty generated candidates and still needed
+// its text fixed by hand; its brief had asked for five posts where the spacing called for seven.
 function screenCommands(slug) {
   return (
     `python -X utf8 tools/figure_facts.py --brief ${WORK_DIR}/brief-${slug}.txt --file ${ARTICLE_PATH} ` +
@@ -485,8 +485,8 @@ let drawn = await agent(
     `   For a SCREEN the brief ends with a Facts block, one line each: "- text: <words the ` +
     `screen shows, copied from the document>" for every banner, disclaimer, label and price line ` +
     `the text also has, and "- check: <arithmetic that must hold>" for every count the screen ` +
-    `derives, written with the document's numbers (for piers on a wall: ceil((wall - 2 * corner) ` +
-    `/ spacing) + 1 == piers). A screen is NOT drawn with the tool: write it as one self-contained ` +
+    `derives, written with the document's numbers (for posts along a fence: ceil((fence - 2 * end) ` +
+    `/ spacing) + 1 == posts). A screen is NOT drawn with the tool: write it as one self-contained ` +
     `HTML file ${WORK_DIR}/mockup-<slug>.html (inline CSS, no external files, the style line above, ` +
     `every text from the brief verbatim, every counted item drawn exactly that many times), then ` +
     `run these two commands and ship render-<slug>.png through the same web-copy command as below. ` +
@@ -637,7 +637,7 @@ while (redraws < MAX_REDRAWS && looked.checks.some((c) => !c.ok)) {
         .join('\n\n') +
       `\n\nDo not continue the old run: --continue-run regenerates the whole figure from text and ` +
       `breaks what was already right. Instead write the defects into the brief as explicit ` +
-      `rules ("message 7 starts on the Cloud API lifeline and ends on the Technician tablet ` +
+      `rules ("message 7 starts on the Cloud API lifeline and ends on the Reception tablet ` +
       `lifeline"), save it as ${WORK_DIR}/brief-<slug>-r<N>.txt, and render afresh with the ` +
       `ordinary command pointed at the revised brief — ${CANDIDATES} candidates again:\n\n` +
       drawCommand('<slug>', '<caption>', '-r<N>').replace(`brief-<slug>.txt`, `brief-<slug>-r<N>.txt`) +

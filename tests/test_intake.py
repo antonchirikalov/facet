@@ -1,6 +1,6 @@
 """Тесты описи входной папки.
 
-Каждый случай — из Vista: пропущенная подпапка со звонком, наши заметки рядом со словами клиента,
+Каждый случай — с одного живого прогона: пропущенная подпапка со звонком, наши заметки рядом со словами клиента,
 пять кадров под двумя именами.
 """
 
@@ -19,14 +19,14 @@ def make(root: Path, rel: str, data: bytes = b"x") -> None:
 
 def test_nested_folders_are_walked(tmp_path: Path) -> None:
     make(tmp_path, "descr.txt")
-    make(tmp_path, "call-2026-09-23/transcript.md", b"t")
-    make(tmp_path, "call-2026-09-23/frames/client-01.jpg", b"img")
+    make(tmp_path, "call-2026-01-15/transcript.md", b"t")
+    make(tmp_path, "call-2026-01-15/frames/client-01.jpg", b"img")
     files, problems = intake.inventory(tmp_path)
     assert problems == []
     assert {f["path"] for f in files} == {
         "descr.txt",
-        "call-2026-09-23/transcript.md",
-        "call-2026-09-23/frames/client-01.jpg",
+        "call-2026-01-15/transcript.md",
+        "call-2026-01-15/frames/client-01.jpg",
     }
 
 
@@ -43,19 +43,19 @@ def test_kinds_separate_our_notes_from_client_words(tmp_path: Path) -> None:
     make(tmp_path, "call/digest.md", b"a")
     make(tmp_path, "sciencesoft-internal-pre-call-summary.txt", b"b")
     make(tmp_path, "call/transcript.md", b"c")
-    make(tmp_path, "Prelim_Phase 1 Product Scope.docx", b"d")
+    make(tmp_path, "Phase 1 Scope.docx", b"d")
     make(tmp_path, "call/frames/x.jpg", b"e")
     make(tmp_path, "misc.txt", b"f")
-    make(tmp_path, "Vista - Sciencesoft initial call.docx", b"g")
+    make(tmp_path, "Acme Clinics - Sciencesoft initial call.docx", b"g")
     make(tmp_path, "sciencesoft-proposal-draft.md", b"h")
     kinds = {f["path"]: f["kind"] for f in intake.inventory(tmp_path)[0]}
     assert kinds["call/digest.md"] == "ours"
     assert kinds["sciencesoft-internal-pre-call-summary.txt"] == "ours"
     assert kinds["call/transcript.md"] == "client"
-    assert kinds["Prelim_Phase 1 Product Scope.docx"] == "client"
+    assert kinds["Phase 1 Scope.docx"] == "client"
     assert kinds["call/frames/x.jpg"] == "media"
     assert kinds["misc.txt"] == "unknown"
-    assert kinds["Vista - Sciencesoft initial call.docx"] == "client"
+    assert kinds["Acme Clinics - Sciencesoft initial call.docx"] == "client"
     assert kinds["sciencesoft-proposal-draft.md"] == "ours"
 
 

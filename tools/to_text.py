@@ -2,7 +2,7 @@
 """Turn the office documents of an input folder into markdown, next to them, with pandoc.
 
 The agent that extracts an input document reads files with Read, and Read refuses a .docx: it
-is a zip archive, "This tool cannot read binary files". On the Vista run the Word documents
+is a zip archive, "This tool cannot read binary files". On one live run the Word documents
 were converted by hand before the launch, which is why it worked; a folder handed over as it
 came from the client would have lost its scope document without an error.
 

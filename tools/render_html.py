@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Render an HTML mockup to a PNG with headless Chrome: the deterministic path for exact screens.
 
-A generator draws a convincing tablet screen and gets its numbers wrong: six piers become five
-or seven, a dimension appears twice, a disclaimer loses a word. On the Vista proposal one screen
+A generator draws a convincing tablet screen and gets its numbers wrong: six posts become five
+or seven, a dimension appears twice, a disclaimer loses a word. On one live proposal a screen
 took thirty candidates and still needed its text fixed by hand. An exact screen is therefore
 written as HTML and CSS by the illustrator, in the look of the figures already accepted, and
 rendered here: what the HTML says is what the PNG shows, every time.

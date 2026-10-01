@@ -13,7 +13,7 @@ as the client's words, how weight is kept. Write to it.
    the ranking in section 1; a topic's importance to an engineer is not.
 2. Collect the phrases that commit us to something. Copy each one from the source character for
    character; a quote you cannot find again is dropped, not repaired. Keep every word of weight:
-   "rare", "sometimes", "every job", "99%".
+   "rare", "sometimes", "every visit", "nine out of ten".
 3. Translate each phrase into what it commits us to, in a form someone could check. Where the
    translation is yours rather than the client's, mark it "our reading".
 4. Write down the client's words for their people, their work, their documents and their money,

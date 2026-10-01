@@ -3,9 +3,9 @@
 
 The map is written by the coverage mapper before the proposal is judged: one row per ask,
 worry or question the client raised, with their verbatim words and the place in the document
-that answers it. On the Vista proposal the reader found those one by one after the draft was
-"done" — how the app is distributed, that technicians would need training, that standard
-footprints would be good — and each cost a revision. A map makes the omission visible before
+that answers it. On one live proposal the reader found those one by one after the draft was
+"done" — how the app is distributed, that front-desk staff would need training, that standard
+visit types would be good — and each cost a revision. A map makes the omission visible before
 anyone reads the draft; this tool makes the map itself honest.
 
 A row passes when:

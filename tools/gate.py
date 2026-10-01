@@ -334,7 +334,7 @@ def duplicate_ids(text: str, pattern: str) -> list[str]:
 def id_gaps(text: str, pattern: str) -> list[str]:
     """Declared ids that break the 1, 2, 3 order of their prefix, as "FR-008 after FR-006".
 
-    A client edition renumbers after cutting rows; the Vista one was renumbered by hand with a
+    A client edition renumbers after cutting rows; on one live run it was renumbered by hand with a
     map, and a skipped number reads as a requirement that was removed. Declarations only, as in
     duplicate_ids; the prefix is everything before the last run of digits.
     """
@@ -402,7 +402,7 @@ def tables_of(text: str) -> list[tuple[str, list[str], list[list[str]]]]:
 def empty_cells(text: str, allow: str | None = None) -> list[str]:
     """Empty body cells, as "<heading>: row N, <column>", except in columns named by `allow`.
 
-    An empty cell reads as something forgotten: a Vista table had three blank cells under
+    An empty cell reads as something forgotten: on one live run a table had three blank cells under
     "Cloud API service" and the reader asked what was missing. A column the reader is meant
     to fill in (a price for the manager) is exempt by its header.
     """

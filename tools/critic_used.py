@@ -4,7 +4,7 @@
 The render tool prints the critic it was configured with in its banner ("Critic VLM: kimi /
 k3"), a warning when that critic fails ("Critic provider failed, switching to the fallback
 ... raised PermissionDeniedError ... failed=kimi") and, per accepted image, "Critic satisfied
-(<provider>)". On the Vista run the Kimi critic began answering 403 halfway through, the tool
+(<provider>)". On one live run the Kimi critic began answering 403 halfway through, the tool
 switched to Claude on its own, and the illustrator reported "critic: Kimi K3" for figures Kimi
 never saw. The agent read the banner; the log said otherwise three hundred lines further down.
 

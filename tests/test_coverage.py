@@ -1,7 +1,7 @@
 """Тесты карты покрытия: каждая просьба клиента либо имеет место в документе, либо явно вне объёма.
 
-На Vista распространение через магазины, обучение техников и готовые контуры читатель находил
-по одному, уже после «готового» черновика. Карта делает пропуск видимым до чтения, а этот
+На одном живом прогоне распространение через магазины, обучение регистратуры и готовые типы
+приёмов читатель находил по одному, уже после «готового» черновика. Карта делает пропуск видимым до чтения, а этот
 инструмент не даёт карте соврать: цитата дословная, раздел существует, «вне объёма» с причиной.
 """
 
@@ -16,13 +16,13 @@ import coverage
 import pytest
 
 SOURCES = (
-    "Eric 38:35: is it just something you can download and they need to get a code from us?\n"
-    "Eric 22:28: it would definitely be a training for these technicians\n"
-    "Eric 31:19: having these standard footprints I think is good too\n"
+    "Jane Roe 38:35: is it just an app they download or do they need a login from us?\n"
+    "Jane Roe 22:28: the front desk staff would definitely need some training on it\n"
+    "Jane Roe 31:19: having a few standard visit types I think is good too\n"
 )
 DOC = (
     "## 1. Overview\n\nText.\n\n## 3. A day with the app\n\n"
-    "### How the app reaches the installers\n\nStores.\n\n## 7. Decisions\n\n| a | b |\n"
+    "### How the app reaches the clinics\n\nStores.\n\n## 7. Decisions\n\n| a | b |\n"
 )
 HEADER = "| ID | Who | When | Words | Answered in |\n| --- | --- | --- | --- | --- |\n"
 
@@ -33,9 +33,9 @@ def check(rows: str) -> tuple[list[str], dict[str, object]]:
 
 def test_placed_rows_pass() -> None:
     rows = (
-        "| CV-01 | Owner | 38:35 | “is it just something you can download” | "
-        "section 3, How the app reaches the installers |\n"
-        "| CV-02 | Owner | 31:19 | “having these standard footprints” | section 7 |\n"
+        "| CV-01 | Owner | 38:35 | “is it just an app they download” | "
+        "section 3, How the app reaches the clinics |\n"
+        "| CV-02 | Owner | 31:19 | “having a few standard visit types” | section 7 |\n"
     )
     problems, measures = check(rows)
     assert problems == []
@@ -43,16 +43,16 @@ def test_placed_rows_pass() -> None:
 
 
 def test_unanswered_ask_is_named() -> None:
-    """Обучение техников, которое на Vista забыли: пустая ячейка — пропуск, а не мелочь."""
-    rows = "| CV-03 | Owner | 22:28 | “a training for these technicians” | |\n"
+    """Обучение регистратуры, которое на прогоне забыли: пустая ячейка — пропуск, а не мелочь."""
+    rows = "| CV-03 | Owner | 22:28 | “need some training on it” | |\n"
     problems, _ = check(rows)
     assert problems == ["CV-03: not answered (“empty”)"]
 
 
 def test_missing_section_and_heading_are_named() -> None:
     rows = (
-        "| CV-01 | Owner | 38:35 | “get a code from us” | section 5 |\n"
-        "| CV-02 | Owner | 38:35 | “get a code from us” | section 3, Licensing |\n"
+        "| CV-01 | Owner | 38:35 | “a login from us” | section 5 |\n"
+        "| CV-02 | Owner | 38:35 | “a login from us” | section 3, Licensing |\n"
     )
     problems, _ = check(rows)
     assert problems == [
@@ -63,8 +63,8 @@ def test_missing_section_and_heading_are_named() -> None:
 
 def test_out_of_scope_needs_a_reason() -> None:
     rows = (
-        "| CV-01 | Owner | 31:19 | “standard footprints” | out of scope |\n"
-        "| CV-02 | Owner | 31:19 | “standard footprints” | out of scope: later phase |\n"
+        "| CV-01 | Owner | 31:19 | “standard visit types” | out of scope |\n"
+        "| CV-02 | Owner | 31:19 | “standard visit types” | out of scope: later phase |\n"
     )
     problems, measures = check(rows)
     assert problems == ["CV-01: out of scope without a reason"]
@@ -93,7 +93,7 @@ def test_cli_reports_json(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
     (tmp_path / "map.md").write_text(
-        HEADER + "| CV-01 | Owner | 38:35 | “get a code from us” | section 3 |\n",
+        HEADER + "| CV-01 | Owner | 38:35 | “a login from us” | section 3 |\n",
         encoding="utf-8",
     )
     (tmp_path / "doc.md").write_text(DOC, encoding="utf-8")

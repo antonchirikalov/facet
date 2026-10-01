@@ -39,9 +39,9 @@ and the sources give no reason to leave it out, write "not answered" in the cell
 that into a problem the editor must fix, and that is the purpose of this map. Do not invent a
 reason to call something out of scope.
 
-Points the Vista proposal missed at first and a reader found later, as examples of what a map
-must catch: how the app reaches the installers and whether a code is needed; that technicians
-would need training; that standard footprints would help; that the client works with partners
+Points one proposal missed at first and a reader found later, as examples of what a map
+must catch: how the app reaches the clinics and whether a login is needed; that front-desk staff
+would need training; that standard visit types would help; that the client works with partners
 who use the product themselves; a disclaimer's exact wording; which things the client said were
 not essential.
 
