@@ -1,0 +1,21 @@
+# Обороты, которые читаются как сгенерированный английский. По регулярке на строку, «#» —
+# комментарий. Ищется вне кода, без учёта регистра.
+#
+# Список нарочно узкий: только то, что не несёт информации ни в каком контексте. «Robust»,
+# «scalable», «not only … but also» сюда не входят — они бывают законными, и судит их критик
+# (library/style/en-style-tells.md), а не регулярка: правило, срабатывающее на нормальной
+# прозе, стоит круга переписывания.
+#
+# Это ДАННЫЕ: правится руками, без правки кода.
+
+it(?:'s| is) worth (?:noting|mentioning|highlighting)|it is important to (?:note|emphasi[sz]e)|importantly,
+in today's (?:fast-paced|digital|ever-changing|competitive)|ever-evolving landscape
+plays? an? (?:crucial|vital|pivotal|key|critical) role
+\bdelv(?:e|es|ing)\b|\btapestry\b|\ba testament to\b|\brest assured\b
+cutting-edge|state-of-the-art|best-in-class|world-class|game-chang\w*|next-generation
+\bunlock(?:s|ing)? (?:the )?(?:full )?(?:power|potential|value)\b
+\bleverag(?:e|es|ed|ing)\b|\bsynerg\w*|\bholistic\b|\bseamless(?:ly)?\b
+\bnavigat(?:e|es|ing) the (?:complexit|challeng)\w*
+in conclusion,|to sum up,|in summary,|let(?:'s| us) (?:dive|explore|take a closer look)
+this (?:document|proposal|section) (?:describes|outlines|presents|aims to)|the following sections? (?:describe|outline)
+(?:comprehensive|holistic|end-to-end|one-stop|turnkey) solution

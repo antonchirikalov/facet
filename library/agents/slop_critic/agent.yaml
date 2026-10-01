@@ -1,0 +1,22 @@
+name: slop_critic
+version: 1
+summary: "Критик нейрослопа в документах для заказчика, на любом языке: пустые обороты, утверждения без механизма, тройки и контрасты для ритма, раздутые глаголы, однообразный ритм, наши слова вместо слов заказчика. Считает по данным library/style, выносит вердикт с цитатами и правкой «было → стало»."
+description: >
+  Reviews a client-facing document for the tells of generated text, in the
+  document's language: zero-information phrases, claims with no mechanism behind
+  them, autopilot triads and contrast frames, stacked hedges, inflated verbs,
+  uniform rhythm, the document talking about itself, and our words where the
+  client has their own. Counts the mechanical layer with the shell, quotes every
+  finding and gives the fix; emits a verdict@v1 and never edits the document.
+consumes:
+  - { port: draft, type: document@v1 }
+  # the client's own terms and the words drafts substitute for them (tell 9)
+  - { port: client_voice, type: client_voice@v1, optional: true }
+  # an author's own style profile, when the document is written under someone's byline
+  - { port: voice, type: style_profile@v1, optional: true }
+produces:
+  - { port: verdict, type: verdict@v1 }
+# `bash` for exact counts with grep; no `edit` on purpose: the critic says, the writer writes.
+needs: [read, bash]
+defaults:
+  timeout_s: 1800

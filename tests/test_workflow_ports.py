@@ -259,3 +259,26 @@ def test_client_voice_reaches_the_requirements_writer_and_critic(tmp_path: Path)
         assert "client_voice: dry/run/client-voice.md" in prompt and "CLIENT VOICE" in prompt
     gate = next(p for p in by_agent(items, "gate-runner") if "client voice quotes" in p)
     assert "check_quotes.py --file dry/run/client-voice.md" in gate
+
+
+def test_slop_critic_judges_every_client_facing_loop(tmp_path: Path) -> None:
+    """Нейрослоп ловят дважды: узкий список в гейте и критик в каждом круге документа для заказчика."""
+    items = prompts(tmp_path, {**RUN, "config": {"fresh": True}})
+    labels = [p["label"] for p in items]
+    assert "req:SLOP:1" in labels and "design:SLOP:1" in labels
+    gates = [
+        p
+        for p in by_agent(items, "gate-runner")
+        if "--file dry/run/design.md" in p and "--require-heading" in p
+    ]
+    assert gates and all("en-slop.txt" in g and "ru-slop.txt" in g for g in gates)
+    off = prompts(tmp_path, {**RUN, "config": {"fresh": True, "slopCritic": False}})
+    assert not by_agent(off, "slop-critic")
+
+
+def test_slop_critic_reads_both_client_editions(tmp_path: Path) -> None:
+    items = prompts(tmp_path, {**RUN, "config": {"stages": ["client"]}})
+    slop = by_agent(items, "slop-critic")
+    assert len(slop) == 2
+    assert "draft: dry/run/requirements.client.md" in slop[0]
+    assert "draft: dry/run/design.client.md" in slop[1]

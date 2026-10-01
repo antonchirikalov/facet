@@ -12,8 +12,8 @@
 // is what a second archetype is for — it shows which parts are parameters and which are constants.
 //
 // What this pipeline does NOT do that the article one does: no web search (the sources are given,
-// not found), no style critic (an internal design document has no author's voice to protect), no
-// arithmetic corrector (there is no worked example to recompute). What it adds: a fan-out whose
+// not found), no author's-voice critic (the slop critic judges generated-text tells instead, because
+// these documents go to a client), no arithmetic corrector (there is no worked example to recompute). What it adds: a fan-out whose
 // width comes off the disk rather than out of the brief, a two-model contest with a selector, and
 // a discovery stage that produces the questions the design could not answer by itself.
 //
@@ -136,6 +136,7 @@ const MODELS = {
   discovery: 'opus',
   client: 'opus',
   voice: 'opus',
+  slop: 'sonnet',
   // Carriers run one command and copy its output. Sonnet, not haiku, and this was measured: a
   // haiku carrier read the harness's relayed user request ("check the prompts, run the tests") as
   // its own task, ran pytest and dry-runs for eight minutes, wrote a report into the repository
@@ -178,8 +179,17 @@ const DISCOVERY_GATE_FLAGS = cfg.discoveryGateFlags || [
 // Ids are checked in the requirements edition only: there a row's first cell declares an id, in
 // the design the same cell holds a reference (an NFR row quotes the requirement it meets).
 const CLIENT_ID_PATTERN = cfg.clientIdPattern || '\\b(?:FR|NFR|BR|C|G|A)-\\d{3}\\b'
+// Generated-text phrases no context makes informative, both languages: a pattern of the other
+// language matches nothing. Narrow on purpose; what only reading settles is the slop critic's.
+const SLOP_FLAGS = [
+  '--forbid-file library/style/forbid/en-slop.txt',
+  '--forbid-file library/style/forbid/ru-slop.txt',
+]
+// The slop critic sits in every revision loop of a client-facing document; off with false.
+const SLOP_CRITIC = cfg.slopCritic !== false
 const CLIENT_GATE_FLAGS = cfg.clientGateFlags || [
   '--no-empty-sections',
+  ...SLOP_FLAGS,
   '--figures-numbered',
   '--forbid-file library/style/forbid/client-meta.txt',
   '--forbid-file library/style/forbid/no-bold.txt',
@@ -202,6 +212,7 @@ const DESIGN_GATE_FLAGS = cfg.designGateFlags || [
   ...[1, 2, 3, 4, 5, 6, 7].map((n) => `--require-heading "^##\\s+${n}\\."`),
   ...['1.1', '1.2', '1.3', '1.4'].map((n) => `--require-heading "^###\\s+${n.replace('.', '\\.')}"`),
   '--figures-numbered',
+  ...SLOP_FLAGS,
   '--forbid-file library/style/forbid/no-bold.txt',
   '--forbid "\\x60"',
 ]
@@ -215,6 +226,7 @@ const REQ_GATE_FLAGS = cfg.reqGateFlags || [
   // script does not know the document's language.
   '--cell-forbid-file library/style/forbid/req-weak-ru.txt',
   '--cell-forbid-file library/style/forbid/req-weak-en.txt',
+  ...SLOP_FLAGS,
   // No backticks: ids and names are plain text in a requirements document. \x60 is the
   // character, spelled as a regex escape so that no shell ever sees a real one.
   '--forbid "\\x60"',
@@ -1622,6 +1634,9 @@ if (RUN_REQUIREMENTS) {
         inputs: [{ port: 'draft', path: REQ_PATH }, ...extractPorts, ...voicePort],
         brief: voiceBrief,
       },
+      ...(SLOP_CRITIC
+        ? [{ tag: 'SLOP', agentType: 'slop-critic', model: MODELS.slop, inputs: [{ port: 'draft', path: REQ_PATH }, ...voicePort], brief: voiceBrief }]
+        : []),
     ],
   })
 
@@ -1722,6 +1737,43 @@ if (RUN_CLIENT) {
   ]
   for (const e of editions) {
     for (const id of (e.result && e.result.unplaced) || []) warnings.push(`клиентская редакция (${e.what}): ${id} потерян`)
+  }
+  // One slop check per edition and, where it says revise, one correction pass by the same editor.
+  // No loop: the traceable versions already went through rounds; what is left is wording.
+  if (SLOP_CRITIC) {
+    const voiceIn = present.has(VOICE_PATH) ? [{ port: 'client_voice', path: VOICE_PATH }] : []
+    const judged = await parallel(
+      editions.map((e) => () =>
+        call(task({ inputs: [{ port: 'draft', path: e.path }, ...voiceIn], noFile: true, brief: ORDER_BLOCK }), {
+          agentType: 'slop-critic',
+          model: MODELS.slop,
+          label: `client:slop:${e.what}`,
+          phase: 'Client',
+          schema: VERDICT,
+        }),
+      ),
+    )
+    for (const [i, e] of editions.entries()) {
+      const v = judged[i]
+      if (!v) {
+        warnings.push(`клиентская редакция (${e.what}): проверка на нейрослоп не вернулась`)
+        continue
+      }
+      log(`[client/slop] ${e.what}: verdict=${v.verdict} замечаний=${(v.remarks || []).length}`)
+      if (v.verdict !== 'revise' || !(v.remarks || []).length) continue
+      const fixed = await call(
+        task({
+          inputs: [{ port: 'draft', path: e.path }, { port: 'extracts', path: EXTRACTS_DIR }, ...voiceIn],
+          output: e.path,
+          extra:
+            `SLOP REMARKS\nFix each numbered remark in ${e.path} by Edit, in batches. Change wording only: ` +
+            `no requirement, number, quote or id moves.\n\n` +
+            v.remarks.map((r, n) => `${n + 1}. ${r}`).join('\n'),
+        }),
+        { agentType: 'client-editor', model: MODELS.client, label: `client:slop-fix:${e.what}`, phase: 'Client', schema: EDITION },
+      )
+      if (!fixed) warnings.push(`клиентская редакция (${e.what}): замечания по нейрослопу не исправлены`)
+    }
   }
   // Two commands per edition, matched by index: the gate, then the quotes against the extracts.
   const gated = await call(
@@ -1987,6 +2039,20 @@ const design = await reviseLoop({
       ],
       brief: DESIGN_BRIEF,
     },
+    ...(SLOP_CRITIC
+      ? [
+          {
+            tag: 'SLOP',
+            agentType: 'slop-critic',
+            model: MODELS.slop,
+            inputs: [
+              { port: 'draft', path: DESIGN_PATH },
+              ...(present.has(VOICE_PATH) ? [{ port: 'client_voice', path: VOICE_PATH }] : []),
+            ],
+            brief: DESIGN_BRIEF,
+          },
+        ]
+      : []),
   ],
 })
 

@@ -71,6 +71,8 @@ const sourceInputs = SOURCES.map((s, i) => [`source_${i + 1}`, s])
 // and vocabulary. Optional, and named by the caller, because a script cannot look for a file.
 const VOICE = (args && args.voice) || ''
 const voiceInputs = VOICE ? [['client_voice', VOICE]] : []
+// The slop critic reads the wording in parallel with the reviewer; off with config.slopCritic=false.
+const SLOP_CRITIC = cfg.slopCritic !== false
 const sourceFlags = SOURCES.map((s) => `--source ${s}`).join(' ')
 
 const REPORT = {
@@ -140,7 +142,8 @@ function gateCommands() {
       `python -X utf8 tools/gate.py --file ${DOC} --no-empty-sections --figures-numbered --section-refs ` +
         `--no-empty-cells --empty-cells-allow "${EMPTY_ALLOW}" ` +
         `--forbid-outside-quotes "\\byou\\b" --forbid-outside-quotes "\\byour\\b" ` +
-        `--forbid-file library/style/forbid/no-bold.txt ${LOG} --log-note "proposal gates"`,
+        `--forbid-file library/style/forbid/no-bold.txt --forbid-file library/style/forbid/en-slop.txt ` +
+        `--forbid-file library/style/forbid/ru-slop.txt ${LOG} --log-note "proposal gates"`,
       `python -X utf8 tools/check_quotes.py --file ${DOC} ${sourceFlags} ${LOG} --log-note "proposal quotes"`,
       `python -X utf8 tools/coverage.py --map ${MAP_PATH} --file ${DOC} ${sourceFlags} ${LOG} --log-note "coverage"`,
     ]
@@ -211,8 +214,11 @@ for (let round = 1; round <= MAX_ROUNDS; round++) {
   for (const p of gateProblems) log(`[gate/${round}] ${p}`)
 
   phase('Review')
-  const verdict =
-    (await agent(
+  // Two readers in parallel: the reviewer judges what the proposal says, the slop critic how it
+  // says it. Their remarks are one numbered list; either one's revise is a revise.
+  const [reviewed, slopped] = await parallel([
+    () =>
+      agent(
       task(
         [
           ['draft', DOC],
@@ -235,7 +241,24 @@ for (let round = 1; round <= MAX_ROUNDS; round++) {
             : ''),
       ),
       { agentType: 'proposal-reviewer', model: 'opus', label: `review:${round}`, phase: 'Review', schema: VERDICT },
-    )) || { verdict: 'revise', remarks: ['[HIGH] the reviewer returned no verdict: an open item, not agreement'] }
+    ),
+    () =>
+      SLOP_CRITIC
+        ? agent(task([['draft', DOC], ...voiceInputs], null, 'Review the wording of this proposal as your instructions describe.'), {
+            agentType: 'slop-critic',
+            model: 'sonnet',
+            label: `slop:${round}`,
+            phase: 'Review',
+            schema: VERDICT,
+          })
+        : Promise.resolve({ verdict: 'approved', remarks: [] }),
+  ])
+  const first = reviewed || { verdict: 'revise', remarks: ['[HIGH] the reviewer returned no verdict: an open item, not agreement'] }
+  const second = slopped || { verdict: 'revise', remarks: ['[MEDIUM] the slop critic returned no verdict: wording unchecked'] }
+  const verdict = {
+    verdict: first.verdict === 'approved' && second.verdict === 'approved' ? 'approved' : 'revise',
+    remarks: [...(first.remarks || []), ...(second.remarks || []).map((r) => `${bare(r)} (slop)`)],
+  }
   const remarks = (verdict.remarks || []).map(bare)
   const score = scoreOf(remarks, gateProblems)
   log(`[review/${round}] verdict=${verdict.verdict} remarks=${remarks.length} score=${score}`)

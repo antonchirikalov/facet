@@ -70,7 +70,7 @@ never here.
 
 ## Layout
 
-- `library/agents/<name>/{agent.yaml,prompt.md}` — source of truth for the 28 agents (registry table in README, generated);
+- `library/agents/<name>/{agent.yaml,prompt.md}` — source of truth for the 29 agents (registry table in README, generated);
   `library/agents-archive/` — six agents no script calls, plus the refract compiler's
   pipeline templates and type schemas, kept for history;
 - `.claude/agents/` — **generated** by `emit_agents`, committed; edit the source only;
