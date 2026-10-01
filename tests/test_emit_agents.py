@@ -1,8 +1,8 @@
-"""Тесты генератора определений подагентов.
+"""Tests of the subagent definition generator.
 
-Две части. Первая — отображение возможностей контракта в инструменты: таблица из
-`docs/decisions/2026-08-13-collimator-plan.md`, включая слипание `read` и `vision` в один `Read`. Вторая — сборка на
-настоящей библиотеке: 29 агентов, и MCP ровно у тех пяти, у которых его называет `needs`.
+Two parts. The first is the mapping of contract capabilities to tools: the table from
+`docs/decisions/2026-08-13-collimator-plan.md`, including `read` and `vision` collapsing into one `Read`.
+The second is a build of the real library: 29 agents, and MCP on exactly the five whose `needs` name it.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ ROOT = Path(__file__).resolve().parent.parent
 LIBRARY_AGENTS = ROOT / "library" / "agents"
 SKILLS = ROOT / ".claude" / "skills"
 
-# Кто читает какой профиль (SPEC §6): писатель, корректор и критик одного типа — один профиль.
+# Who reads which profile (SPEC §6): the writer, corrector and critic of one type share one profile.
 PROFILE_AGENTS = {
     "client-edition-profile": {"client_editor"},
     "client-voice-profile": {"client_voice"},
@@ -48,7 +48,7 @@ PROFILE_AGENTS = {
     "proposal-profile": {"coverage_mapper", "proposal_reviewer", "proposal_editor"},
 }
 
-# Кто требует MCP по состоянию библиотеки: четыре Tavily, три pdf-reader, source_finder оба.
+# Who needs MCP in the library as it stands: four Tavily, three pdf-reader, source_finder both.
 TAVILY_AGENTS = {"arch_probe", "requirements_writer", "solution_designer", "source_finder"}
 PDF_AGENTS = {"source_processor", "source_finder", "client_voice"}
 
@@ -60,7 +60,7 @@ def spec_of(
         {
             "name": name,
             "version": 1,
-            "description": "Описание агента.",
+            "description": "Agent description.",
             "produces": [{"port": "out", "type": "brief@v1"}],
             "needs": needs,
             "skills": skills or [],
@@ -79,7 +79,7 @@ def body_of(text: str) -> str:
     return text.split("---\n", 2)[2]
 
 
-# --- отображение возможностей ---------------------------------------------------------
+# --- capability mapping ---------------------------------------------------------------
 
 
 @pytest.mark.parametrize(
@@ -100,13 +100,13 @@ def test_capability_maps_to_tools(needs: list[str], expected: list[str]) -> None
 
 
 def test_read_and_vision_collapse_into_one_read() -> None:
-    """Картинки читает тот же инструмент, дубля в списке быть не должно."""
+    """Images are read by the same tool; the list must hold no duplicate."""
     assert tools_of(["read", "vision"]) == ["Read"]
     assert tools_of(["vision", "read", "edit"]) == ["Read", "Write", "Edit"]
 
 
 def test_tool_order_is_fixed_regardless_of_needs_order() -> None:
-    """Один контракт — один файл: порядок не наследуется из YAML."""
+    """One contract, one file: the order is not inherited from the YAML."""
     assert tools_of(["bash", "edit", "read", "webfetch"]) == tools_of(
         ["webfetch", "read", "edit", "bash"]
     )
@@ -128,13 +128,13 @@ def test_no_mcp_means_no_servers() -> None:
 
 
 def test_unmapped_capability_breaks_the_build() -> None:
-    """Возможность без отображения — ошибка сборки, а не агент без инструментов."""
-    with pytest.raises(ValueError, match="возможности без отображения"):
+    """An unmapped capability is a build error, not an agent without tools."""
+    with pytest.raises(ValueError, match="capabilities with no tool mapping"):
         tools_of(["read", "telepathy"])
 
 
 def test_model_rejects_unknown_capability() -> None:
-    """Первая линия — валидатор контракта, перенесённый из refract без изменений."""
+    """The first line of defence is the contract validator, carried over from refract unchanged."""
     with pytest.raises(ValueError, match="unknown capability"):
         spec_of(["read", "telepathy"])
 
@@ -144,24 +144,25 @@ def test_slug_uses_hyphens() -> None:
     assert slug_of("illustrator") == "illustrator"
 
 
-# --- форма файла ----------------------------------------------------------------------
+# --- file shape -----------------------------------------------------------------------
 
 
 def test_frontmatter_carries_name_description_and_tools() -> None:
     spec = spec_of(["read", "edit"], name="article_critic")
-    head = frontmatter_of(render_agent(spec, "Тело промпта."))
+    head = frontmatter_of(render_agent(spec, "Prompt body."))
     assert head["name"] == "article-critic"
-    assert head["description"] == "Описание агента."
+    assert head["description"] == "Agent description."
     assert head["tools"] == "Read, Write, Edit"
     assert "mcpServers" not in head
 
 
 def test_every_agent_omits_claude_md(tmp_path: Path) -> None:
-    """CLAUDE.md — инструкция сессии разработчика; агенту она стоит токенов и ничего не даёт.
+    """CLAUDE.md is the developer session's instructions; to an agent it costs tokens and gives nothing.
 
-    По умолчанию Claude Code кладёт всю иерархию CLAUDE.md в контекст каждого подагента:
-    40 КБ блоком instructions на момент замера, у писателя — на каждом ходу. Роль агента
-    описывает промпт, документ — профиль, входы и выходы — задача из скрипта.
+    By default Claude Code puts the whole CLAUDE.md hierarchy into every subagent's context:
+    a 40 KB instructions block at the time of measurement, and for the writer on every turn. The
+    prompt describes the agent's role, the profile its document, the script's task its inputs and
+    outputs.
     """
     for path in emit_all(LIBRARY_AGENTS, tmp_path):
         head = frontmatter_of(path.read_text(encoding="utf-8"))
@@ -170,7 +171,7 @@ def test_every_agent_omits_claude_md(tmp_path: Path) -> None:
 
 def test_frontmatter_lists_mcp_servers_when_contract_names_them() -> None:
     spec = spec_of(["read", "edit", "mcp:tavily-remote"])
-    head = frontmatter_of(render_agent(spec, "Тело."))
+    head = frontmatter_of(render_agent(spec, "Body."))
     assert head["mcpServers"] == ["tavily-remote"]
     assert "mcp__tavily-remote" in head["tools"]
 
@@ -180,53 +181,53 @@ def test_multiline_description_collapses_to_one_line() -> None:
         {
             "name": "some_agent",
             "version": 1,
-            "description": "Первая строка\nвторая строка\n\nи третья.\n",
+            "description": "First line\nsecond line\n\nand a third.\n",
             "produces": [{"port": "out", "type": "brief@v1"}],
             "needs": ["read"],
         }
     )
-    head = frontmatter_of(render_agent(spec, "Тело."))
-    assert head["description"] == "Первая строка вторая строка и третья."
+    head = frontmatter_of(render_agent(spec, "Body."))
+    assert head["description"] == "First line second line and a third."
 
 
 def test_description_with_colon_stays_valid_yaml() -> None:
-    """Двоеточие в описании — обычное дело; фронтматтер обязан остаться разбираемым."""
+    """A colon in a description is common; the frontmatter must stay parseable."""
     spec = AgentSpec.model_validate(
         {
             "name": "some_agent",
             "version": 1,
-            "description": "Пишет так: коротко, по делу.",
+            "description": "Writes like this: short, to the point.",
             "produces": [{"port": "out", "type": "brief@v1"}],
             "needs": ["read"],
         }
     )
-    head = frontmatter_of(render_agent(spec, "Тело."))
-    assert head["description"] == "Пишет так: коротко, по делу."
+    head = frontmatter_of(render_agent(spec, "Body."))
+    assert head["description"] == "Writes like this: short, to the point."
 
 
 def test_body_keeps_prompt_verbatim() -> None:
-    prompt = "Ты критик.\n\n1. Первый пункт\n2. Второй пункт\n"
+    prompt = "You are a critic.\n\n1. First item\n2. Second item\n"
     text = render_agent(spec_of(["read"]), prompt)
     assert prompt.strip() in body_of(text)
 
 
 def test_body_marks_the_file_as_generated() -> None:
-    text = render_agent(spec_of(["read"], name="article_critic"), "Тело.")
+    text = render_agent(spec_of(["read"], name="article_critic"), "Body.")
     assert "Generated by facet/emit_agents.py from library/agents/article_critic/" in text
 
 
 def test_render_is_deterministic() -> None:
     spec = spec_of(["edit", "read", "mcp:pdf-reader", "mcp:tavily-remote"])
-    assert render_agent(spec, "Тело.") == render_agent(spec, "Тело.")
+    assert render_agent(spec, "Body.") == render_agent(spec, "Body.")
 
 
 def test_file_ends_with_single_newline() -> None:
-    text = render_agent(spec_of(["read"]), "Тело.\n\n\n")
-    assert text.endswith("Тело.\n")
+    text = render_agent(spec_of(["read"]), "Body.\n\n\n")
+    assert text.endswith("Body.\n")
     assert not text.endswith("\n\n")
 
 
-# --- чтение библиотеки ----------------------------------------------------------------
+# --- reading the library --------------------------------------------------------------
 
 
 def test_load_agent_reads_contract_and_prompt() -> None:
@@ -237,8 +238,8 @@ def test_load_agent_reads_contract_and_prompt() -> None:
 
 
 def test_missing_contract_is_named_in_the_error(tmp_path: Path) -> None:
-    (tmp_path / "prompt.md").write_text("Тело.", encoding="utf-8")
-    with pytest.raises(FileNotFoundError, match="нет контракта агента"):
+    (tmp_path / "prompt.md").write_text("Body.", encoding="utf-8")
+    with pytest.raises(FileNotFoundError, match="no agent contract"):
         load_agent(tmp_path)
 
 
@@ -246,11 +247,11 @@ def test_missing_prompt_is_named_in_the_error(tmp_path: Path) -> None:
     (tmp_path / "agent.yaml").write_text(
         "name: a\nversion: 1\nproduces: [{port: out, type: brief@v1}]\n", encoding="utf-8"
     )
-    with pytest.raises(FileNotFoundError, match="нет системного промпта"):
+    with pytest.raises(FileNotFoundError, match="no system prompt"):
         load_agent(tmp_path)
 
 
-# --- сборка на настоящей библиотеке ---------------------------------------------------
+# --- build of the real library --------------------------------------------------------
 
 
 def test_emits_every_agent_of_the_library(tmp_path: Path) -> None:
@@ -268,7 +269,7 @@ def test_every_emitted_file_parses_and_has_tools(tmp_path: Path) -> None:
 
 
 def test_mcp_appears_exactly_where_the_contract_names_it(tmp_path: Path) -> None:
-    """Проверка результата из `docs/decisions/2026-08-13-collimator-plan.md`: ни одного лишнего разрешения на MCP."""
+    """Checks the result from `docs/decisions/2026-08-13-collimator-plan.md`: not one extra MCP permission."""
     emit_all(LIBRARY_AGENTS, tmp_path)
     with_tavily = set()
     with_pdf = set()
@@ -315,12 +316,12 @@ def test_agents_without_mcp_declare_no_servers(tmp_path: Path) -> None:
     ],
 )
 def test_critics_cannot_write(tmp_path: Path, critic: str) -> None:
-    """Критик выносит вердикт, а не правит текст.
+    """A critic delivers a verdict; it does not edit the text.
 
-    Запрет держится списком инструментов, а не формулировкой в промпте: скрипт и так
-    говорит «файла не пишешь», но правило, которое нельзя нарушить физически, не забывается
-    в конце длинного круга. Критик с `Edit` — один неудачный вывод от того, чтобы «починить»
-    статью, которую его позвали судить.
+    The ban is held by the tool list, not by wording in the prompt: the script already says
+    "you write no file", but a rule that cannot be broken physically is not forgotten at the end
+    of a long round. A critic with `Edit` is one bad inference away from "fixing" the article it
+    was called to judge.
     """
     emit_all(LIBRARY_AGENTS, tmp_path)
     head = frontmatter_of((tmp_path / f"{critic}.md").read_text(encoding="utf-8"))
@@ -331,7 +332,7 @@ def test_critics_cannot_write(tmp_path: Path, critic: str) -> None:
 
 
 def test_emit_all_is_deterministic(tmp_path: Path) -> None:
-    """Golden-свойство: сгенерированное коммитится, значит повторный build даёт то же."""
+    """Golden property: the generated files are committed, so a repeated build gives the same bytes."""
     first = tmp_path / "one"
     second = tmp_path / "two"
     emit_all(LIBRARY_AGENTS, first)
@@ -341,56 +342,55 @@ def test_emit_all_is_deterministic(tmp_path: Path) -> None:
 
 
 def test_emit_agent_creates_missing_output_directory(tmp_path: Path) -> None:
-    target = emit_agent(LIBRARY_AGENTS / "illustrator", tmp_path / "нет" / "такого")
+    target = emit_agent(LIBRARY_AGENTS / "illustrator", tmp_path / "no" / "such")
     assert target.is_file()
     assert target.name == "illustrator.md"
 
 
 def test_emit_agent_overwrites_previous_output(tmp_path: Path) -> None:
     target = emit_agent(LIBRARY_AGENTS / "illustrator", tmp_path)
-    target.write_text("устаревшее", encoding="utf-8")
+    target.write_text("stale", encoding="utf-8")
     again = emit_agent(LIBRARY_AGENTS / "illustrator", tmp_path)
-    assert "устаревшее" not in again.read_text(encoding="utf-8")
+    assert "stale" not in again.read_text(encoding="utf-8")
 
 
 def test_illustrator_gets_bash_for_its_external_cli(tmp_path: Path) -> None:
-    """Иллюстратор зовёт внешний CLI — без `Bash` он бесполезен."""
+    """The illustrator calls an external CLI; without `Bash` it is useless."""
     emit_all(LIBRARY_AGENTS, tmp_path)
     head = frontmatter_of((tmp_path / "illustrator.md").read_text(encoding="utf-8"))
     assert "Bash" in head["tools"]
 
 
 def test_source_processor_reads_images_without_duplicate_read(tmp_path: Path) -> None:
-    """У него `read` и `vision` одновременно — в файле должен быть один `Read`."""
+    """It has both `read` and `vision`; the file must hold one `Read`."""
     emit_all(LIBRARY_AGENTS, tmp_path)
     head = frontmatter_of((tmp_path / "source-processor.md").read_text(encoding="utf-8"))
     assert head["tools"].split(", ").count("Read") == 1
 
 
-# --- Всё, что читает агент, — по-английски -----------------------------------------------
+# --- Everything an agent reads is English -------------------------------------------------
 #
-# Правило проекта, и его пришлось закрепить тестом после того, как оно нарушилось самым тихим
-# способом: маркер «сгенерировано» вставлялся в каждый файл по-русски, а файл агента — это
-# целиком его системный промпт, вместе с комментарием. Двадцать один агент читал русскую строку,
-# и заметно это не было ниоткуда.
+# A project rule, and it had to be pinned by a test after it was broken in the quietest way: the
+# "generated" marker was inserted into every file in Russian, and an agent's file is its whole
+# system prompt, comment included. Twenty-one agents read a Russian line, and nothing showed it.
 #
-# Исключение — цитируемый материал целевого языка: словарь штампов, которые критик ищет в русском
-# тексте, и образцы формулировок, по которым он их узнаёт. Такой агент не может делать свою работу,
-# не называя искомое на языке статьи. Список исключений закрыт и назван здесь: попадание в него
-# нового агента — это решение, а не побочный эффект.
+# The exception is quoted material in the target language: the dictionary of clichés a critic
+# looks for in Russian text, and the sample phrasings it recognises them by. Such an agent cannot
+# do its job without naming what it looks for in the article's language. The exception list is
+# closed and named here: adding a new agent to it is a decision, not a side effect.
 
 CYRILLIC = re.compile("[а-яА-ЯёЁ]")
 
-# Агенты, которым цитировать целевой язык положено по работе.
-# Пусто с 2026-09-20. Раньше здесь стояли стилевой критик (словарь русских штампов) и
-# корректор статьи (пример ослабленной фразы): русский материал переехал в данные —
-# library/style/ru-style-tells.md и library/style/forbid/ru-slop.txt — и критик читает его
-# с диска. Промпт, которому нужен целевой язык, теперь называет файл, а не цитирует.
+# Agents whose job requires quoting the target language.
+# Empty since 2026-09-20. It used to hold the style critic (a dictionary of Russian clichés) and
+# the article corrector (an example of a weakened phrase): the Russian material moved into data,
+# library/style/ru-style-tells.md and library/style/forbid/ru-slop.txt, and the critic reads it
+# from disk. A prompt that needs the target language now names the file instead of quoting it.
 TARGET_LANGUAGE_AGENTS: set[str] = set()
 
 
 def test_generated_agent_prompts_are_english(tmp_path: Path) -> None:
-    """Инструкции агента — по-английски, без исключений; целевой язык только цитатой."""
+    """An agent's instructions are English, no exceptions; the target language only as a quote."""
     out = tmp_path / "agents"
     emit_all(LIBRARY_AGENTS, out)
     offenders = {}
@@ -400,25 +400,25 @@ def test_generated_agent_prompts_are_english(tmp_path: Path) -> None:
         hits = [ln for ln in path.read_text(encoding="utf-8").splitlines() if CYRILLIC.search(ln)]
         if hits:
             offenders[path.name] = hits[:3]
-    assert not offenders, f"кириллица в промпте агента: {offenders}"
+    assert not offenders, f"Cyrillic in an agent prompt: {offenders}"
 
 
-# --- профили типов документов: поле `skills:` -------------------------------------------
+# --- document-type profiles: the `skills:` field ------------------------------------------
 #
-# Рантайм подгружает `.claude/skills/<имя>/SKILL.md` в контекст агента при запуске, а
-# несуществующий профиль ПРОПУСКАЕТ МОЛЧА — предупреждение только в debug-журнале. Агент без
-# контракта стартует и работает, и прогон этого не покажет. Значит существование профиля —
-# дело сборки, а не рантайма.
+# The runtime loads `.claude/skills/<name>/SKILL.md` into the agent's context at launch, and a
+# profile that does not exist is SKIPPED SILENTLY: the warning goes only to the debug log. The
+# agent starts without its contract and works, and the run does not show it. So checking that a
+# profile exists is the build's job, not the runtime's.
 
 
 def test_frontmatter_lists_skills_when_contract_names_them() -> None:
     spec = spec_of(["read"], skills=["requirements-profile"])
-    head = frontmatter_of(render_agent(spec, "Тело."))
+    head = frontmatter_of(render_agent(spec, "Body."))
     assert head["skills"] == ["requirements-profile"]
 
 
 def test_no_skills_means_no_skills_key() -> None:
-    head = frontmatter_of(render_agent(spec_of(["read"]), "Тело."))
+    head = frontmatter_of(render_agent(spec_of(["read"]), "Body."))
     assert "skills" not in head
 
 
@@ -430,7 +430,7 @@ def test_model_rejects_malformed_or_duplicate_skill() -> None:
 
 
 def test_missing_skill_breaks_the_build(tmp_path: Path) -> None:
-    """Профиль, которого нет на диске, — ошибка сборки, а не агент без контракта."""
+    """A profile missing from disk is a build error, not an agent without a contract."""
     agent_dir = tmp_path / "lib" / "some_agent"
     agent_dir.mkdir(parents=True)
     (agent_dir / "agent.yaml").write_text(
@@ -444,7 +444,7 @@ def test_missing_skill_breaks_the_build(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError, match="ghost-profile"):
         emit_agent(agent_dir, tmp_path / "out", skills)
     assert not (tmp_path / "out" / "some-agent.md").exists()
-    # без каталога профилей проверка не делается — так собирает тест на чужой библиотеке
+    # without a profiles directory the check is skipped; that is how a test builds a foreign library
     assert emit_agent(agent_dir, tmp_path / "out").is_file()
 
 
@@ -456,12 +456,12 @@ def test_missing_skills_names_exactly_the_absent_ones(tmp_path: Path) -> None:
 
 
 def test_every_skill_the_library_names_exists(tmp_path: Path) -> None:
-    """Сборка настоящей библиотеки против настоящего каталога профилей."""
+    """A build of the real library against the real profiles directory."""
     emit_all(LIBRARY_AGENTS, tmp_path, SKILLS)
 
 
 def test_writer_and_critic_of_a_type_read_the_same_profile(tmp_path: Path) -> None:
-    """Критерий SPEC §10 шага 3 в его механической части: один профиль на тип, а не копии."""
+    """The mechanical part of the SPEC §10 step 3 criterion: one profile per type, not copies."""
     emit_all(LIBRARY_AGENTS, tmp_path)
     readers: dict[str, set[str]] = {}
     for path in tmp_path.glob("*.md"):
@@ -472,7 +472,7 @@ def test_writer_and_critic_of_a_type_read_the_same_profile(tmp_path: Path) -> No
 
 
 def test_profiles_are_preloadable_and_english() -> None:
-    """`disable-model-invocation: true` рантайм не подгружает; профиль читает агент — по-английски."""
+    """The runtime does not preload `disable-model-invocation: true`; an agent reads the profile, so it is English."""
     profiles = sorted(SKILLS.glob("*/SKILL.md"))
     assert {p.parent.name for p in profiles} >= set(PROFILE_AGENTS)
     for path in profiles:
@@ -482,11 +482,11 @@ def test_profiles_are_preloadable_and_english() -> None:
         assert head.get("disable-model-invocation") is not True, f"{path}: not preloadable"
         assert path.parent.name.endswith("-profile"), f"{path}: a profile is named <type>-profile"
         hits = [ln for ln in text.splitlines() if CYRILLIC.search(ln)]
-        assert not hits, f"кириллица в профиле {path.parent.name}: {hits[:3]}"
+        assert not hits, f"Cyrillic in profile {path.parent.name}: {hits[:3]}"
 
 
 def test_style_critic_data_files_exist() -> None:
-    """Критик читает русский материал с диска; отсутствие файла — молчаливо пустая проверка."""
+    """The critic reads the Russian material from disk; a missing file is a silently empty check."""
     assert (ROOT / "library" / "style" / "ru-style-tells.md").is_file()
     assert (ROOT / "library" / "style" / "forbid" / "ru-slop.txt").is_file()
     prompt = (LIBRARY_AGENTS / "style_critic_ru" / "prompt.md").read_text(encoding="utf-8")
@@ -494,17 +494,17 @@ def test_style_critic_data_files_exist() -> None:
 
 
 def test_claude_md_is_english() -> None:
-    """CLAUDE.md кладётся в контекст каждого подагента как «instructions» — значит, он промпт."""
+    """CLAUDE.md goes into every subagent's context as "instructions", so it is a prompt."""
     hits = [
         ln
         for ln in (ROOT / "CLAUDE.md").read_text(encoding="utf-8").splitlines()
         if CYRILLIC.search(ln)
     ]
-    assert not hits, f"кириллица в CLAUDE.md: {hits[:3]}"
+    assert not hits, f"Cyrillic in CLAUDE.md: {hits[:3]}"
 
 
 def test_generated_marker_names_the_real_generator(tmp_path: Path) -> None:
-    """Маркер обещал команду `collimate build`, которой нет ни сейчас, ни когда он писался."""
+    """The marker promised a `collimate build` command that does not exist now and did not when it was written."""
     out = tmp_path / "agents"
     emit_all(LIBRARY_AGENTS, out)
     text = (out / "gate-runner.md").read_text(encoding="utf-8")
@@ -513,7 +513,7 @@ def test_generated_marker_names_the_real_generator(tmp_path: Path) -> None:
 
 
 def test_every_input_of_every_agent_is_explained() -> None:
-    """Агент узнаёт, что ему пришло, только из своего промпта: у каждого входа есть `about`."""
+    """An agent learns what it was given only from its prompt: every input has an `about`."""
     for agent_dir in sorted(p for p in LIBRARY_AGENTS.iterdir() if (p / "agent.yaml").is_file()):
         spec, _ = load_agent(agent_dir)
         for port in spec.consumes:
@@ -534,7 +534,8 @@ def test_generated_agent_lists_its_inputs_from_the_contract(tmp_path: Path) -> N
 
 
 def test_a_collection_form_never_names_another_input() -> None:
-    """`sources` (сводки) и `source` (файлы) рядом: форма `source:<name>` — только у `source`."""
+    """`sources` (summaries) next to `source` (files): the `source:<name>` form belongs to `source` only."""
+
     spec = AgentSpec.model_validate(
         {
             "name": "two_ports",

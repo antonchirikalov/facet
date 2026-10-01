@@ -1,6 +1,7 @@
-"""Точный экран рендерится из HTML: что написано в разметке, то и на картинке.
+"""An exact screen is rendered from HTML: what the markup says is what the image shows.
 
-Сам браузер в тестах не запускается — проверяется, как он находится и какой командой вызывается.
+The tests do not start the browser itself; they check how it is found and with what command it
+is called.
 """
 
 from __future__ import annotations

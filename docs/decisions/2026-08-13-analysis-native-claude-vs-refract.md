@@ -1,293 +1,298 @@
-# refract против нативного Клода: имеет ли смысл продолжать
+# refract versus native Claude: does it make sense to continue
 
-Дата: 2026-08-13. Вопрос владельца: цель — работа с документами, порой большими; может,
-готовые фичи Claude Code дают тот же результат проще, и мы смотрим не туда.
+Date: 2026-08-13. The owner's question: the goal is working with documents, sometimes large
+ones; perhaps the ready-made features of Claude Code give the same result more simply, and we
+are looking in the wrong direction.
 
-Разбор опирается на документацию Claude Code (собрана 2026-08-13 через Tavily: страницы
+The analysis rests on the Claude Code documentation (collected 2026-08-13 via Tavily: the pages
 `workflows`, `agent-teams`, `cross-session-messaging`, `sub-agents`, `skills`,
-`agent-sdk/sessions`, `agent-sdk/session-storage`) и на факты живого прогона статьи
-`attn-article/runs/run_20260811_121834`, который шёл двое суток и разобран отдельно.
+`agent-sdk/sessions`, `agent-sdk/session-storage`) and on the facts of the live article run
+`attn-article/runs/run_20260811_121834`, which lasted two days and is analysed separately.
 
 ---
 
-## 1. Что такое refract на сегодня, в цифрах
+## 1. What refract is today, in numbers
 
-Важно для вердикта: проект **не в середине пути, он в основном построен**.
+Important for the verdict: the project is **not halfway through, it is mostly built**.
 
-| Факт | Значение |
+| Fact | Value |
 |---|---|
-| Код движка | 11 197 строк Python |
-| Тесты | 13 359 строк, 539 проходят, mypy strict + ruff чисто |
-| Фазы 0–5 по роадмепу | все закрыты: движок, гейты, loop/select, map, HITL, чекпойнты, тиры доступа |
-| API + UI | REST/WS + React SPA, 12 e2e-спеков Playwright, `refract serve` |
-| Живая проверка | четыре пайплайна прогонялись на настоящем CLI, учёт денег сверен |
+| Engine code | 11 197 lines of Python |
+| Tests | 13 359 lines, 539 pass, mypy strict + ruff clean |
+| Phases 0–5 of the roadmap | all closed: engine, gates, loop/select, map, HITL, checkpoints, access tiers |
+| API + UI | REST/WS + React SPA, 12 Playwright e2e specs, `refract serve` |
+| Live check | four pipelines were run on the real CLI, money accounting reconciled |
 
-То есть заложенные роадмепом 12–16 недель уже потрачены. Вопрос не «стоит ли начинать»,
-а «стоит ли **держать** 11 тысяч строк своего движка рядом с платформой, которая за
-последние месяцы забрала себе половину его задач».
+That is, the 12–16 weeks the roadmap budgeted have already been spent. The question is not
+"is it worth starting" but "is it worth **keeping** 11 thousand lines of our own engine next to
+a platform that over recent months has taken over half of its tasks".
 
 ---
 
-## 2. Что Клод теперь умеет сам
+## 2. What Claude can now do by itself
 
-Четыре примитива, и главное различие между ними — **кто держит план**.
+Four primitives, and the main difference between them is **who holds the plan**.
 
 | | Subagents | Skills | Agent teams | Dynamic workflows |
 |---|---|---|---|---|
-| Что это | воркер, которого порождает Клод | инструкции, которым он следует | лид, надзирающий за равными сессиями | скрипт, который исполняет рантайм |
-| Кто решает, что дальше | Клод, ход за ходом | Клод по промпту | лид, ход за ходом | скрипт |
-| Где промежуточные результаты | контекст Клода | контекст Клода | общий список задач | переменные скрипта |
-| Что переиспользуемо | определение воркера | инструкции | определение команды | **сама оркестрация** |
-| Масштаб | несколько задач за ход | то же | горстка долгоживущих равных | десятки–сотни агентов за прогон |
-| Прерывание | ход начинается заново | заново | коллеги продолжают | **возобновляемо в той же сессии** |
+| What it is | a worker Claude spawns | instructions it follows | a lead supervising peer sessions | a script the runtime executes |
+| Who decides what comes next | Claude, turn by turn | Claude, by the prompt | the lead, turn by turn | the script |
+| Where intermediate results live | Claude's context | Claude's context | a shared task list | script variables |
+| What is reusable | the worker definition | the instructions | the team definition | **the orchestration itself** |
+| Scale | a few tasks per turn | the same | a handful of long-lived peers | tens to hundreds of agents per run |
+| Interruption | the turn starts over | starts over | teammates carry on | **resumable within the same session** |
 
-### Dynamic workflows — самое близкое к refract
+### Dynamic workflows — the closest thing to refract
 
-JS-скрипт, который Клод пишет сам, а рантайм исполняет в фоне, пока сессия свободна.
-Скрипт держит цикл, ветвление и промежуточные данные, поэтому в контекст Клода попадает
-только итог. Есть `agent()` со **схемой JSON**, при которой подагент обязан вызвать
-структурированный вывод, а рантайм валидирует его и заставляет модель повторить при
-несоответствии; есть `pipeline()` без барьеров между стадиями и `parallel()` с барьером.
-Прогон можно сохранить как свою команду `/<имя>` в `.claude/workflows/`, передавать в неё
-`args`, раздавать через плагин.
+A JS script that Claude writes itself and the runtime executes in the background while the
+session is free. The script holds the loop, the branching and the intermediate data, so only
+the final result reaches Claude's context. There is `agent()` with a **JSON schema**, under
+which the subagent must call structured output, and the runtime validates it and makes the
+model retry on a mismatch; there is `pipeline()` without barriers between stages and
+`parallel()` with a barrier. A run can be saved as your own `/<name>` command in
+`.claude/workflows/`, given `args`, and distributed through a plugin.
 
-Ограничения рантайма, прямо перечисленные в документации:
+Runtime limitations listed explicitly in the documentation:
 
-- **никакого ввода от человека посреди прогона** — «для подписи между стадиями запускайте
-  каждую стадию отдельным воркфлоу»;
-- **у самого скрипта нет доступа к файловой системе и шеллу** — читают и пишут агенты,
-  скрипт только координирует; `import()` запрещён вовсе;
-- до 16 одновременных агентов, 1000 агентов на прогон;
-- возобновление **только внутри той же сессии**: «если выйти из Claude Code во время
-  прогона, следующая сессия начнёт воркфлоу заново»;
-- при возобновлении кэш обрывается на первом незавершённом агенте, и **всё, что стартовало
-  после него, считается заново**, даже если успело закончиться.
+- **no human input in the middle of a run** — "for sign-off between stages, run each stage as
+  a separate workflow";
+- **the script itself has no access to the filesystem or the shell** — agents read and write,
+  the script only coordinates; `import()` is forbidden altogether;
+- up to 16 concurrent agents, 1000 agents per run;
+- resumption **only within the same session**: "if you exit Claude Code during a run, the next
+  session will start the workflow over";
+- on resumption the cache breaks at the first unfinished agent, and **everything that started
+  after it is recomputed**, even if it managed to finish.
 
-Требуется v2.1.154+. Порог предупреждения «большой воркфлоу» — 25 агентов или 1,5 млн
-токенов. По умолчанию действует ориентир размера `medium` (менее 15 агентов).
+Requires v2.1.154+. The "large workflow" warning threshold is 25 agents or 1.5 million
+tokens. By default the `medium` size guideline applies (fewer than 15 agents).
 
-### Agent teams — экспериментальные
+### Agent teams — experimental
 
-Выключены по умолчанию, включаются `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. Лид плюс
-самостоятельные сессии-коллеги, общий список задач с файловыми локами на захват, почтовые
-ящики в `~/.claude/teams/{team}/inboxes/{agent}.json`, хуки `TeammateIdle`, `TaskCreated`,
-`TaskCompleted` (выход с кодом 2 = не пустить и вернуть замечание). Заявленные
-ограничения существенные: **`/resume` не восстанавливает in-process коллег**, одна команда
-на сессию, вложенных команд нет, лид несменяем, статусы задач отстают, завершение
-медленное. Рекомендация документации — 3–5 коллег, и «токенов заметно больше, чем у одной
-сессии».
+Off by default, enabled with `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. A lead plus
+independent teammate sessions, a shared task list with file locks for claiming, mailboxes in
+`~/.claude/teams/{team}/inboxes/{agent}.json`, hooks `TeammateIdle`, `TaskCreated`,
+`TaskCompleted` (exit code 2 = block and return a remark). The stated limitations are
+substantial: **`/resume` does not restore in-process teammates**, one team per session, no
+nested teams, the lead cannot be changed, task statuses lag, shutdown is slow. The
+documentation recommends 3–5 teammates, and "noticeably more tokens than a single session".
 
 ### Cross-session messaging
 
-`ListAgents` + `SendMessage` между вашими сессиями. Важное: **только простой текст**, не
-история и не файлы; повторы дросселируются, накопитель непрочитанного — 50 сообщений на
-сессию. Это канал уведомлений («я сломал то, на чём ты строишь»), а не транспорт артефактов.
+`ListAgents` + `SendMessage` between your sessions. The important part: **plain text only**, not
+history and not files; repeats are throttled, the unread buffer is 50 messages per session.
+This is a notification channel ("I broke what you are building on"), not an artifact transport.
 
-### Agent SDK — то, что важнее всего для нас
+### Agent SDK — what matters most for us
 
-Библиотека, которая крутит агентный цикл **в вашем процессе**, на Python или TypeScript.
-Даёт из коробки: встроенные инструменты, хуки на события жизненного цикла, подагентов, MCP,
-права, **сессии с continue/resume/fork**, автоматическую загрузку скиллов, команд и памяти
-из `.claude/`. Отдельно есть `SessionStore` — адаптер, которым транскрипты зеркалятся в
-S3, Redis или базу, чтобы сессия, начатая на одном хосте, продолжилась на другом; в
-документации это прямо мотивировано долговечностью, мультихостом и аудитом. Есть готовые
-референсные адаптеры для S3, Redis и Postgres. Плюс отдельный продукт Managed Agents —
-хостируемый REST для долгих агентов без своей песочницы.
+A library that runs the agent loop **in your process**, in Python or TypeScript. It provides
+out of the box: built-in tools, hooks on lifecycle events, subagents, MCP, permissions,
+**sessions with continue/resume/fork**, automatic loading of skills, commands and memory from
+`.claude/`. Separately there is `SessionStore` — an adapter that mirrors transcripts to S3,
+Redis or a database, so that a session started on one host can continue on another; the
+documentation motivates this explicitly by durability, multi-host and audit. There are
+ready-made reference adapters for S3, Redis and Postgres. Plus a separate product, Managed
+Agents — hosted REST for long-running agents without your own sandbox.
 
 ---
 
-## 3. Покомпонентное сопоставление
+## 3. Component-by-component comparison
 
-| Что делает refract | Нативный аналог | Остаток, которого нет нативно |
+| What refract does | Native counterpart | Remainder that does not exist natively |
 |---|---|---|
-| DAG из `pipeline.yaml`, топосорт, планировщик | скрипт воркфлоу | декларативность: YAML диффится и валидируется 40+ кодами ошибок до запуска; JS-скрипт Клод пишет заново под задачу |
-| Типы артефактов и контракты портов | `schema` у `agent()` — JSON Schema с повтором при несоответствии | реестр типов, общий для всех пайплайнов, и проверка совместимости рёбер **до** прогона |
-| Гейты по содержимому (`max_length`, `forbid_regex`, `min_entries`) с гейт-ретраем и инжекцией замечаний | — | полностью остаток: в воркфлоу это пишется руками в скрипте каждый раз |
-| `loop` с `verdict@v1` и раундами | цикл в скрипте + схема вердикта | ничего существенного: нативно даже честнее — цикл виден как код |
-| `map` по коллекции, `on_item_failure`, `min_ok` | `pipeline()` / `parallel()`, `.filter(Boolean)` | сборка коллекции движком (I6) и пометка упавших элементов в выходной коллекции |
-| Изоляция workdir шага, материализация `input/` | агенты работают в репозитории; `isolation: 'worktree'` у агента воркфлоу | детерминированная сборка `input/`, неизменяемость терминальных каталогов, архив `attempts/<n>/` |
-| Хук `PreToolUse` как механическая гарантия I1 | **это и есть нативный хук Claude Code** | ничего: мы уже стоим на платформе |
-| Леджер, `resume`, восстановление после падения | возобновление воркфлоу **в пределах сессии** | остаток крупный: прогон, живущий сутками и переживающий выход из CLI |
-| Чекпойнты HITL посреди прогона (`waiting_human`, правка артефактов руками, `answer … continue`) | запрещено внутри воркфлоу | остаток крупный |
-| Учёт денег по шагам, `refract explain` | `/workflows` показывает токены по агентам | долговечный, диффуемый учёт в леджере после прогона |
-| Модель на узел | переопределение модели у агента | ничего |
-| Троттлинг, backoff на 429/529, ретраи | CLI и SDK ретраят сами | ничего |
-| Инъекция секретов по шагу (I8 — в refract **не реализована**) | права и окружение запроса в SDK | ничего; у нас это долг, а не преимущество |
-| `AgentRuntime` + разбор stream-json у CLI | Agent SDK крутит цикл в процессе | ничего; чистое дублирование |
-| REST/WS API + React SPA для коллеги без терминала | **нет ничего** | остаток крупный |
-| Каталог блоков для сборки пайплайна | — | остаток, но ценность зависит от того, собирает ли кто-то пайплайны |
+| DAG from `pipeline.yaml`, topological sort, scheduler | a workflow script | declarativeness: YAML is diffed and validated with 40+ error codes before launch; a JS script is written by Claude anew for each task |
+| Artifact types and port contracts | `schema` on `agent()` — JSON Schema with retry on mismatch | a type registry shared by all pipelines, and edge compatibility checking **before** the run |
+| Content gates (`max_length`, `forbid_regex`, `min_entries`) with gate retry and remark injection | — | entirely a remainder: in a workflow this is written by hand in the script every time |
+| `loop` with `verdict@v1` and rounds | a loop in the script + a verdict schema | nothing substantial: natively it is even more honest — the loop is visible as code |
+| `map` over a collection, `on_item_failure`, `min_ok` | `pipeline()` / `parallel()`, `.filter(Boolean)` | assembly of the collection by the engine (I6) and marking of failed items in the output collection |
+| Per-step workdir isolation, materialisation of `input/` | agents work in the repository; `isolation: 'worktree'` on a workflow agent | deterministic assembly of `input/`, immutability of terminal directories, the `attempts/<n>/` archive |
+| The `PreToolUse` hook as the mechanical guarantee of I1 | **this is a native Claude Code hook** | nothing: we already stand on the platform |
+| Ledger, `resume`, recovery after a crash | workflow resumption **within a session** | a large remainder: a run that lives for days and survives exiting the CLI |
+| HITL checkpoints in the middle of a run (`waiting_human`, editing artifacts by hand, `answer … continue`) | forbidden inside a workflow | a large remainder |
+| Per-step money accounting, `refract explain` | `/workflows` shows tokens per agent | durable, diffable accounting in the ledger after the run |
+| Model per node | model override on an agent | nothing |
+| Throttling, backoff on 429/529, retries | the CLI and SDK retry by themselves | nothing |
+| Per-step secret injection (I8 — **not implemented** in refract) | permissions and request environment in the SDK | nothing; for us this is a debt, not an advantage |
+| `AgentRuntime` + parsing the CLI's stream-json | the Agent SDK runs the loop in-process | nothing; pure duplication |
+| REST/WS API + React SPA for a colleague without a terminal | **nothing at all** | a large remainder |
+| Block catalogue for assembling a pipeline | — | a remainder, but its value depends on whether anyone assembles pipelines |
 
 ---
 
-## 4. Где нативные средства объективно не дотягивают
+## 4. Where the native tools objectively fall short
 
-Четыре пункта, каждый подтверждён документацией и нашим прогоном.
+Four points, each confirmed by the documentation and by our run.
 
-**1. Прогон, живущий дольше сессии.** Наш прогон статьи начался 11 августа в 12:18 и
-закончился 12 августа в 14:38 — 26 часов, с падениями, убитым процессом и четырьмя
-`resume`. Воркфлоу это не выдержал бы: «возобновление работает внутри той же сессии; если
-выйти из Claude Code во время прогона, следующая сессия начнёт заново». Для документов, где
-один узел анализа идёт 764 секунды, а петля письма — час с лишним, это не мелочь.
+**1. A run that outlives the session.** Our article run began on 11 August at 12:18 and
+ended on 12 August at 14:38 — 26 hours, with crashes, a killed process and four
+`resume`s. A workflow would not have survived it: "resumption works within the same session; if
+you exit Claude Code during a run, the next session starts over". For documents where a
+single analysis node takes 764 seconds and the writing loop an hour and more, this is no trifle.
 
-**2. Человек посреди прогона.** В нашем прогоне сработали два чекпойнта — после `analyse` и
-после `style`, — и человек на них смотрел выход и правил его руками, прежде чем пустить
-дальше. Документация воркфлоу закрывает это прямым текстом: ввода от человека посреди
-прогона нет, разбивайте на отдельные воркфлоу. Для конвейера документов это ровно та точка,
-где решается качество: стилист выдал findings, человек принял часть, редактор применил
-только принятые.
+**2. A human in the middle of a run.** Two checkpoints fired in our run — after `analyse` and
+after `style` — and at them a human looked at the output and edited it by hand before letting
+it go further. The workflow documentation rules this out in so many words: there is no human
+input in the middle of a run, split it into separate workflows. For a document pipeline this is
+exactly the point where quality is decided: the stylist produced findings, the human accepted
+some of them, the editor applied only the accepted ones.
 
-**3. Гейты по содержимому с автоматическим ретраем.** Схема в воркфлоу проверяет **форму**
-JSON. Проверить «текст не длиннее 14 000 знаков», «в тексте нет „стоит отметить“», «в
-каталоге пять файлов» и при провале вернуть агенту его же замечание — это в нативном
-стеке пишется руками в каждом скрипте. У нас это правило в YAML в одну строку, с
-раздельными счётчиками гейт- и инфра-ретраев.
+**3. Content gates with automatic retry.** A schema in a workflow checks the **shape** of the
+JSON. Checking "the text is no longer than 14 000 characters", "the text does not contain
+"it is worth noting" (a Russian cliché)", "the directory holds five files" and on
+failure handing the agent its own remark back — in the native stack this is written by hand in
+every script. For us it is a one-line rule in YAML, with separate counters for gate retries and
+infrastructure retries.
 
-**4. Человек без терминала.** Ничего нативного не запускает конвейер для коллеги, который
-не открывает CLI. Desktop-приложение — это чат, а не панель прогонов с графом и артефактами.
-
----
-
-## 5. Где refract дублирует платформу — и это чистая стоимость
-
-Честная половина картины. Дублируется как раз то, что дороже всего поддерживать:
-
-- **свой рантайм поверх CLI**: запуск подпроцесса, разбор stream-json, убийство процессов в
-  `close()`, хартбиты, авто-подтверждения. Agent SDK делает это в процессе и поддерживается
-  Anthropic. Риск уже сработал один раз: рантайм пришлось заменить целиком, когда opencode
-  сменился на Claude Code;
-- **параллелизм и троттлинг**: у нас семафоры по провайдерам, у платформы — 20
-  одновременных подагентов по умолчанию и 16 у воркфлоу, плюс собственные ретраи;
-- **сборка промпта из контракта** — SDK сам грузит скиллы, команды и память из `.claude/`;
-- **хук изоляции** — уже платформенный механизм, мы просто им пользуемся;
-- **инъекция секретов** — у нас в долгах (`create_subprocess_exec` без `env=`, агент
-  получает окружение целиком, включая корпоративные MCP-токены), у SDK это штатное место.
-
-К этому же разряду относится нереализованный «свой минимальный runner на litellm» из фазы 5
-и Electron-упаковка: обе идеи соревнуются с платформой на её поле.
+**4. A human without a terminal.** Nothing native launches a pipeline for a colleague who
+does not open the CLI. The desktop app is a chat, not a run panel with a graph and artifacts.
 
 ---
 
-## 6. Проверка на живом прогоне: спас бы нас нативный стек?
+## 5. Where refract duplicates the platform — and that is pure cost
 
-Шесть отказов этой сессии, по каждому — что было бы на воркфлоу.
+The honest half of the picture. What is duplicated is precisely what is most expensive to maintain:
 
-| Отказ | На нативном стеке |
+- **our own runtime on top of the CLI**: launching a subprocess, parsing stream-json, killing
+  processes in `close()`, heartbeats, auto-confirmations. The Agent SDK does this in-process and
+  is maintained by Anthropic. The risk has already materialised once: the runtime had to be
+  replaced entirely when opencode was swapped for Claude Code;
+- **parallelism and throttling**: we have per-provider semaphores, the platform has 20
+  concurrent subagents by default and 16 for workflows, plus its own retries;
+- **assembling the prompt from the contract** — the SDK itself loads skills, commands and memory
+  from `.claude/`;
+- **the isolation hook** — already a platform mechanism, we simply use it;
+- **secret injection** — on our debt list (`create_subprocess_exec` without `env=`, the agent
+  receives the whole environment, including corporate MCP tokens); in the SDK it has its
+  standard place.
+
+The same category includes the unimplemented "our own minimal runner on litellm" from phase 5
+and the Electron packaging: both ideas compete with the platform on its own field.
+
+---
+
+## 6. Checking against the live run: would the native stack have saved us?
+
+Six failures of this session, and for each one — what would have happened on a workflow.
+
+| Failure | On the native stack |
 |---|---|
-| 401 от шлюза: бридж не читал PAT из Credential Manager | **так же**, причина внешняя |
-| `resume` из чистого шелла, переменные окружения не объявлены | **так же**: скилл может нести преflight-скрипт, но объявления окружения нативно тоже нет |
-| движок убит вместе с фоновой командой на 15-й минуте | **хуже**: воркфлоу не переживает выход из сессии вообще |
-| агент искал `paperbanana` на PATH, игнорируя `$PAPERBANANA_BIN` | **так же**: это следование промпту, от платформы не зависит |
-| петля прошла с неисполненным вердиктом `revise` по лимиту кругов | **лучше**: цикл живёт в скрипте, «пропустить молча» пришлось бы написать явно |
-| мой `.ps1` без BOM сломал парсер PowerShell 5.1 | моя ошибка, вне обеих систем |
+| 401 from the gateway: the bridge did not read the PAT from Credential Manager | **the same**, the cause is external |
+| `resume` from a clean shell, environment variables not declared | **the same**: a skill can carry a preflight script, but there is no native environment declaration either |
+| the engine killed together with a background command at minute 15 | **worse**: a workflow does not survive exiting the session at all |
+| the agent looked for `paperbanana` on PATH, ignoring `$PAPERBANANA_BIN` | **the same**: this is prompt-following, it does not depend on the platform |
+| the loop passed with an unfulfilled `revise` verdict on the round limit | **better**: the loop lives in the script, "skip silently" would have had to be written explicitly |
+| my `.ps1` without a BOM broke the PowerShell 5.1 parser | my mistake, outside both systems |
 
-Вывод неудобный, но важный: **четыре отказа из шести не имеют отношения к тому, свой у нас
-движок или нативный**. Боль этой сессии была не в архитектуре, а в необъявленном окружении,
-внешнем шлюзе и промптах. Аргумент «свой движок надёжнее» на наших же данных не подтверждается.
-
----
-
-## 7. Три пути
-
-### A. Продолжать как есть
-
-Всё построено, работает, покрыто тестами. Расход — поддержка 11 тысяч строк против
-движущейся платформы: каждая новая фича Клода превращает часть движка в мёртвый вес, и
-каждое изменение CLI бьёт по рантайму.
-
-Осмысленно, если refract — продукт для других людей, а не личный инструмент.
-
-### B. Снести движок, перенести конвейеры на нативное
-
-Пайплайн статьи = один сохранённый dynamic workflow (`.claude/workflows/article.mjs`) плюс
-скиллы для агентов плюс хуки для механических проверок. Оценка: 1–2 недели на перенос
-одного конвейера и его отладку.
-
-Что теряется безвозвратно: прогон дольше сессии; чекпойнт с ручной правкой посреди
-конвейера (лечится разбиением на три воркфлоу и склейкой руками); UI для коллег;
-предзапусковая валидация графа. Гейты и типы — переписываются в скрипт, но в каждый заново.
-
-### C. Гибрид: refract как тонкий долговечный оркестратор
-
-Оставить то, чего нативно нет: DSL и валидатор, реестр типов, гейты, чекпойнты, леджер с
-учётом денег, UI. Заменить то, что дублирует платформу:
-
-1. `refract/runtime/claude_code.py` — с драйва CLI-подпроцесса на **Agent SDK** (сессии,
-   хуки, права, подагенты в процессе). Заодно закрывается долг I8;
-2. широкий фан-аут (`map` по восьми источникам, четыре фигуры) — делегировать **dynamic
-   workflow как один шаг**: рантайм платформы уже умеет 16 параллельно и 1000 на прогон;
-3. вычеркнуть из планов свой runner на litellm, Electron и чат-билдер.
-
-Оценка: 2–4 недели на замену рантайма, минус примерно 2–3 тысячи строк своего кода.
-Долговечность и HITL остаются нашими, агентный цикл становится вендорским.
+The conclusion is uncomfortable but important: **four failures out of six have nothing to do with
+whether our engine is our own or native**. The pain of this session was not in the architecture
+but in an undeclared environment, an external gateway and prompts. The argument "our own engine
+is more reliable" is not confirmed by our own data.
 
 ---
 
-## 8. Вердикт
+## 7. Three paths
 
-**Проект стоит продолжать, но не в текущей роли.** refract ценен ровно одним слоем —
-долговечный конвейер с человеком в середине, типизированными артефактами и гейтами, плюс
-лицо для того, кто не открывает терминал. Всё остальное в нём сегодня соревнуется с
-платформой и проигрывает ей по темпу разработки.
+### A. Continue as is
 
-Рекомендую **путь C**, и решающий довод — не архитектурный, а фактический: наш собственный
-прогон длился 26 часов, переживал убитые процессы и опирался на два человеческих
-чекпойнта. Нативный воркфлоу не умеет ни первого, ни второго и по документации не
-собирается: возобновление в пределах сессии и запрет на ввод посреди прогона — заявленные
-свойства, а не недоделки.
+Everything is built, works, is covered by tests. The cost is maintaining 11 thousand lines
+against a moving platform: every new Claude feature turns part of the engine into dead weight,
+and every CLI change hits the runtime.
 
-**Условие, при котором ответ меняется на B.** Если на вопрос «должен ли коллега без
-терминала запускать эти конвейеры сам» ответ «нет, это личный инструмент» — тогда UI, REST,
-WS, каталог и половина спеки перестают быть ценностью, а остаток честно закрывается
-сохранёнными воркфлоу и скиллами. В этом случае продолжать движок значит платить
-поддержкой за то, что платформа отдаёт бесплатно, и правильный шаг — законсервировать
-движок, перенести один конвейер на воркфлоу и сравнить результат на той же статье.
+Makes sense if refract is a product for other people, not a personal tool.
 
-### ОБНОВЛЕНО 2026-08-13: владелец ответил — путь B
+### B. Tear down the engine, move the pipelines to native
 
-Уточнение владельца: refract — **личный инструмент** для подготовки документов (дизайны
-решений, требования) с иллюстрациями через figgybanana; коллег без терминала нет; потеря
-резюме после сбоя допустима. Тем самым срабатывает условие выше, и рекомендация меняется с
-C на **B**.
+The article pipeline = one saved dynamic workflow (`.claude/workflows/article.mjs`) plus
+skills for the agents plus hooks for mechanical checks. Estimate: 1–2 weeks to move one
+pipeline and debug it.
 
-Дополнительный довод, найденный при проработке и снимающий путь C целиком: **Agent SDK
-требует авторизации ключом API, а не подпиской**. Страница SDK: сторонним разработчикам не
-разрешено использовать вход через claude.ai или лимиты подписки для своих продуктов,
-включая агентов на Agent SDK; страница юридических вопросов отправляет таких разработчиков
-к ключу через Claude Console. Dynamic Workflows этой проблемы не имеют вовсе — они
-исполняются внутри Claude Code на уже имеющейся корпоративной подписке. То есть замена
-рантайма на SDK стоила бы отдельного ключа и биллинга ради возможностей, которые воркфлоу
-даёт бесплатно.
+What is lost irrecoverably: a run longer than a session; a checkpoint with manual editing in the
+middle of the pipeline (cured by splitting into three workflows and gluing them together by
+hand); the UI for colleagues; pre-launch graph validation. Gates and types are rewritten into
+the script, but anew in each one.
 
-Проработка пути B с отображением наших сущностей, конвенцией хранения артефактов,
-детерминированными гейтами и планом переноса на неделю — в
+### C. Hybrid: refract as a thin durable orchestrator
+
+Keep what does not exist natively: the DSL and validator, the type registry, gates,
+checkpoints, the ledger with money accounting, the UI. Replace what duplicates the platform:
+
+1. `refract/runtime/claude_code.py` — from driving a CLI subprocess to the **Agent SDK** (sessions,
+   hooks, permissions, in-process subagents). This also closes debt I8;
+2. wide fan-out (`map` over eight sources, four figures) — delegate to a **dynamic
+   workflow as a single step**: the platform runtime already handles 16 in parallel and 1000 per run;
+3. strike from the plans our own litellm runner, Electron and the chat builder.
+
+Estimate: 2–4 weeks to replace the runtime, minus roughly 2–3 thousand lines of our own code.
+Durability and HITL remain ours, the agent loop becomes the vendor's.
+
+---
+
+## 8. Verdict
+
+**The project is worth continuing, but not in its current role.** refract is valuable for exactly
+one layer — a durable pipeline with a human in the middle, typed artifacts and gates, plus a
+face for whoever does not open a terminal. Everything else in it today competes with the
+platform and loses to it on pace of development.
+
+I recommend **path C**, and the decisive argument is not architectural but factual: our own
+run lasted 26 hours, survived killed processes and relied on two human
+checkpoints. A native workflow can do neither the first nor the second and, according to the
+documentation, does not intend to: resumption within a session and the ban on input in the
+middle of a run are declared properties, not unfinished work.
+
+**The condition under which the answer changes to B.** If the answer to the question "should a
+colleague without a terminal launch these pipelines themselves" is "no, it is a personal tool" —
+then the UI, REST, WS, the catalogue and half of the spec cease to be of value, and the remainder
+is honestly covered by saved workflows and skills. In that case continuing the engine means
+paying in maintenance for what the platform gives for free, and the right step is to mothball
+the engine, move one pipeline to a workflow and compare the result on the same article.
+
+### UPDATED 2026-08-13: the owner answered — path B
+
+The owner's clarification: refract is a **personal tool** for preparing documents (solution
+designs, requirements) with illustrations via figgybanana; there are no colleagues without a
+terminal; losing resume after a failure is acceptable. This triggers the condition above, and
+the recommendation changes from C to **B**.
+
+An additional argument found while working this through, which removes path C entirely: **the
+Agent SDK requires authorisation with an API key, not a subscription**. The SDK page: third-party
+developers are not permitted to use claude.ai login or subscription limits for their products,
+including agents built on the Agent SDK; the legal FAQ page sends such developers to a key via
+the Claude Console. Dynamic Workflows do not have this problem at all — they run inside Claude
+Code on the corporate subscription we already have. That is, replacing the runtime with the SDK
+would cost a separate key and billing for capabilities the workflow gives for free.
+
+The working-through of path B, with a mapping of our entities, an artifact storage convention,
+deterministic gates and a one-week migration plan, is in
 `docs/plan-pipelines-as-dynamic-workflows.md`.
 
-### Что сделать на следующей неделе, независимо от выбора
+### What to do next week, regardless of the choice
 
-Три вещи полезны в обоих сценариях, потому что это дефекты процесса, а не архитектуры:
+Three things are useful in both scenarios, because they are defects of process, not of
+architecture:
 
-1. **Не пропускать узел с вердиктом `revise`.** Сейчас `max_rounds` — это «сдаться молча»:
-   в нашем прогоне вердикт третьего круга стоил $2,05 и был выброшен, а статья уехала с
-   тремя незакрытыми замечаниями, включая знаменатель softmax, который не сходится у
-   читателя с карандашом. Нужен явный `on_max_rounds: fail | checkpoint | pass`.
-2. **Объявлять требования к окружению.** Пять попыток из двенадцати умерли на том, что
-   проверяется за миллисекунду: `PAPERBANANA_BIN` и три `SS_GATEWAY_*` не объявлены нигде,
-   и `validate` о них не знает. В нативном стеке эта дыра ровно такая же — значит,
-   исправлять надо в любом случае, хоть в `agent.yaml`, хоть в преамбуле скилла.
-3. **Формулировки гейта — в поток событий.** На 1778 событий прогона ровно одно несёт
-   причину отказа. Ответ на «что случилось» требует открыть двенадцать `gate_report.json`.
+1. **Do not let a node with a `revise` verdict through.** Right now `max_rounds` means "give up
+   silently": in our run the third-round verdict cost $2.05 and was thrown away, and the article
+   shipped with three open remarks, including the softmax denominator, which does not add up for
+   a reader with a pencil. An explicit `on_max_rounds: fail | checkpoint | pass` is needed.
+2. **Declare environment requirements.** Five attempts out of twelve died on something that is
+   checked in a millisecond: `PAPERBANANA_BIN` and three `SS_GATEWAY_*` are declared nowhere,
+   and `validate` does not know about them. In the native stack this hole is exactly the same —
+   so it has to be fixed either way, whether in `agent.yaml` or in a skill's preamble.
+3. **Gate wording into the event stream.** Of the run's 1778 events exactly one carries the
+   reason for a failure. Answering "what happened" requires opening twelve `gate_report.json` files.
 
 ---
 
-## Приложение: источники
+## Appendix: sources
 
-- `code.claude.com/docs/en/workflows` — лимиты рантайма, возобновление, сохранение
-  воркфлоу, ориентиры размера, стоимость
-- `code.claude.com/docs/en/agent-teams` — архитектура, хуки, ограничения, v2.1.178+
-- `code.claude.com/docs/en/cross-session-messaging` — `ListAgents`/`SendMessage`, лимиты
-- `code.claude.com/docs/en/sub-agents` — пределы параллелизма и вложенности
-- `code.claude.com/docs/en/skills` — структура скилла, прогрессивная загрузка файлов
-- `code.claude.com/docs/en/agent-sdk/overview`, `/sessions`, `/session-storage` — цикл в
-  своём процессе, continue/resume/fork, `SessionStore` для S3/Redis/Postgres
-- `attn-article/runs/run_20260811_121834` — леджер, события, гейт-отчёты, вердикты критика
-- `docs/PROGRESS.md`, `docs/pipeline-project-roadmap.md` — состояние фаз и исходные оценки
+- `code.claude.com/docs/en/workflows` — runtime limits, resumption, saving
+  workflows, size guidelines, cost
+- `code.claude.com/docs/en/agent-teams` — architecture, hooks, limitations, v2.1.178+
+- `code.claude.com/docs/en/cross-session-messaging` — `ListAgents`/`SendMessage`, limits
+- `code.claude.com/docs/en/sub-agents` — limits of parallelism and nesting
+- `code.claude.com/docs/en/skills` — skill structure, progressive file loading
+- `code.claude.com/docs/en/agent-sdk/overview`, `/sessions`, `/session-storage` — the loop in
+  your own process, continue/resume/fork, `SessionStore` for S3/Redis/Postgres
+- `attn-article/runs/run_20260811_121834` — ledger, events, gate reports, critic verdicts
+- `docs/PROGRESS.md`, `docs/pipeline-project-roadmap.md` — phase status and original estimates

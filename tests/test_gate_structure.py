@@ -1,9 +1,12 @@
-"""Структурные правила гейта под профиль требований.
+"""Structural gate rules for the requirements profile.
 
-Три правила, каждое механическое: заголовки с нужными номерами присутствуют, в таблицах с
-колонкой источника нет пустых ячеек, идентификаторы не повторяются. Всё, что решает регулярка,
-не должно стоить круга критика — и не должно зависеть от языка документа, поэтому заголовки
-ищутся по номерам, а колонка источника — по любому из двух названий.
+Three rules, each mechanical: the headings with the required numbers are present, tables with a
+source column have no empty cells, and identifiers do not repeat. Whatever a regex can decide
+must not cost a critic round, and must not depend on the document language, so headings are
+found by their numbers and the source column by either of its two names.
+
+The fixture document is in Russian on purpose: it checks that Russian headings and column names
+are recognised.
 """
 
 from __future__ import annotations
@@ -97,7 +100,7 @@ def test_require_heading_via_cli(
 
 
 def test_rows_without_source_are_named_by_id() -> None:
-    """Пустая ячейка источника называется по первой ячейке строки, чтобы писатель нашёл её."""
+    """An empty source cell is named by the first cell of its row, so the writer can find it."""
     assert gate.rows_without_source(DOC) == ["FR-002"]
 
 
@@ -130,7 +133,7 @@ def test_duplicate_ids_are_named() -> None:
 
 
 def test_ids_in_prose_references_do_not_count() -> None:
-    """Ссылка на FR-001 из текста или из ячейки Source — не второй FR-001."""
+    """A reference to FR-001 from prose or from a Source cell is not a second FR-001."""
     text = (
         "| ID | Requirement | Source |\n| --- | --- | --- |\n"
         "| FR-001 | x | a |\n| FR-002 | y, see FR-001 | b [C-001] |\n"
@@ -178,7 +181,7 @@ def test_clean_document_passes_all_three(
 
 
 def test_sequential_ids_name_the_gap() -> None:
-    """Клиентская редакция перенумерована: пропущенный номер читается как вычеркнутое требование."""
+    """The client edition is renumbered: a skipped number reads as a deleted requirement."""
     text = (
         "| ID | Requirement |\n| --- | --- |\n"
         "| FR-001 | a |\n| FR-002 | b |\n| FR-004 | c |\n| NFR-001 | d |\n"
@@ -213,7 +216,7 @@ def test_figures_numbered_in_order_pass() -> None:
 
 
 def test_figure_without_caption_is_named_by_path() -> None:
-    """Картинка без подписи: клиент не может на неё сослаться, и гейт называет её по пути."""
+    """An image without a caption cannot be referred to by the client; the gate names it by path."""
     text = "![A](figures/a.png)\n\nPlain paragraph.\n"
     assert gate.figure_caption_problems(text) == ["figures/a.png: no numbered caption"]
 
@@ -246,7 +249,7 @@ def test_figures_numbered_via_cli(
 
 
 def test_outside_quotes_keeps_the_clients_words() -> None:
-    """Клиент в цитате говорит «you»; обращение к читателю ищется только вне цитат."""
+    """The client says "you" inside a quote; addressing the reader is looked for only outside quotes."""
     text = (
         '\u201cis it just an app you download\u201d. Acme Clinics decides. We said "your call".\n'
     )
@@ -263,7 +266,7 @@ def test_forbid_outside_quotes_via_cli(
 
 
 def test_empty_cells_are_named_and_allowed_columns_skipped() -> None:
-    """Пустая ячейка читается как забытая; колонку цены для ПМ разрешено оставить пустой."""
+    """An empty cell reads as forgotten; the cost column is allowed to stay empty for the PM."""
     text = (
         "### Backend\n\n| Service | Part | What |\n| --- | --- | --- |\n"
         "| API | Users | a |\n| | Keys | b |\n\n"
@@ -274,7 +277,7 @@ def test_empty_cells_are_named_and_allowed_columns_skipped() -> None:
 
 
 def test_section_refs_resolve_against_numbered_headings() -> None:
-    """После перегруппировки разделов «see section 7» указывал не туда."""
+    """After sections were regrouped, "see section 7" pointed to the wrong place."""
     text = "## 1. One\n\nSee section 2 and sections 1 and 3.\n\n## 2. Two\n"
     assert gate.unresolved_section_refs(text) == ["section 3"]
 

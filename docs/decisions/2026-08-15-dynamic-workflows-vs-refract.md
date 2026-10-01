@@ -1,252 +1,266 @@
-# Dynamic Workflows против движка refract: проверка выбора на живых данных
+# Dynamic Workflows versus the refract engine: testing the choice on live data
 
-Дата: 2026-08-15. Вопрос владельца: даёт ли подход на Dynamic Workflows преимущества перед
-refract-claude, где оркестратор — питон, а конвейер описан в YAML. Речь про большие документы:
-технические статьи, дизайны решений, анализ требований. То есть про оркестрацию кастомных
-агентов со своими скиллами и MCP-инструментами.
+Date: 2026-08-15. The owner's question: does the Dynamic Workflows approach have advantages over
+refract-claude, where the orchestrator is Python and the pipeline is described in YAML. The
+subject is large documents: technical articles, solution designs, requirements analysis. That is,
+orchestrating custom agents with their own skills and MCP tools.
 
-Предыдущий разбор (`docs/analysis-native-claude-vs-refract.md`, 13 августа) выбрал путь B —
-перенос конвейеров на воркфлоу. Он опирался на документацию и на один прогон refract. С тех пор
-конвейер на воркфлоу отработал **полный день живых прогонов** одной и той же статьи: девять
-кругов правки, четыре падения по четырём разным причинам, около 5,5 миллионов токенов. Это
-первые данные, на которых прошлые предсказания можно проверить, а не повторить.
+The previous analysis (`docs/analysis-native-claude-vs-refract.md`, 13 August) chose path B —
+moving the pipelines to workflows. It rested on the documentation and on one refract run. Since
+then the workflow pipeline has worked through **a full day of live runs** of one and the same
+article: nine revision rounds, four crashes for four different reasons, about 5.5 million tokens.
+This is the first data on which the earlier predictions can be tested rather than repeated.
 
-Отчёт устроен так: сначала три посылки прошлого разбора против фактов, потом счёт по деньгам,
-потом то, чего ни один из подходов не решает, и в конце рекомендация.
+The report is laid out as follows: first the three premises of the previous analysis against the
+facts, then the money account, then what neither approach solves, and at the end the
+recommendation.
 
 ---
 
-## 1. Три посылки прошлого разбора
+## 1. Three premises of the previous analysis
 
-### Посылка 1: «потеря резюме после сбоя допустима»
+### Premise 1: "losing the resume after a failure is acceptable"
 
-**Не подтвердилась. Она стоила отдельной подсистемы.**
+**Not confirmed. It cost a separate subsystem.**
 
-Прогон падал четыре раза за день, каждый раз по своей причине:
+The run crashed four times in a day, each time for its own reason:
 
-| причина | что произошло |
+| cause | what happened |
 |---|---|
-| CRLF в скрипте | рантайм отказал: `script contains control characters` |
-| реестр агентов | `agent type 'brief-writer' not found` — реестр снимается раз за ход человека |
-| перезапуск процесса | сессия переехала в фоновую задачу, `adopt scriptPath rejected` |
-| лимит сессии | `You've hit your session limit` положил трёх агентов подряд |
+| CRLF in the script | the runtime refused: `script contains control characters` |
+| agent registry | `agent type 'brief-writer' not found` — the registry is snapshotted once per human turn |
+| process restart | the session moved into a background task, `adopt scriptPath rejected` |
+| session limit | `You've hit your session limit` took down three agents in a row |
 
-Штатное `resumeFromRunId` не помогло ни разу: его кэш живёт внутри одной сессии, а сессия как
-раз и менялась. Хуже: возобновление в новой сессии пошло с брифа, бриф выдал другие слаги
-аспектов, и одиннадцать файлов источников стали сиротами. **Возобновление не просто не спасло —
-оно обнулило сорок минут работы.**
+The built-in `resumeFromRunId` did not help once: its cache lives inside one session, and the
+session was exactly what kept changing. Worse: resuming in a new session started from the brief,
+the brief produced different aspect slugs, and eleven source files became orphans. **Resuming did
+not merely fail to save the run — it wiped out forty minutes of work.**
 
-Пришлось построить чекпойнт на диске: стадия `Resume` опрашивает артефакты перед тратой,
-`brief_writer` не переписывает существующий бриф и пишет слаги в файл, каждый круг правки
-пишется в `rounds/round-<n>.md`, а `tools/rounds.py` читает их обратно. Это примерно 150 строк
-скрипта, 130 строк инструмента и 16 тестов — то есть **уменьшенная копия `state.json` и леджера
-refract**, построенная заново под другим именем.
+A checkpoint on disk had to be built: the `Resume` stage polls the artifacts before spending,
+`brief_writer` does not rewrite an existing brief and writes the slugs to a file, every revision
+round is written to `rounds/round-<n>.md`, and `tools/rounds.py` reads them back. That is roughly
+150 lines of script, 130 lines of tool and 16 tests — that is, **a scaled-down copy of refract's
+`state.json` and ledger**, built anew under another name.
 
-Вывод: свойство «прогон переживает сбой» не бесплатное ни в одном из подходов. В refract оно
-куплено заранее и работает для всего; в воркфлоу его пишут в каждый скрипт, и написать его
-правильно с первого раза не вышло — три из четырёх дефектов чекпойнта нашлись только на живых
-прогонах.
+Conclusion: the property "a run survives a failure" is not free in either approach. In refract it
+was bought in advance and works for everything; in workflows it is written into every script, and
+writing it correctly the first time did not work out — three of the four checkpoint defects were
+found only on live runs.
 
-### Посылка 2: «четыре отказа из шести не имеют отношения к архитектуре»
+### Premise 2: "four failures out of six have nothing to do with the architecture"
 
-**Сегодня инверсия: три из четырёх — ровно архитектурные, и ровно на стороне воркфлоу.**
+**Today it is inverted: three out of four are precisely architectural, and precisely on the
+workflow side.**
 
-CRLF и NUL, реестр агентов, смерть вместе с процессом — это свойства рантайма воркфлоу. У
-refract нет ни одного из них: скрипта нет вовсе, агенты берутся из реестра пайплайна на старте,
-прогон живёт в питон-процессе с леджером на диске и переживает `resume`.
+CRLF and NUL, the agent registry, dying together with the process — these are properties of the
+workflow runtime. refract has none of them: there is no script at all, agents are taken from the
+pipeline registry at start, the run lives in a Python process with a ledger on disk and survives
+`resume`.
 
-Единственный общий отказ — лимит сессии.
+The only shared failure is the session limit.
 
-Это не значит, что refract надёжнее по существу. Это значит, что **прошлый вывод «боль не в
-архитектуре» был сделан на выборке из одного прогона и на нашей выборке не держится.**
+This does not mean refract is more reliable in substance. It means that **the earlier conclusion
+"the pain is not in the architecture" was drawn from a sample of one run and does not hold on our
+sample.**
 
-### Посылка 3: «Agent SDK требует ключ API, поэтому путь C мёртв»
+### Premise 3: "the Agent SDK requires an API key, so path C is dead"
 
-**Утверждение про SDK верное, но к refract оно не относится.**
+**The statement about the SDK is correct, but it does not apply to refract.**
 
-`refract/runtime/claude_code.py`, строки 11–13, дословно:
+`refract/runtime/claude_code.py`, lines 11–13, verbatim:
 
 > No API key is involved: the CLI runs on the Claude subscription it is logged into. That is the
 > whole point of this fork — `--bare` is therefore never passed, since it would force key-based
 > auth.
 
-refract запускает `claude.cmd -p` подпроцессом с `--output-format stream-json`,
-`--system-prompt-file`, `--allowedTools`, `--mcp-config` и `--strict-mcp-config`. То есть он уже
-оркеструет тех же самых кастомных агентов Claude Code, с их скиллами и MCP-серверами, **на
-корпоративной подписке и без ключа**.
+refract launches `claude.cmd -p` as a subprocess with `--output-format stream-json`,
+`--system-prompt-file`, `--allowedTools`, `--mcp-config` and `--strict-mcp-config`. That is, it
+already orchestrates the very same custom Claude Code agents, with their skills and MCP servers,
+**on the corporate subscription and without a key**.
 
-Ключ понадобился бы только при замене рантайма на Agent SDK — а это была необязательная часть
-пути C. Значит гибрид не был закрыт тем доводом, которым его закрыли. Это существенная поправка
-к разбору 13 августа.
+A key would be needed only if the runtime were replaced with the Agent SDK — and that was an
+optional part of path C. So the hybrid was not closed by the argument that was used to close it.
+This is a substantial correction to the 13 August analysis.
 
 ---
 
-## 2. Счёт по двум прогонам одной статьи
+## 2. The account over two runs of the same article
 
 | | refract, `run_20260811_121834` | collimator, `probe-runs/attn4` |
 |---|---|---|
-| токенов | 573 681 | ≈5 520 000 (замерено по семи прогонам) |
-| деньги | $47,58 в леджере | леджера нет, деньги не считаются |
-| время | 26 часов | около 7 часов |
-| кругов правки | 3 | 9 |
-| объём результата | 8 452 знака прозы | 37 900 знаков прозы |
-| чем кончилось | `failed` на узле figures | принято гейтом и стилевым критиком |
+| tokens | 573,681 | ≈5,520,000 (measured over seven runs) |
+| money | $47.58 in the ledger | no ledger, money is not counted |
+| time | 26 hours | about 7 hours |
+| revision rounds | 3 | 9 |
+| size of the result | 8,452 characters of prose | 37,900 characters of prose |
+| how it ended | `failed` at the figures node | accepted by the gate and the style critic |
 
-Прямое сравнение токенов некорректно, и это надо сказать прямо. Статья вчетверо длиннее, кругов
-втрое больше, а внутри 5,5 миллионов сидят чисто отладочные траты: зомби-прогон на 740 тысяч,
-случайные четыре круга на 1,4 миллиона из-за дефекта в моём же `rounds.py`, четыре мёртвых
-запуска. Установившаяся стоимость круга — около 500 тысяч токенов, и она **не зависит от
-оркестратора**: её задают размер статьи, число критиков и число кругов.
+A direct comparison of tokens is not valid, and that has to be said plainly. The article is four
+times longer, there are three times as many rounds, and inside the 5.5 million sit pure debugging
+costs: a zombie run of 740 thousand, four accidental rounds of 1.4 million because of a defect in
+my own `rounds.py`, four dead launches. The steady-state cost of a round is about 500 thousand
+tokens, and it **does not depend on the orchestrator**: it is set by the size of the article, the
+number of critics and the number of rounds.
 
-Что сравнимо честно: **у refract есть учёт денег, у нас нет.** `$47,58` — это факт из леджера,
-разложенный по узлам. У воркфлоу токены видны в `/workflows` во время прогона и исчезают после.
-Для личного инструмента это терпимо, для ответа на вопрос «сколько стоила эта статья» — нет.
-
----
-
-## 3. Что воркфлоу объективно дешевле
-
-**Нет движка.** 11 197 строк питона плюс 13 359 строк тестов не нужно поддерживать против
-платформы, которая меняется. За день работы конвейер на воркфлоу переписывался семь раз
-(корректоры, ведомость, детектор застоя, политика языка) — каждый раз это правка одного файла с
-немедленной проверкой на заглушках. В refract такие изменения затрагивают модель пайплайна,
-планировщик и валидатор.
-
-**Оркестрация читается как код.** Петля, ветвление и условие выхода видны прямо: `if
-(verdict.verdict === 'ok' && styleOk && sizedReport.ok) break`. В YAML то же самое выражается
-`loop` с `max_rounds` и вердиктом, и «что именно считается принятым» уходит в движок. Когда
-понадобилось три условия вместо одного, в скрипте это одна строка.
-
-**Параллелизм бесплатный.** `parallel()` и 16 агентов одновременно — без семафоров и троттлинга.
-
-**Агенты, скиллы и MCP — платформенные.** Здесь ничьего преимущества нет: refract даёт то же
-самое, потому что запускает тот же CLI.
-
-## 4. Что воркфлоу объективно дороже
-
-**У скрипта нет файловой системы и шелла.** Каждая детерминированная проверка требует
-агента-носильщика: `gate-runner` вызывается 4–6 раз за прогон только чтобы запустить питон и
-вернуть JSON. Это дёшево в токенах (haiku), но это лишний слой, где данные могут исказиться — и
-уже исказились дважды: агент вернул абсолютные пути вместо относительных, и он же молча урезал
-вывод `rounds.py` с пяти кругов до двух, стоив 1,4 миллиона токенов.
-
-**Человека в середине прогона нет.** Для конвейера документов это ровно та точка, где решается
-качество. В refract стадия `style` паркует прогон, человек принимает часть находок, редактор
-применяет только принятые. У нас вместо этого стилевой критик в петле — и девять кругов
-осцилляции: круг 6 стиль `ok` / существо `revise`, круг 8 существо `ok` / стиль `revise`, круг 9
-обратно. Каждый круг чинил одну ось и трогал другую. Человек закрыл бы это за один проход.
-
-Показательно: **сегодня чекпойнт всё-таки случился — вручную.** Владелец остановил прогон,
-посмотрел состояние, задал вопрос, и прогон был перезапущен с правками. Это и есть HITL, только
-не поддержанный инструментом.
-
-**Предзапусковой валидации графа нет.** YAML диффится и проверяется 40+ кодами ошибок до
-запуска. Скрипт проверяется `dry_run.mjs` на заглушках — что я и делаю в четырёх режимах, — но
-это тест, а не типизация. Ошибка `agentType`, не имеющего файла, ловится только тестом, который
-пришлось написать самому.
-
-**Учёта денег нет.**
+What compares fairly: **refract has money accounting, we do not.** `$47,58` is a fact from the
+ledger, broken down by node. In workflows, tokens are visible in `/workflows` during the run and
+disappear afterwards. For a personal tool that is tolerable; for answering the question "how much
+did this article cost" it is not.
 
 ---
 
-## 5. Чего не решает ни один из двух
+## 3. What workflows are objectively cheaper at
 
-Это важнее выбора оркестратора, и день работы показал именно это.
+**No engine.** 11,197 lines of Python plus 13,359 lines of tests do not need to be maintained
+against a platform that changes. Over a day of work the workflow pipeline was rewritten seven
+times (correctors, the remark sheet, the stagnation detector, the language policy) — each time it
+was an edit to one file with immediate checking on stubs. In refract such changes touch the
+pipeline model, the scheduler and the validator.
 
-Все дефекты, которые реально стоили кругов и токенов, были **дефектами устройства конвейера**, а
-не оркестрации:
+**Orchestration reads as code.** The loop, the branching and the exit condition are directly
+visible: `if
+(verdict.verdict === 'ok' && styleOk && sizedReport.ok) break`. In YAML the same thing is expressed
+as a `loop` with `max_rounds` and a verdict, and "what exactly counts as accepted" goes into the
+engine. When three conditions were needed instead of one, in the script it was one line.
 
-- писатель молча терял замечания, потому что в его схеме не было поля для несделанного;
-- критик по существу делал шесть работ сразу и хуже всего делал сверку атрибуции;
-- арифметику примера шесть кругов читали глазами, пока не появился агент, запускающий питон;
-- корректор чинил факт и наживал стилевой дефект, пока ему не подали профиль голоса;
-- перебор объёма, поданный пунктом в списке, лечился дописыванием текста.
+**Parallelism is free.** `parallel()` and 16 agents at once — without semaphores and throttling.
 
-Ни YAML, ни JS не имеют к этому отношения. Всё это одинаково выражается в обоих подходах, и
-одинаково не обнаруживается без живого прогона.
+**Agents, skills and MCP are platform features.** Neither side has an advantage here: refract
+provides the same, because it launches the same CLI.
 
-Вывод, который стоит запомнить: **выбор оркестратора влияет на надёжность и на стоимость
-поддержки, но не на качество документа.** Качество задаёт форма круга правки.
+## 4. What workflows are objectively more expensive at
 
----
+**A script has no filesystem and no shell.** Every deterministic check needs a carrier agent:
+`gate-runner` is called 4–6 times per run just to launch Python and return JSON. It is cheap in
+tokens (haiku), but it is an extra layer where data can get distorted — and it already has been,
+twice: the agent returned absolute paths instead of relative ones, and the same agent silently cut
+the output of `rounds.py` from five rounds to two, costing 1.4 million tokens.
 
-## 6. Рекомендация
+**There is no human in the middle of a run.** For a document pipeline this is exactly the point
+where quality is decided. In refract the `style` stage parks the run, a human accepts some of the
+findings, an editor applies only the accepted ones. We have a style critic in the loop instead —
+and nine rounds of oscillation: round 6 style `ok` / substance `revise`, round 8 substance `ok` /
+style `revise`, round 9 back again. Each round fixed one axis and touched the other. A human would
+have closed this in a single pass.
 
-**Направление выбрано верно — оставаться на Dynamic Workflows.** Но текущая форма «весь конвейер
-одним скриптом» для документов такого размера неправильная, и её надо менять.
+Tellingly: **today a checkpoint did happen after all — by hand.** The owner stopped the run,
+looked at the state, asked a question, and the run was restarted with edits. That is HITL, only
+not supported by the tool.
 
-### Что делать
+**There is no pre-launch validation of the graph.** YAML is diffed and checked against 40+ error
+codes before launch. A script is checked by `dry_run.mjs` on stubs — which I do in four modes —
+but that is a test, not typing. An `agentType` error with no file behind it is caught only by a
+test that I had to write myself.
 
-**1. Разрезать конвейер на сегменты по границам решений человека.** Документация воркфлоу прямо
-говорит: ввода от человека посреди прогона нет, разбивайте на отдельные воркфлоу. Сегодня это
-уже происходит вручную. Предлагаю три команды вместо одной:
-
-- `research` — бриф, источники, разбор. Кончается материалом на диске;
-- `draft` — писатель, корректоры, гейт, критики, круги. Кончается статьёй и записями кругов;
-- `polish` — иллюстрации и приёмка.
-
-Это даёт сразу три вещи: человек смотрит результат на каждой границе; падение процесса стоит
-одного сегмента, а не всего; и `medium`-ориентир в 15 агентов перестаёт нарушаться.
-
-**2. Считать деньги.** Единственное, чего у нас нет и что у refract есть даром. Достаточно
-записывать в конце сегмента строку в `<прогон>/spend.jsonl` из того, что рантайм и так знает.
-
-**3. Не переносить остальное.** Реестр типов, валидатор графа, UI, REST — это ценность для
-чужого пользователя, а его нет.
-
-### Когда ответ меняется на refract
-
-Три условия, любое из которых возвращает движок в игру:
-
-- **прогон обязан жить дольше сессии** — сутки и больше, с переживанием выхода из CLI. Наш
-  refract-прогон шёл 26 часов, у воркфлоу такого режима нет по построению;
-- **конвейер запускает коллега без терминала** — тогда REST, WS и SPA перестают быть мёртвым
-  весом;
-- **нужен аудит стоимости по узлам** — леджер, который диффится и хранится.
-
-Ни одно сегодня не выполняется.
-
-### Что сохранить из refract независимо от выбора
-
-Гибрид не мёртв, вопреки разбору 13 августа: refract водит тот же CLI на той же подписке, без
-ключа. Если когда-нибудь понадобится долговечность и человек в середине, **правильный шаг — не
-переписывать refract на SDK, а оставить его питон-оркестратором и делегировать ему широкий
-фан-аут одним воркфлоу**. Это остаётся открытой дверью, и её стоит держать открытой: цена
-хранения репозитория ноль, цена повторной постройки — 27 тысяч строк.
+**There is no money accounting.**
 
 ---
 
-## 7. Что сделать на следующей неделе
+## 5. What neither of the two solves
 
-1. Разрезать `explainer-article` на три сегмента и прогнать статью заново — это одновременно
-   закрывает HITL и делает падение дешёвым.
-2. Дописать учёт токенов посегментно.
-3. Перенести в `library/` уроки формы круга, которые уже подтвердились: корректоры перед
-   критиками, ведомость по номерам, детектор застоя, одобрение как ограничение.
+This matters more than the choice of orchestrator, and the day of work showed exactly that.
+
+All the defects that actually cost rounds and tokens were **defects of the pipeline's design**,
+not of orchestration:
+
+- the writer silently lost remarks, because its schema had no field for what was not done;
+- the substance critic did six jobs at once and did the attribution check worst of all;
+- the arithmetic of the example was read by eye for six rounds, until an agent that runs Python
+  appeared;
+- the corrector fixed a fact and picked up a style defect, until it was given the voice profile;
+- an overrun in length, handed over as an item in a list, was treated by writing more text.
+
+Neither YAML nor JS has anything to do with this. All of it is expressed the same way in both
+approaches, and equally goes undetected without a live run.
+
+The conclusion worth remembering: **the choice of orchestrator affects reliability and the cost
+of maintenance, but not the quality of the document.** Quality is set by the shape of the
+revision round.
 
 ---
 
-## Приложение: источники фактов
+## 6. Recommendation
 
-- `refract/runtime/claude_code.py:11–13` — запуск на подписке без ключа API;
-- `attn-article/runs/run_20260811_121834/state.json` и `events.jsonl` — 26 часов, $47,58,
-  573 681 токен, `failed` на узле figures;
-- `probe-runs/attn4/rounds/round-1..9.md` — девять кругов, вердикты, замечания;
-- уведомления о завершении семи прогонов этой сессии — `subagent_tokens`;
-- `CLAUDE.md`, раздел «Грабли, оплаченные живыми прогонами» — четырнадцать отказов с причинами;
-- `docs/analysis-native-claude-vs-refract.md` — разбор 13 августа, чьи посылки здесь проверяются.
+**The direction was chosen correctly — stay on Dynamic Workflows.** But the current shape, "the
+whole pipeline in one script", is wrong for documents of this size, and it has to change.
+
+### What to do
+
+**1. Cut the pipeline into segments along the boundaries of human decisions.** The workflow
+documentation says it directly: there is no human input in the middle of a run, split into
+separate workflows. Today this already happens by hand. I propose three commands instead of one:
+
+- `research` — brief, sources, analysis. Ends with material on disk;
+- `draft` — writer, correctors, gate, critics, rounds. Ends with the article and the round records;
+- `polish` — illustrations and acceptance.
+
+This gives three things at once: a human looks at the result at each boundary; a process crash
+costs one segment, not everything; and the `medium` guideline of 15 agents stops being violated.
+
+**2. Count money.** The only thing we lack and refract has for free. It is enough to write, at
+the end of a segment, a line into `<run>/spend.jsonl` from what the runtime already knows.
+
+**3. Do not port the rest.** The type registry, the graph validator, the UI, REST — that is value
+for someone else's user, and there is none.
+
+### When the answer changes to refract
+
+Three conditions, any one of which brings the engine back into play:
+
+- **a run must live longer than a session** — a day or more, surviving an exit from the CLI. Our
+  refract run went for 26 hours; workflows have no such mode by construction;
+- **the pipeline is launched by a colleague without a terminal** — then REST, WS and the SPA stop
+  being dead weight;
+- **a per-node cost audit is needed** — a ledger that is diffed and kept.
+
+None of them holds today.
+
+### What to keep from refract regardless of the choice
+
+The hybrid is not dead, contrary to the 13 August analysis: refract drives the same CLI on the
+same subscription, without a key. If durability and a human in the middle are ever needed, **the
+right step is not to rewrite refract on the SDK, but to keep it as the Python orchestrator and
+delegate wide fan-out to it as a single workflow**. This remains an open door, and it is worth
+keeping open: the cost of keeping the repository is zero, the cost of rebuilding is 27 thousand
+lines.
 
 ---
 
-# Дополнение 16 августа: три факта, которых в разборе не было
+## 7. What to do next week
 
-Разбор выше сравнивал два подхода на статье. Целевая работа другая — техдизайны, требования,
-ресерчи, — и на ней всплыли три факта, меняющие вес аргументов.
+1. Cut `explainer-article` into three segments and run the article again — this at the same time
+   closes HITL and makes a crash cheap.
+2. Add per-segment token accounting.
+3. Move into `library/` the lessons about the shape of the round that have already been
+   confirmed: correctors before critics, a remark sheet by number, the stagnation detector,
+   approval as a constraint.
 
-## Факт 1. Каталоги-иероглифы есть и в refract
+---
 
-Сегодня из корня `collimator` удалены четыре пустых каталога с непарными суррогатами в именах,
-и это записали в счёт Dynamic Workflows. Проверка показала обратное:
+## Appendix: sources of the facts
+
+- `refract/runtime/claude_code.py:11–13` — running on the subscription without an API key;
+- `attn-article/runs/run_20260811_121834/state.json` and `events.jsonl` — 26 hours, $47.58,
+  573,681 tokens, `failed` at the figures node;
+- `probe-runs/attn4/rounds/round-1..9.md` — nine rounds, verdicts, remarks;
+- the completion notifications of the seven runs of this session — `subagent_tokens`;
+- `CLAUDE.md`, the section "Rakes paid for by live runs" — fourteen failures with their causes;
+- `docs/analysis-native-claude-vs-refract.md` — the 13 August analysis whose premises are tested
+  here.
+
+---
+
+# Addendum of 16 August: three facts the analysis did not have
+
+The analysis above compared the two approaches on an article. The target work is different —
+technical designs, requirements, research — and on it three facts surfaced that change the weight
+of the arguments.
+
+## Fact 1. Hieroglyph directories exist in refract too
+
+Today four empty directories with unpaired surrogates in their names were deleted from the root of
+`collimator`, and this was charged to Dynamic Workflows. A check showed the opposite:
 
 ```
 refract-claude/attn-article/runs/run_20260811_121834/steps/figures/main/
@@ -255,53 +269,57 @@ refract-claude/attn-article/runs/run_20260811_121834/steps/figures/main/
   1.3.6.1.4.1.311.10.3.37!7
 ```
 
-Имя `⎀ℑ翺` совпадает буквально. Плюс обрывки хранилища сертификатов Windows — та же сигнатура,
-что описана в `tools/sweep_junk.py`: текст системного промпта проходит через `cmd.exe`, потому
-что `claude` на Windows это `.cmd`-обёртка. **Дефект figgybanana, воспроизводится в обоих
-проектах.** Один пункт против воркфлоу аннулируется.
+The name `⎀ℑ翺` matches literally. Plus scraps of the Windows certificate store — the same
+signature described in `tools/sweep_junk.py`: the text of the system prompt passes through
+`cmd.exe`, because `claude` on Windows is a `.cmd` wrapper. **A figgybanana defect, reproduced in
+both projects.** One point against workflows is cancelled.
 
-## Факт 2. В `solution_design.yaml` нет `checkpoints`
+## Fact 2. `solution_design.yaml` has no `checkpoints`
 
-Главное, чем refract отличается от воркфлоу, — остановка прогона на решение человека. В целевом
-шаблоне пользователя её нет. Из восьми шаблонов библиотеки `checkpoints` объявлены в двух:
-`explainer_article` и `requirements_to_design`.
+The main way refract differs from workflows is stopping a run for a human decision. The user's
+target template does not have it. Of the library's eight templates, `checkpoints` are declared in
+two: `explainer_article` and `requirements_to_design`.
 
-Разбор засчитал refract преимущество, которым целевой конвейер не пользуется. А всё, что в
-`solution_design.yaml` есть, ложится на примитивы воркфлоу один в один:
+The analysis credited refract with an advantage that the target pipeline does not use. And
+everything that `solution_design.yaml` does have maps onto workflow primitives one to one:
 
-| узел refract | в Dynamic Workflow |
+| refract node | in a Dynamic Workflow |
 |---|---|
-| `map: scan.sources` с `workers: 3` | `parallel()` или `pipeline()` |
-| `map_over: {models: [sonnet, opus]}` | `parallel()` двух `agent()` с разным `model` |
-| `type: select` + селектор | агент-судья над массивом кандидатов |
-| `type: loop` + `critic` + `max_rounds` | цикл `for` с вердиктом и `break` |
-| `gate_rules` | `tools/gate.py` через `gate-runner` |
+| `map: scan.sources` with `workers: 3` | `parallel()` or `pipeline()` |
+| `map_over: {models: [sonnet, opus]}` | `parallel()` of two `agent()` with different `model` |
+| `type: select` + selector | a judge agent over an array of candidates |
+| `type: loop` + `critic` + `max_rounds` | a `for` loop with a verdict and `break` |
+| `gate_rules` | `tools/gate.py` via `gate-runner` |
 
-Ни одной конструкции, требующей движка.
+Not a single construct that requires an engine.
 
-## Факт 3. Движок — 24 556 строк, которые надо содержать
+## Fact 3. The engine is 24,556 lines that have to be maintained
 
-11 197 строк `refract/` плюс 13 359 строк тестов. Против платформы, которая меняется. За один
-рабочий день конвейер на воркфлоу переписывался семь раз — каждый раз правка одного файла с
-проверкой на заглушках за секунду.
+11,197 lines of `refract/` plus 13,359 lines of tests. Against a platform that changes. In one
+working day the workflow pipeline was rewritten seven times — each time an edit to one file with
+checking on stubs in a second.
 
-## Решение
+## Decision
 
-**Остаться на Dynamic Workflows.** Три факта выше снимают два из трёх аргументов за refract, а
-третий — долгоживущий прогон — снимается сегментацией, которая нужна независимо.
+**Stay on Dynamic Workflows.** The three facts above remove two of the three arguments for
+refract, and the third — the long-lived run — is removed by segmentation, which is needed
+regardless.
 
-Но главное не в этом, и стоит сказать прямо, потому что вопрос задан не про то.
+But that is not the main point, and it is worth saying plainly, because the question was not
+asked about it.
 
-**Оркестратор — не актив. Актив — библиотека агентов и форма круга правки.** За день установлено
-девять дефектов устройства конвейера против шести дефектов подложки, и стоили кругов и токенов
-именно первые: писатель, молча терявший замечания; критик, делавший шесть работ; арифметика,
-читаемая глазами; корректор, чинивший факт и наживавший стилевой дефект; недостижимое условие
-приёмки. **Ни один из них не имеет отношения к выбору между YAML и JS**, все девять выражаются
-одинаково в обоих подходах, и ни один не обнаруживается без живого прогона.
+**The orchestrator is not an asset. The asset is the agent library and the shape of the revision
+round.** Over the day, nine defects of the pipeline's design were established against six defects
+of the substrate, and it was the former that cost rounds and tokens: the writer that silently lost
+remarks; the critic that did six jobs; arithmetic read by eye; the corrector that fixed a fact and
+picked up a style defect; an unreachable acceptance condition. **None of them has anything to do
+with the choice between YAML and JS**, all nine are expressed the same way in both approaches, and
+none is detected without a live run.
 
-Двадцать семь агентов в `library/agents/` переносимы между подложками без правок. Уроки формы
-круга — корректоры перед критиками, ведомость по номерам, одобрение как ограничение, детектор
-полки — тоже. Выбор подложки обратим за день; выбор формы круга оплачен неделей прогонов.
+The twenty-seven agents in `library/agents/` are portable between substrates without edits. The
+lessons about the shape of the round — correctors before critics, a remark sheet by number,
+approval as a constraint, the plateau detector — are too. The choice of substrate is reversible in
+a day; the choice of the round's shape was paid for with a week of runs.
 
-Поэтому решение принимается по стоимости содержания, а не по возможностям: **одна страница
-скрипта против двадцати четырёх тысяч строк движка при одинаковом наборе возможностей.**
+So the decision is made on the cost of maintenance, not on capabilities: **one page of script
+against twenty-four thousand lines of engine, with the same set of capabilities.**

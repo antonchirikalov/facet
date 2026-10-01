@@ -1,7 +1,7 @@
-"""Тесты дворника: он ходит по корню репозитория, поэтому ошибиться ему нельзя.
+"""Tests for the sweeper: it walks the repository root, so it must not make mistakes.
 
-Проверяется ровно то, чего от него боишься: что он не тронет рабочий каталог, не удалит
-каталог, в котором лежит хоть один файл, и что `--dry-run` действительно ничего не сносит.
+The tests check exactly what one fears from it: that it leaves a working directory alone, does
+not delete a directory holding even one file, and that `--dry-run` really removes nothing.
 """
 
 from __future__ import annotations
@@ -14,24 +14,24 @@ import sweep_junk
 
 
 def make_root(tmp_path: Path) -> Path:
-    """Слепок корня: свои каталоги, посторонний пустой и посторонний с файлом."""
+    """A snapshot of the root: our own directories, a foreign empty one and a foreign one with a file."""
     (tmp_path / "facet").mkdir()
     (tmp_path / "tools").mkdir()
     (tmp_path / "probe-runs" / "attn").mkdir(parents=True)
-    (tmp_path / "probe-runs" / "attn" / "article.md").write_text("текст", encoding="utf-8")
+    (tmp_path / "probe-runs" / "attn" / "article.md").write_text("text", encoding="utf-8")
     (tmp_path / "OF_PROCESSORS=16").mkdir()
     (tmp_path / "ৠ翹").mkdir()
     (tmp_path / "Shell" / "v1.0").mkdir(parents=True)
-    (tmp_path / "важное").mkdir()
-    (tmp_path / "важное" / "файл.txt").write_text("не удалять", encoding="utf-8")
-    (tmp_path / "README.md").write_text("файл в корне", encoding="utf-8")
+    (tmp_path / "important").mkdir()
+    (tmp_path / "important" / "file.txt").write_text("do not delete", encoding="utf-8")
+    (tmp_path / "README.md").write_text("a file in the root", encoding="utf-8")
     return tmp_path
 
 
 def test_splits_empty_from_occupied(tmp_path: Path) -> None:
     empty, occupied = sweep_junk.strays(make_root(tmp_path))
     assert {p.name for p in empty} == {"OF_PROCESSORS=16", "ৠ翹", "Shell"}
-    assert {p.name for p in occupied} == {"важное"}
+    assert {p.name for p in occupied} == {"important"}
 
 
 def test_keeps_the_repository_own_directories(tmp_path: Path) -> None:
@@ -43,7 +43,7 @@ def test_keeps_the_repository_own_directories(tmp_path: Path) -> None:
 
 
 def test_nested_empty_directory_counts_as_empty(tmp_path: Path) -> None:
-    """`Shell/v1.0` — каталог в каталоге без единого файла; это тоже мусор."""
+    """`Shell/v1.0` is a directory inside a directory without a single file; that is junk too."""
     empty, _ = sweep_junk.strays(make_root(tmp_path))
     assert "Shell" in {p.name for p in empty}
 
@@ -75,14 +75,14 @@ def test_sweep_removes_only_the_empty_strays(
     assert not (root / "OF_PROCESSORS=16").exists()
     assert not (root / "ৠ翹").exists()
     assert not (root / "Shell").exists()
-    # Всё остальное на месте, включая посторонний каталог с файлом.
-    assert (root / "важное" / "файл.txt").is_file()
+    # Everything else is in place, including the foreign directory with a file.
+    assert (root / "important" / "file.txt").is_file()
     assert (root / "probe-runs" / "attn" / "article.md").is_file()
     assert (root / "facet").is_dir()
 
     out = capsys.readouterr()
     assert "strays: 3 empty, 1 kept" in out.out
-    assert "важное" in out.err
+    assert "important" in out.err
 
 
 def test_clean_root_is_a_no_op(
@@ -95,12 +95,12 @@ def test_clean_root_is_a_no_op(
     assert "strays: 0 empty, 0 kept" in capsys.readouterr().out
 
 
-# --- мусорные файлы в корне -----------------------------------------------------------
+# --- junk files in the root -----------------------------------------------------------
 #
-# Вторая половина той же беды, и она была невидима: инструмент смотрел только каталоги.
-# За один рабочий день в корне нашлись temp_data.py, rounds_output.json,
-# final_structured_output.json и rounds_structured.json, и `git add -A` внёс три из них
-# в коммит.
+# The second half of the same trouble, and it was invisible: the tool looked only at
+# directories. In one working day the root collected temp_data.py, rounds_output.json,
+# final_structured_output.json and rounds_structured.json, and `git add -A` put three of them
+# into a commit.
 
 
 def test_known_root_files_are_not_strays(tmp_path: Path) -> None:
@@ -116,7 +116,7 @@ def test_unknown_root_file_is_a_stray(tmp_path: Path) -> None:
 
 
 def test_directories_are_not_counted_as_stray_files(tmp_path: Path) -> None:
-    (tmp_path / "какой-то-каталог").mkdir()
+    (tmp_path / "some-directory").mkdir()
     assert sweep_junk.stray_files(tmp_path) == []
 
 
@@ -127,17 +127,17 @@ def test_stray_files_are_sorted(tmp_path: Path) -> None:
 
 
 def test_without_git_a_file_counts_as_tracked(tmp_path: Path) -> None:
-    """Нет ответа — значит не удаляем. Стереть исходник ради порядка хуже любого мусора."""
-    target = tmp_path / "неизвестно.json"
+    """No answer means no deletion. Erasing a source file for the sake of tidiness is worse than any junk."""
+    target = tmp_path / "unknown.json"
     target.write_text("{}", encoding="utf-8")
     assert sweep_junk.tracked_by_git(tmp_path, target) is True
 
 
 def test_untracked_file_in_a_repo_is_removable(tmp_path: Path) -> None:
-    """Чистая единица от git — единственный ответ, по которому можно удалять."""
+    """A clean exit code 1 from git is the only answer that allows deletion."""
     import subprocess
 
     subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True, capture_output=True)
-    target = tmp_path / "черновик.json"
+    target = tmp_path / "draft.json"
     target.write_text("{}", encoding="utf-8")
     assert sweep_junk.tracked_by_git(tmp_path, target) is False

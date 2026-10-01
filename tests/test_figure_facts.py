@@ -1,8 +1,8 @@
-"""Бриф точного рисунка проверяется по документу до рендера.
+"""The brief of an exact figure is checked against the document before rendering.
 
-На одном живом прогоне ошибка была в самом брифе: пять столбов на заборе 36 футов под баннером
-6'-0" и 2'-0" от концов, а нужно семь. Тридцать рендеров чинили картинку, которую с первой строки
-просили нарисовать неверно.
+On one live run the error was in the brief itself: five posts on a 36-foot fence under a banner,
+at 6'-0" spacing and 2'-0" from the ends, where seven are needed. Thirty renders tried to fix a
+picture that the first line of the brief had asked to be drawn wrong.
 """
 
 from __future__ import annotations
@@ -30,7 +30,7 @@ def test_texts_and_true_checks_pass() -> None:
 
 
 def test_a_wrong_count_in_the_brief_is_caught() -> None:
-    """Пять столбов на 36 футах при шаге 6 и отступе 2 — ложь, которую считает питон."""
+    """Five posts on 36 feet at spacing 6 and end offset 2 is a falsehood Python can count."""
     brief = "Facts:\n- check: ceil((36 - 2 * 2) / 6) + 1 == 5\n"
     problems, _ = figure_facts.check(brief, DOC)
     assert problems == ["check is false: ceil((36 - 2 * 2) / 6) + 1 == 5"]

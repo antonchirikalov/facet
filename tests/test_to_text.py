@@ -1,6 +1,7 @@
-"""Тесты перевода офисных документов во входной папке в markdown.
+"""Tests for converting office documents in the input folder to markdown.
 
-Read не читает .docx; без этого шага документ клиента в Word пропадал бы из разбора молча.
+Read cannot read .docx; without this step a client document in Word would silently drop out
+of the analysis.
 """
 
 from __future__ import annotations
@@ -31,14 +32,15 @@ def test_already_converted_is_kept(tmp_path: Path) -> None:
 
 
 def test_missing_directory(tmp_path: Path) -> None:
-    assert to_text.convert(tmp_path / "нет")[2]
+    assert to_text.convert(tmp_path / "missing")[2]
 
 
-@pytest.mark.skipif(shutil.which("pandoc") is None, reason="pandoc не установлен")
+@pytest.mark.skipif(shutil.which("pandoc") is None, reason="pandoc is not installed")
 def test_real_docx_becomes_markdown(tmp_path: Path) -> None:
     import subprocess
 
     src = tmp_path / "src.md"
+    # A Cyrillic file name and Russian text on purpose: client inputs arrive like this.
     src.write_text("# Объём работ\n\nКлиент хочет «быстро».\n", encoding="utf-8")
     subprocess.run(["pandoc", str(src), "-o", str(tmp_path / "Скоуп.docx")], check=True)
     src.unlink()

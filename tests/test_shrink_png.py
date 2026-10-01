@@ -1,8 +1,8 @@
-"""Тесты веб-копии рисунка.
+"""Tests for the web copy of a figure.
 
-figgybanana рисует 16:9 в 4K — 5632 × 3072 и по 10–13 МБ. Пять таких на странице это
-шестьдесят мегабайт, и часть просмотрщиков их просто не показывает. Рендер остаётся в каталоге
-прогона инструмента, в статью уходит уменьшенная копия.
+figgybanana draws 16:9 in 4K: 5632 x 3072 at 10-13 MB each. Five of them on a page are sixty
+megabytes, and some viewers simply do not show them. The render stays in the tool's run
+directory; the article gets a reduced copy.
 """
 
 from __future__ import annotations
@@ -53,7 +53,7 @@ def test_narrow_render_is_copied_not_upscaled(tmp_path: Path) -> None:
 
 
 def test_redraw_replaces_the_previous_copy(tmp_path: Path) -> None:
-    """Каталог выдачи держит текущую версию рисунка; перерисовка обязана её заменить."""
+    """The output directory holds the current version of a figure; a redraw must replace it."""
     dst = tmp_path / "fig.png"
     shrink_png.shrink(png(tmp_path / "a.png", 3000, 1000), dst, 2000)
     shrink_png.shrink(png(tmp_path / "b.png", 3000, 3000), dst, 2000)
@@ -62,7 +62,7 @@ def test_redraw_replaces_the_previous_copy(tmp_path: Path) -> None:
 
 
 def test_missing_source_is_named(tmp_path: Path) -> None:
-    measures, problems = shrink_png.shrink(tmp_path / "нет.png", tmp_path / "out.png", 2000)
+    measures, problems = shrink_png.shrink(tmp_path / "missing.png", tmp_path / "out.png", 2000)
     assert measures == {}
     assert "source missing" in problems[0]
 

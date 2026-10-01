@@ -115,6 +115,7 @@ def _cell_to_xhtml(cell: str) -> str:
     stripped = cell.strip()
     if stripped in ("[ ]", "[]"):
         return _task_checkbox(False)
+    # The second spelling uses Cyrillic kha (U+0445), which a Russian keyboard layout types for [x].
     if stripped.lower() in ("[x]", "[х]"):
         return _task_checkbox(True)
     if "<br>" not in cell and "•" not in cell:

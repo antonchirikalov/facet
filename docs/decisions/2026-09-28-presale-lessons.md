@@ -1,44 +1,46 @@
-# Уроки одного пресейла: почему документы переделывались и что теперь делает конвейер
+# Lessons of one presale: why the documents were redone and what the pipeline does now
 
-Разбор двух прогонов на настоящем пресейле, 27–29 сентября 2026: требования, дизайн, пропозал
-со схемами. Документы пришлось переделывать руками много раз. Подробный разбор с материалами
-проекта хранится в папке проекта, а не здесь: в репозитории конструктора нет имён клиентов,
-их слов и подробностей их дела.
+An analysis of two runs on a real presale, 27–29 September 2026: requirements, design, a
+proposal with diagrams. The documents had to be redone by hand many times. The detailed analysis
+with the project's materials is kept in the project folder, not here: the builder's repository
+holds no client names, no client words and no details of their case.
 
-## Что ломалось
+## What broke
 
-1. **Профиль документа не знал, кому он пишется.** Внутренние версии с источниками ушли
-   клиенту как есть: метки, указатели источников, заметки о собственном процессе.
-2. **Решения архитектора пришли после дизайна.** Стек, хостинг и границы первой версии,
-   решённые до прогона, дизайнер выбирал заново и по-другому: текст заказа не доходил ни до
-   одного агента.
-3. **Требование теряло вес.** Оговорка «это бывает редко» пропала по дороге от звонка к
-   требованию, и дизайн построил тяжёлый механизм под редкий случай.
-4. **Вход собран не полностью.** Конвейер посмотрел только верхний уровень папки и пропустил
-   вложенную папку со стенограммой; наши заметки лежали рядом со словами клиента без пометки.
-5. **Схемы рисовались до готового текста и одним кандидатом.** Дорисовка «продолжением»
-   ломала то, что уже было верно. Точные экраны с числами генерировались картинкой, а ошибка
-   сидела в самом брифе.
-6. **Среда ломалась тихо.** Ключ внешнего критика устарел, квота кончилась, а рисунки
-   уходили как «принятые критиком», хотя критик их не видел.
-7. **Не было описи того, что просил клиент.** Каждая забытая просьба всплывала отдельным
-   вопросом автора после «готового» черновика.
-8. **Механические правила стиля проверял человек**, а независимая проверка шла после автора.
-9. **Внутренняя заметка ушла в Confluence** без проверки пометки «внутреннее».
+1. **The document profile did not know who it was written for.** Internal versions with sources
+   went to the client as they were: tags, source locators, notes about our own process.
+2. **The architect's decisions arrived after the design.** The stack, the hosting and the
+   boundaries of the first version, decided before the run, were chosen again by the designer,
+   and differently: the text of the order reached no agent at all.
+3. **A requirement lost its weight.** The caveat "this happens rarely" got lost on the way from
+   the call to the requirement, and the design built a heavy mechanism for a rare case.
+4. **The input was not collected in full.** The pipeline looked only at the top level of the
+   folder and missed a nested folder with the transcript; our notes lay next to the client's
+   words without a mark.
+5. **The diagrams were drawn before the text was finished, and with a single candidate.**
+   Finishing a drawing "as a continuation" broke what was already right. Exact screens with
+   numbers were generated as pictures, and the error sat in the brief itself.
+6. **The environment broke silently.** The external critic's key had expired, the quota ran out,
+   and the figures went out as "accepted by the critic", although the critic had not seen them.
+7. **There was no inventory of what the client asked for.** Every forgotten request surfaced as a
+   separate question from the author after a "finished" draft.
+8. **The mechanical style rules were checked by a human**, and the independent review came after
+   the author.
+9. **An internal note went to Confluence** without the "internal" mark being checked.
 
-## Что сделано
+## What was done
 
-| Причина | Что теперь в конвейере |
+| Cause | What the pipeline has now |
 |---|---|
-| 1 | этап `client`: версии для клиента без источников и меток, гейт на следы внутренней работы, сквозная нумерация, сверка цитат |
-| 2 | заказ (`order`) и решения (`decisions`) передаются агентам текстом в задаче |
-| 3 | сводка «Голос клиента» до требований; вес и частота в каждом требовании; критик дизайна ловит тяжёлый механизм без веса |
-| 4 | опись входной папки (`tools/intake.py`): вложенные папки, дубли, наши заметки; Word переводится в текст (`tools/to_text.py`) |
-| 5 | три кандидата на рисунок, без дорисовки; точные экраны — HTML-макетом с проверкой фактов (`figure_facts.py`, `render_html.py`); `figure-critic` |
-| 6 | `preflight.py` проверяет критика до старта; откат на Claude при отказе; кто судил рисунок — по логу (`critic_used.py`) |
-| 7 | карта покрытия (`coverage-mapper`, `tools/coverage.py`) |
-| 8 | гейт стиля пропозала, `slop-critic`, `proposal-review.js` до автора |
-| 9 | публикатор не отправляет документ с пометкой internal без `--allow-internal` |
+| 1 | the `client` stage: client versions without sources and tags, a gate on traces of internal work, continuous numbering, a check of the quotes |
+| 2 | the order (`order`) and the decisions (`decisions`) are passed to the agents as text in the task |
+| 3 | a "Client voice" sheet before the requirements; weight and frequency in every requirement; the design critic catches a heavy mechanism with no weight behind it |
+| 4 | an inventory of the input folder (`tools/intake.py`): nested folders, duplicates, our notes; Word is converted to text (`tools/to_text.py`) |
+| 5 | three candidates per figure, no finishing of drawings; exact screens as an HTML mockup with a fact check (`figure_facts.py`, `render_html.py`); `figure-critic` |
+| 6 | `preflight.py` checks the critic before the start; a fallback to Claude on refusal; who judged a figure comes from the log (`critic_used.py`) |
+| 7 | a coverage map (`coverage-mapper`, `tools/coverage.py`) |
+| 8 | a style gate for the proposal, `slop-critic`, `proposal-review.js` before the author |
+| 9 | the publisher does not send a document marked internal without `--allow-internal` |
 
-Отдельно — проверка связей (`facet/wiring.py`): каждый этап каждого скрипта на заглушках, входы
-агентов сверяются с контрактами, ни один записанный файл не теряется.
+Separately, a wiring check (`facet/wiring.py`): every stage of every script on stubs, the agents'
+inputs are checked against their contracts, no written file gets lost.

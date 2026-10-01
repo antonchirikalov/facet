@@ -65,7 +65,7 @@ def append(
         with log.open("a", encoding="utf-8") as fh:
             fh.write(json.dumps(line, ensure_ascii=False) + "\n")
     except OSError as exc:
-        print(f"toollog: не смог записать {log}: {exc}", file=sys.stderr)
+        print(f"toollog: could not write {log}: {exc}", file=sys.stderr)
 
 
 def add_argument(parser: Any) -> None:

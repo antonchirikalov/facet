@@ -1,10 +1,10 @@
-"""Тесты конвертера markdown → Confluence storage format.
+"""Tests for the markdown -> Confluence storage format converter.
 
-Проверяется именно конвертер, а не REST: сеть в тестах не трогается, а весь класс дефектов,
-из-за которого этот скрипт вообще существует, живёт в конвертере. Исходный дефект MCP-пути —
-подряд идущие буллеты без пустой строки перед ними склеивались в один <p>, и список исчезал
-(живой замер: 79 <li> превратились в 29). Поэтому первый же тест — про список сразу после
-абзаца, а остальные про то, что ломалось при переносе логики.
+The converter is tested, not REST: the tests never touch the network, and the whole class of
+defects this script exists for lives in the converter. The original defect of the MCP path:
+bullets that follow a paragraph without a blank line were glued into one <p>, and the list
+vanished (live measurement: 79 <li> became 29). So the first test is about a list right after a
+paragraph, and the rest cover what broke while the logic was being moved.
 """
 
 from __future__ import annotations
@@ -21,157 +21,158 @@ def _count(pattern: str, text: str) -> int:
     return len(re.findall(pattern, text))
 
 
-def test_список_сразу_после_абзаца_остаётся_списком() -> None:
-    """Тот самый дефект: перед буллетами нет пустой строки."""
-    md = "Текст, и сразу список:\n- один\n- два\n- три\n"
+def test_list_right_after_a_paragraph_stays_a_list() -> None:
+    """The original defect: no blank line before the bullets."""
+    md = "Text, and a list right away:\n- one\n- two\n- three\n"
     out = cp.md_to_confluence(md)
     assert _count(r"<li>", out) == 3
     assert "<ul>" in out
-    assert "<p>Текст, и сразу список:</p>" in out
+    assert "<p>Text, and a list right away:</p>" in out
 
 
-def test_вложенность_по_отступу_сохраняется() -> None:
-    md = "- один\n- два\n  - вложенный\n    - глубже\n- три\n"
+def test_nesting_by_indent_is_kept() -> None:
+    md = "- one\n- two\n  - nested\n    - deeper\n- three\n"
     out = cp.md_to_confluence(md)
-    # три уровня <ul>, пять пунктов, и вложенный список стоит ВНУТРИ <li>
+    # three levels of <ul>, five items, and the nested list sits INSIDE an <li>
     assert _count(r"<ul>", out) == 3
     assert _count(r"<li>", out) == 5
-    assert "<li>два<ul>" in out
+    assert "<li>two<ul>" in out
 
 
-def test_нумерованный_список_после_буллетов_не_прилипает() -> None:
-    """Через пустую строку список продолжается только маркером того же вида.
+def test_numbered_list_after_bullets_does_not_stick_to_them() -> None:
+    """Across a blank line a list continues only with a marker of the same kind.
 
-    Без проверки вида маркера нумерованный список поглощался предыдущим <ul> плоскими
-    пунктами — поймано тестовым документом, а не рассуждением.
+    Without the marker-kind check, a numbered list was swallowed by the preceding <ul> as flat
+    items; a test document caught it, not reasoning.
     """
-    md = "- один\n- два\n\n1. первый\n2. второй\n"
+    md = "- one\n- two\n\n1. first\n2. second\n"
     out = cp.md_to_confluence(md)
     assert out.count("<ul>") == 1
     assert out.count("<ol>") == 1
     assert _count(r"<li>", out) == 4
 
 
-def test_пустая_строка_внутри_списка_не_рвёт_его() -> None:
-    """Пункты, разделённые пустой строкой, — один список (loose list в markdown)."""
-    md = "- один\n\n- два\n\n- три\n"
+def test_blank_line_inside_a_list_does_not_break_it() -> None:
+    """Items separated by a blank line are one list (a loose list in markdown)."""
+    md = "- one\n\n- two\n\n- three\n"
     out = cp.md_to_confluence(md)
     assert out.count("<ul>") == 1
     assert _count(r"<li>", out) == 3
 
 
-def test_перенос_строки_продолжает_пункт_а_не_рождает_абзац() -> None:
-    md = "- пункт, который\n  продолжается ниже\n- второй\n"
+def test_line_break_continues_the_item_instead_of_starting_a_paragraph() -> None:
+    md = "- an item that\n  continues below\n- second\n"
     out = cp.md_to_confluence(md)
-    assert "<li>пункт, который продолжается ниже</li>" in out
+    assert "<li>an item that continues below</li>" in out
     assert "<p>" not in out
 
 
-def test_две_таблицы_подряд_не_сливаются() -> None:
-    md = "| A | B |\n|---|---|\n| 1 | 2 |\n\nМежду ними абзац.\n\n| C | D |\n|---|---|\n| 3 | 4 |\n"
+def test_two_tables_in_a_row_do_not_merge() -> None:
+    md = "| A | B |\n|---|---|\n| 1 | 2 |\n\nA paragraph between them.\n\n| C | D |\n|---|---|\n| 3 | 4 |\n"
     out = cp.md_to_confluence(md)
     assert out.count("<table") == 2
     assert out.count("<th>") == 4
 
 
-def test_код_не_интерпретируется_как_markdown() -> None:
-    md = "```python\nx = 1 if a < b else 2\n# - не список\n```\n"
+def test_code_is_not_read_as_markdown() -> None:
+    md = "```python\nx = 1 if a < b else 2\n# - not a list\n```\n"
     out = cp.md_to_confluence(md)
     assert 'ac:name="code"' in out
     assert 'ac:language="python"' in out
     assert "<li>" not in out
-    assert "a < b" in out  # внутри CDATA экранирование не нужно и не делается
+    assert "a < b" in out  # inside CDATA escaping is neither needed nor done
 
 
-def test_ссылки_жирный_и_код_в_строке() -> None:
-    md = "Смотри **важное** и `код`, и [ссылку](https://example.com).\n"
+def test_links_bold_and_inline_code() -> None:
+    md = "See **important** and `code`, and [a link](https://example.com).\n"
     out = cp.md_to_confluence(md)
-    assert "<strong>важное</strong>" in out
-    assert "<code>код</code>" in out
-    assert '<a href="https://example.com">ссылку</a>' in out
+    assert "<strong>important</strong>" in out
+    assert "<code>code</code>" in out
+    assert '<a href="https://example.com">a link</a>' in out
 
 
-def test_подчёркивание_в_идентификаторе_не_становится_курсивом() -> None:
-    md = "Поле *важное* — курсив, а `snake_case_name` и 2*3*4 — нет.\n"
+def test_underscore_in_an_identifier_does_not_become_italic() -> None:
+    md = "The field *important* is italic, but `snake_case_name` and 2*3*4 are not.\n"
     out = cp.md_to_confluence(md)
-    assert "<em>важное</em>" in out
+    assert "<em>important</em>" in out
     assert "<code>snake_case_name</code>" in out
 
 
-def test_картинка_превращается_в_ссылку_на_вложение() -> None:
-    md = "![Схема потоков](figures/flow.png)\n"
+def test_image_becomes_an_attachment_reference() -> None:
+    md = "![Flow diagram](figures/flow.png)\n"
     out = cp.md_to_confluence(md)
     assert '<ri:attachment ri:filename="flow.png" />' in out
-    assert 'ac:alt="Схема потоков"' in out
+    assert 'ac:alt="Flow diagram"' in out
 
 
-def test_алерт_становится_макросом_с_вложенным_списком() -> None:
-    md = "> [!WARNING]\n> Осторожно\n> - и список внутри\n"
+def test_alert_becomes_a_macro_with_a_nested_list() -> None:
+    md = "> [!WARNING]\n> Careful\n> - and a list inside\n"
     out = cp.md_to_confluence(md)
     assert 'ac:name="warning"' in out
-    assert "<li>и список внутри</li>" in out
+    assert "<li>and a list inside</li>" in out
 
 
-def test_чекбоксы_видны_в_тексте_пункта() -> None:
-    md = "- [ ] не сделано\n- [x] сделано\n"
+def test_checkboxes_show_in_the_item_text() -> None:
+    md = "- [ ] not done\n- [x] done\n"
     out = cp.md_to_confluence(md)
-    assert "☐ не сделано" in out
-    assert "☑ сделано" in out
+    assert "☐ not done" in out
+    assert "☑ done" in out
 
 
-def test_html_экранируется_а_не_протекает_в_разметку() -> None:
-    md = "Сравнение a < b и тег <script> в тексте.\n"
+def test_html_is_escaped_not_leaked_into_markup() -> None:
+    md = "Comparing a < b and a <script> tag in the text.\n"
     out = cp.md_to_confluence(md)
     assert "&lt;script&gt;" in out
     assert "<script>" not in out
 
 
 # ---------------------------------------------------------------------------
-# Вложения: агент публикует документ, а не содержимое папки
+# Attachments: the agent publishes the document, not the contents of the folder
 # ---------------------------------------------------------------------------
 
 
-def test_прикрепляются_только_упомянутые_картинки(tmp_path: Path) -> None:
-    """Папка сгенерированных фигур несёт и резервные копии; их на странице быть не должно."""
+def test_only_referenced_images_are_attached(tmp_path: Path) -> None:
+    """The generated figures folder also holds backup copies; they must not reach the page."""
     figures = tmp_path / "figures"
     figures.mkdir()
     for name in ("flow.png", "flow_v1_orig.png", "unused.png"):
         (figures / name).write_bytes(b"\x89PNG")
 
-    md = "![Схема](figures/flow.png)\n"
+    md = "![Diagram](figures/flow.png)\n"
     files, skipped = cp.resolve_attachments(md, figures, [])
 
     assert [p.name for p in files] == ["flow.png"]
     assert set(skipped) == {"flow_v1_orig.png", "unused.png"}
 
 
-def test_без_упоминаний_берутся_все_png(tmp_path: Path) -> None:
+def test_without_references_every_png_is_taken(tmp_path: Path) -> None:
     figures = tmp_path / "figures"
     figures.mkdir()
     (figures / "a.png").write_bytes(b"\x89PNG")
     (figures / "notes.txt").write_text("x", encoding="utf-8")
 
-    files, skipped = cp.resolve_attachments("Без картинок.\n", figures, [])
+    files, skipped = cp.resolve_attachments("No images.\n", figures, [])
 
     assert [p.name for p in files] == ["a.png"]
     assert skipped == []
 
 
-def test_отсутствующее_вложение_падает_с_именем_стадии(tmp_path: Path) -> None:
+def test_missing_attachment_fails_with_the_stage_name(tmp_path: Path) -> None:
     with pytest.raises(cp.Failure) as exc:
-        cp.resolve_attachments("", None, [str(tmp_path / "нет.pdf")])
+        cp.resolve_attachments("", None, [str(tmp_path / "missing.pdf")])
     assert exc.value.stage == "config"
 
 
-def test_заголовок_берётся_из_первого_h1() -> None:
-    assert cp.first_h1("# Название\n\nтекст\n", "запас") == "Название"
-    assert cp.first_h1("текст без заголовка\n", "запас") == "запас"
+def test_title_comes_from_the_first_h1() -> None:
+    assert cp.first_h1("# Title\n\ntext\n", "fallback") == "Title"
+    assert cp.first_h1("text without a heading\n", "fallback") == "fallback"
 
 
-# --- внутренние документы не уходят дословно ------------------------------------------------
+# --- internal documents do not leave verbatim ------------------------------------------------
 
 
-def test_метка_внутреннего_документа_находится_в_шапке() -> None:
+def test_internal_document_marker_is_found_in_the_header() -> None:
+    # The Russian marker is data: drafts are Russian, and the tool must recognise their wording.
     assert cp.internal_marker(
         "# Бриф\n\nВнутренний документ для команды продажи, клиенту не показывать."
     )
@@ -179,9 +180,7 @@ def test_метка_внутреннего_документа_находится
     assert cp.internal_marker("# Design\n\nThe PDF service is an internal tool.") is None
 
 
-def test_внутренний_черновик_не_публикуется(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_internal_draft_is_not_published(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     draft = tmp_path / "brief.md"
     draft.write_text("# Бриф\n\nВнутренний документ, клиенту не показывать.\n", encoding="utf-8")
     monkeypatch.setenv("CONFLUENCE_URL", "https://example.invalid")

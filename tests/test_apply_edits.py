@@ -1,10 +1,10 @@
-"""Тесты линейки правок.
+"""Tests for the edit ruler.
 
-Круг правки — это два-семь десятков мелких изменений в документе на 90 КБ. По одному вызову
-Edit за ход каждый вызов перечитывает весь контекст: живой круг сделал 72 правки и прочитал
-10 миллионов кэшированных токенов — дороже, чем переписать документ. Одним Write модель
-перепечатывает 90 КБ ради трёх, и никто не проверяет, что ещё поехало. Поэтому писатель
-пишет правки один раз, списком, а применяет их питон.
+An edit round is two to seven dozen small changes in a 90 KB document. With one Edit call per
+turn, every call rereads the whole context: a live round made 72 edits and read 10 million
+cached tokens, more than rewriting the document would cost. With a single Write the model
+retypes 90 KB for the sake of three changes, and nobody checks what else drifted. So the writer
+writes its edits once, as a list, and Python applies them.
 """
 
 from __future__ import annotations
@@ -17,6 +17,7 @@ from typing import Any
 import apply_edits
 import pytest
 
+# The document is Russian on purpose: real drafts are, and the edits file must carry Cyrillic intact.
 DOC = "| FR-001 | одно | MUST |\n| FR-002 | два | MUST |\n| FR-003 | три | SHOULD |\nконец\n"
 
 
@@ -86,7 +87,8 @@ def test_cli_applies_and_reports_measures(
     assert report["measures"] == {
         "edits": 2,
         "chars_before": len(DOC),
-        "chars": len(DOC) - 1,  # «одно» → «раз» короче на один знак, «конец» → «финал» той же длины
+        "chars": len(DOC)
+        - 1,  # the first replacement is one character shorter, the second keeps the length
         "applied": 2,
         "unmatched": 0,
     }
@@ -101,7 +103,7 @@ def test_malformed_edits_file_is_a_problem(tmp_path: Path) -> None:
     bad.write_text("{not json", encoding="utf-8")
     edits, problems = apply_edits.load_edits(bad)
     assert edits == [] and "not JSON" in problems[0]
-    missing, problems = apply_edits.load_edits(tmp_path / "нет.json")
+    missing, problems = apply_edits.load_edits(tmp_path / "missing.json")
     assert missing == [] and "missing" in problems[0]
 
 

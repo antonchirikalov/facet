@@ -1,9 +1,9 @@
-"""Связи между агентами: скрипт передаёт то, что агент объявил, и ни один выход не теряется.
+"""Wiring between agents: the script hands over what the agent declared, and no output is lost.
 
-Проверка прогоняет каждый этап каждого скрипта на заглушках. Первый прогон нашёл четыре
-настоящие поломки: `fresh` рецензировал старые требования вместо новых, ответы редактора
-пропозала никто не читал, проверка рисунков шла агентом общего назначения, контракты статейных
-агентов отстали от скрипта на два переименования.
+The check runs every stage of every script on stubs. Its first run found four real breakages:
+`fresh` reviewed the old requirements instead of the new ones, nobody read the proposal editor's
+answers, the figure check ran on a general-purpose agent, and the contracts of the article agents
+were two renames behind the script.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from facet.models.agent import AgentSpec, Port
 
 ROOT = Path(__file__).resolve().parent.parent
 
-needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="node не установлен")
+needs_node = pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
 
 
 @pytest.fixture(scope="module")
@@ -33,7 +33,7 @@ def test_every_stage_of_every_script_is_wired_to_its_agents(runs: list[wiring.Ru
 
 @needs_node
 def test_every_scenario_ran(runs: list[wiring.Run]) -> None:
-    """Сценарий, в котором скрипт упал до первого агента, ничего не проверяет."""
+    """A scenario in which the script fell over before the first agent checks nothing."""
     assert all(r.calls for r in runs if r.mode == "ok")
     assert all(r.code == 0 for r in runs if r.mode == "ok")
 
@@ -78,7 +78,7 @@ def test_undeclared_and_missing_ports_are_named() -> None:
 
 
 def test_exact_collection_name_wins_over_singular() -> None:
-    """`sources:x` — сводка, `source:x/y` — сам источник: два разных порта."""
+    """`sources:x` is a summary, `source:x/y` is the source itself: two different ports."""
     s = spec(
         Port(port="sources", type="collection<source_summary@v1>"),
         Port(port="source", type="collection<source@v1>", optional=True),

@@ -1,45 +1,46 @@
-# Почему этот эталон
+# Why this exemplar
 
-Тип: `requirements`. Скелет: `skeleton.md` рядом. Полный документ — на странице Confluence,
-путь в `exemplars.local.yaml` (в репозиторий не попадает: клиентские данные).
+Type: `requirements`. Skeleton: `skeleton.md` next to this file. The full document is a
+Confluence page, its path is in `exemplars.local.yaml` (kept out of the repository: client data).
 
-## Что это за документ
+## What the document is
 
-Требования второй версии к корпоративной ИИ-платформе для финансовой компании, собранные на
-стадии RFP: десять входных документов (сводка чата, четыре брифа по сценариям, RFP, расшифровка
-установочной встречи, разбор авторства) и файл из четырёх с половиной сотен письменных ответов
-клиента на вопросы вендора. Вторая версия сверена с ответами: каждая строка ссылается на номер
-ответа и короткую цитату, изменённые строки помечены `[CHANGED]`, незафиксированные клиентом
-цифры — `[PROVISIONAL]`.
+Version-two requirements for an enterprise AI platform for a financial company, gathered at the
+RFP stage: ten input documents (a chat summary, four briefs on scenarios, the RFP, a transcript
+of the kick-off meeting, an authorship review) and a file of some four hundred and fifty written
+client answers to the vendor's questions. Version two is reconciled with the answers: every row
+references an answer number and a short quote, changed rows are tagged `[CHANGED]`, figures the
+client has not committed to are tagged `[PROVISIONAL]`.
 
-## Почему выбран он, а не другой
+## Why it was chosen over another
 
-- **Трассировка проверяется, а не декларируется.** У каждой строки каждой таблицы есть ячейка
-  Source с указателем и цитатой. Где подтверждения нет, написано `brief (no Q&A delta)`, а не
-  придумана ссылка. Это ровно правило facet «нет источника — нет требования», доведённое до формы
-  таблицы.
-- **Девять разделов покрывают всё, что нужно дизайну.** Не только FR/NFR: роли, бизнес-контекст,
-  граница объёма (out of scope), бизнес-правила, производная модель данных, точки интеграции,
-  конфликты со статусом, пробелы, предположения со статусом, подтверждённые факты о среде.
-  Наш документ по демо-ветклиникам от 18 сентября 2026 имел из этого FR/NFR/CON/ASM/OQ прозой
-  и ни одной таблицы.
-- **Конфликты, пробелы и предположения разведены и имеют статус.** Разрешённый конфликт остаётся
-  в таблице с пометкой RESOLVED и правилом, по которому разрешён; предположение может быть
-  WITHDRAWN. История решений видна из документа, а не из переписки.
-- **Приоритеты трассируются.** MUST и SHOULD стоят не по вкусу писателя, а по словам клиента в
-  ячейке Source.
-- **Он сделан нашим же конвейером** предыдущего поколения (spectra) по шаблону
-  `requirements-template`, то есть форма достижима моделью, а не только человеком. Профиль
-  facet — этот шаблон плюс строгости refract: без YAML-метаблока с выдуманными счётчиками,
-  с корректором между писателем и критиком, с указателем и цитатой в каждой ссылке вместо
-  одного имени файла.
+- **Traceability is checked, not declared.** Every row of every table has a Source cell with a
+  locator and a quote. Where there is no confirmation, it says `brief (no Q&A delta)` rather than
+  inventing a reference. This is exactly facet's rule "no source, no requirement", carried all
+  the way into table form.
+- **Nine sections cover everything a design needs.** Not only FR/NFR: roles, business context,
+  the scope boundary (out of scope), business rules, a derived data model, integration points,
+  conflicts with a status, gaps, assumptions with a status, confirmed facts about the
+  environment. Our document for the vet-clinic demo of 18 September 2026 had, of all this, only
+  FR/NFR/CON/ASM/OQ as prose and not a single table.
+- **Conflicts, gaps and assumptions are kept apart and carry a status.** A resolved conflict
+  stays in the table, marked RESOLVED, with the rule that resolved it; an assumption can be
+  WITHDRAWN. The history of decisions is visible from the document, not from correspondence.
+- **Priorities are traced.** MUST and SHOULD are set not by the writer's taste but by the
+  client's words in the Source cell.
+- **It was made by our own previous-generation pipeline** (spectra) from the
+  `requirements-template` template, so the form is reachable by a model, not only by a person.
+  The facet profile is that template plus refract's strictness: no YAML meta block with invented
+  counters, a corrector between the writer and the critic, a locator and a quote in every
+  reference instead of a bare file name.
 
-## Чего в эталоне нет и что профиль добавляет
+## What the exemplar lacks and the profile adds
 
-- В эталоне ссылка — номер ответа клиента. Для входов без нумерованных ответов (чаты, встречи)
-  профиль требует дату, время и говорящего — иначе указатель не находит фразу.
-- В эталоне нет проверки кванторов. Демо-прогон потерял «один врач в каждой клинике» →
-  «каждый врач» при верной ссылке; профиль называет это критическим дефектом и даёт корректору
-  явную проверку.
-- В эталоне замечания критика не видны. В facet они пишутся в `UNRESOLVED.md` на языке
-  документа.
+- In the exemplar a reference is the number of a client answer. For inputs without numbered
+  answers (chats, meetings) the profile requires the date, the time and the speaker; otherwise
+  the locator cannot find the phrase.
+- The exemplar has no check of quantifiers. A demo run turned "one doctor in every clinic" into
+  "every doctor" while keeping a correct reference; the profile calls this a critical defect and
+  gives the corrector an explicit check.
+- In the exemplar the critic's remarks are not visible. In facet they are written to
+  `UNRESOLVED.md` in the language of the document.

@@ -52,7 +52,7 @@ if (!run) {
 // A missing path is a question, and the script asks it instead of guessing.
 const source = args && args.articlePath
 if (!source) {
-  throw new Error('нужен путь к статье: args.articlePath — тот файл, к которому рисуем')
+  throw new Error('the article path is required: args.articlePath — the file the figures are drawn for')
 }
 // A count, not a path: this one is a policy default and belongs here.
 const wanted = (args && args.figures) || 3

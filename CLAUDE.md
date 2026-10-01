@@ -41,11 +41,17 @@ that agent's `agent.yaml`; a new collection is handed as `<singular>:<stem>` or 
 
 ## Rules that break a run when broken
 
-- **Everything an agent reads is English**: the whole prompt, task texts in scripts, schema
-  `description`s, command arguments, the profiles in `.claude/skills/`, this file. Russian
-  only where a person reads it: `log()`, error messages, `handoff.md`, round records. Language
-  material an agent must match (a dictionary of Russian clichés) lives in data files under
-  `library/style/`, not in prompts. Held by `test_generated_agent_prompts_are_english`.
+- **Everything is English except README.md**: prompts, task texts in scripts, schema
+  `description`s, command arguments, profiles in `.claude/skills/`, this file, and also
+  `log()` and error messages, `handoff.md` and round records, code comments, docstrings, tests,
+  SPEC and `docs/`. README.md is the one Russian document, together with the `summary` field of
+  each `agent.yaml` that feeds its agent table. Language material an agent must match in Russian
+  text (a dictionary of Russian clichés, Russian examples of a tell) lives in data files under
+  `library/style/`, and Russian test fixtures stay where a test is about Russian text. Held by
+  `test_generated_agent_prompts_are_english` and `test_only_readme_is_russian`.
+- **No client data in the repository**: no client or client staff names, no verbatim client
+  words, no details of a client's business. Lessons from a live run are written as "on one live
+  run"; examples use the invented Acme Clinics. The repository is public.
 - **The output language comes from the material**, never from the prompt: a document is in
   the language of its sources.
 - **`meta` in a script is a pure literal**; `import()`, `Date.now()`, `new Date()` and

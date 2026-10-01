@@ -1,623 +1,641 @@
-# Что оказалось трудным: разбор конвейера документов на Dynamic Workflows
+# What turned out to be hard: a document pipeline on Dynamic Workflows, taken apart
 
-Материал под статью. Здесь собрано то, что выяснилось за постройку коллиматора — генератора
-конвейеров документов под Claude Code, — и главное: почему это шло тяжело, что именно падало и
-почему написанные файлы никто не читал.
+Material for an article. Collected here is what came to light while building collimator — a
+generator of document pipelines for Claude Code — and above all: why it went hard, what exactly
+failed, and why nobody read the files that were written.
 
-Каждая цифра ниже взята из живого прогона или из журнала. Там, где утверждение о поведении
-платформы, оно проверено экспериментом, и эксперимент назван.
+Every number below is taken from a live run or from a log. Where a claim is about the behaviour
+of the platform, it has been checked by an experiment, and the experiment is named.
 
-Если дальше читать не хочется, вот одна мысль. Тяжело было не из-за платформы. Из двадцати с
-чем-то дефектов, которые реально стоили денег и времени, на счёт платформы можно отнести четыре.
-Остальное — ошибки конструкции самого конвейера, и они случились бы точно так же на любом другом
-движке.
+If you do not want to read further, here is the one idea. It was hard not because of the
+platform. Of the twenty-odd defects that actually cost money and time, four can be put down to
+the platform. The rest are errors in the design of the pipeline itself, and they would have
+happened in exactly the same way on any other engine.
 
-## Как читать этот документ
+## How to read this document
 
-Проблемы разложены не по времени, а по природе, потому что у каждой природы своя цена и свой
-способ обнаружения:
+The problems are arranged not by time but by nature, because each nature has its own cost and
+its own way of being detected:
 
-1. Чего нет у платформы. Обнаруживается сразу, лечится обходом, после первого раза стоит дёшево.
-2. Почему прогоны падали. Обнаруживается громко, но лечится не там, где ищешь.
-3. Почему написанные файлы никто не читал. Не обнаруживается вообще, пока не начнёшь искать
-   специально. Самый дорогой класс.
-4. Как врёт посредник — агент, через которого скрипт узнаёт всё о внешнем мире.
-   Обнаруживается по странным числам в отчёте.
-5. Почему петля правок не сходится. Обнаруживается только по счёту токенов.
+1. What the platform lacks. Detected at once, cured by a workaround, cheap after the first time.
+2. Why runs failed. Detected loudly, but cured somewhere other than where you look.
+3. Why nobody read the files that were written. Not detected at all until you start looking for
+   it on purpose. The most expensive class.
+4. How the intermediary lies — the agent through which the script learns everything about the
+   outside world. Detected by odd numbers in a report.
+5. Why the revision loop does not converge. Detected only by the token count.
 
-Дальше — хуки (единственная проверка, которую агент не может обойти), четыре независимые записи о
-прогоне, честный список проблем самого подхода, и выводы.
+After that — hooks (the only check an agent cannot get around), four independent records of a
+run, an honest list of the problems of the approach itself, and conclusions.
 
-## Словарь: шесть слов, которые дальше нужны
+## Glossary: six words needed below
 
-Dynamic Workflow — это JavaScript-скрипт, который Claude Code исполняет сам, и внутри которого
-есть функция `agent(промпт, опции)`. Каждый её вызов запускает подагента: отдельный экземпляр
-модели со своим контекстом, своим набором инструментов и своей системной инструкцией. Скрипт —
-дирижёр: он решает, кого позвать, в каком порядке, что кому передать и что делать с ответом. Сам
-он не думает и не пишет текстов.
+A Dynamic Workflow is a JavaScript script that Claude Code executes itself, and inside which
+there is a function `agent(prompt, options)`. Each call to it launches a subagent: a separate instance
+of the model with its own context, its own set of tools and its own system instruction. The
+script is the conductor: it decides whom to call, in what order, what to hand to whom and what to
+do with the answer. It does not think or write texts itself.
 
-Подагент — исполнитель одной узкой работы. Определяется файлом в `.claude/agents/`: там его
-системная инструкция и список разрешённых инструментов. У нас их двенадцать: искатель источников,
-аналитик, писатель, два корректора, два критика, посредник для проверок, копировальщик, писец записей
-и составитель брифа.
+A subagent is the performer of one narrow job. It is defined by a file in `.claude/agents/`: its
+system instruction and the list of tools it is allowed. We have twelve: a source finder, an
+analyst, a writer, two correctors, two critics, an intermediary for checks, a copier, a record
+scribe and a brief writer.
 
-Хук — команда, которую Claude Code выполняет сам в ответ на событие: перед вызовом инструмента,
-после остановки подагента и так далее. Не агент, не часть скрипта: обычный процесс операционной
-системы, который получает на вход JSON о событии. Про хуки будет отдельный раздел, потому что они
-оказались самым надёжным источником правды в этой конструкции.
+A hook is a command that Claude Code runs by itself in response to an event: before a tool call,
+after a subagent stops, and so on. Not an agent, not part of the script: an ordinary operating
+system process that receives JSON about the event as input. Hooks get a section of their own,
+because they turned out to be the most reliable source of truth in this design.
 
-Ещё три слова, которые дальше встречаются часто.
+Three more words that come up often below.
 
-Гейт — детерминированная проверка содержимого, скрипт на питоне. Меряет длину текста, ищет
-запрещённые обороты, считает арифметику примера. Ничего не судит на вкус: возвращает числа и
-список нарушений. Название прижилось потому, что по его ответу конвейер решает, идти дальше или
-переделывать.
+A gate is a deterministic content check, a Python script. It measures the length of a text,
+looks for forbidden phrases, checks the arithmetic of an example. It judges nothing by taste: it
+returns numbers and a list of violations. The name stuck because the pipeline decides by its
+answer whether to go on or redo.
 
-Посредник — подагент, у которого одна работа: выполнить команду, которую составил скрипт, и
-вернуть её вывод. Скрипт не может запускать команды сам, поэтому между ним и любым измерением
-всегда стоит такой агент. В нашем конвейере он называется gate-runner и вызывается чаще всех
-остальных.
+An intermediary is a subagent with one job: run the command the script composed and return its
+output. The script cannot run commands itself, so such an agent always stands between it and any
+measurement. In our pipeline it is called gate-runner and is called more often than all the others.
 
-Веер — место в скрипте, где вместо одного агента запускается несколько параллельно: по одному на
-аспект темы, по одному на файл. Слово важно потому, что ширина веера должна быть известна заранее,
-и это ограничение аукается в третьем разделе.
+A fan is the place in the script where, instead of one agent, several are launched in parallel:
+one per aspect of the topic, one per file. The word matters because the width of the fan must be
+known in advance, and this restriction comes back to bite in the third section.
 
-## Что стояло на входе и что вышло
+## What went in and what came out
 
-Задача: получать из заказа в одну фразу техническую статью или тех-дизайн — с поиском источников,
-разбором, письмом под критиками и приёмкой. Не «сгенерировать текст», а провести документ через
-конвейер, где каждый шаг делает узкую работу и оставляет следы, по которым потом можно
-восстановить, что произошло.
+The task: from a one-sentence order, get a technical article or a technical design — with a
+search for sources, analysis, writing under critics and acceptance. Not "generate a text", but
+take a document through a pipeline where each step does a narrow job and leaves traces from which
+one can later reconstruct what happened.
 
-Замысел: декларация конвейера в YAML компилируется в скрипт Dynamic Workflow и в определения
-подагентов. Главное правило — мы генерируем, мы не исполняем. Агентов запускает Claude Code своим
-рантаймом; у нас нет ни планировщика, ни леджера, ни восстановления после сбоя. Предыдущая версия
-проекта всё это имела, и всё это было убито намеренно: платформа делает исполнение лучше и меняется
-быстрее, чем мы успевали бы за ней.
+The design: a pipeline declaration in YAML is compiled into a Dynamic Workflow script and into
+subagent definitions. The main rule — we generate, we do not execute. Agents are launched by
+Claude Code with its runtime; we have no scheduler, no ledger, no recovery after a failure. The
+previous version of the project had all of that, and all of it was killed deliberately: the
+platform does execution better and changes faster than we could keep up with.
 
-Фактическое состояние, и его надо назвать сразу, потому что иначе весь дальнейший разбор читается
-неверно. Компилятор написан наполовину, и не в той половине. Генерация определений агентов
-работает — 138 строк питона. Генерации скрипта нет вообще: ни `emit_workflow.py`, ни графа, ни
-команды. Скрипты конвейеров написаны руками, и все правки этой недели вносились в них, а не в
-генератор. Отдельный раздел ниже разбирает, сколько машинерии переносится между конвейерами и что
-из этого следует для компилятора.
+The actual state, and it has to be named right away, because otherwise the whole analysis that
+follows reads wrongly. The compiler is half written, and not the right half. Generating agent
+definitions works — 138 lines of Python. Generating the script does not exist at all: no
+`emit_workflow.py`, no graph, no command. The pipeline scripts are written by hand, and all of
+this week's edits went into them, not into the generator. A separate section below examines how
+much of the machinery carries over between pipelines and what follows from that for the compiler.
 
-Сегодняшний масштаб: скрипт конвейера — 2192 строки, двенадцать собранных агентов, 28 в
-библиотеке, 1241 строка детерминированных инструментов на питоне, 222 теста без сети и без
-обращений к модели, 61 коммит.
+Today's scale: the pipeline script is 2192 lines, twelve built agents, 28 in the library, 1241
+lines of deterministic Python tools, 222 tests with no network and no calls to the model, 61
+commits.
 
-Последний прогон статьи про механизм внимания: 37 923 знака прозы, шесть кругов правки, оба
-критика приняли, семь незакрытых замечаний — все помечены «необязательное». Предыдущая версия того
-же конвейера на той же теме: тринадцать кругов, восемь незакрытых, из них четыре по существу, и
-вердикт критика по существу — «переделать».
+The last run of the article about the attention mechanism: 37 923 characters of prose, six
+revision rounds, both critics approved, seven open remarks — all marked "optional". The previous
+version of the same pipeline on the same topic: thirteen rounds, eight open, four of them
+substantive, and the substance critic's verdict — "redo".
 
-Разница не в объёме — 37 812 знаков против 37 923. Разница в том, что цитат из источников стало 92
-против 45 при том же размере: то же место в тексте теперь опирается на заметку по конкретной
-работе, а не на память модели.
+The difference is not in size — 37 812 characters against 37 923. The difference is that there
+are now 92 quotations from sources against 45 at the same size: the same place in the text now
+rests on a note about a specific work rather than on the model's memory.
 
-Цена: три запуска на эту статью, 4.66 миллиона токенов подагентов. Это дорого, и часть этой цены —
-прямая плата за дефекты, разобранные ниже.
+The cost: three launches for this article, 4.66 million subagent tokens. This is expensive, and
+part of that cost is direct payment for the defects examined below.
 
-## 1. Чего нет у платформы
+## 1. What the platform lacks
 
-Это раздел про ограничения самого Claude Code, а не про наши ошибки. Все они честные, все
-описаны в контракте, и все задают конструкцию сильнее, чем кажется на первый взгляд.
+This section is about the limitations of Claude Code itself, not about our mistakes. All of them
+are honest, all are described in the contract, and all shape the design more strongly than it
+seems at first glance.
 
-### У скрипта нет файловой системы и нет шелла
+### The script has no filesystem and no shell
 
-Скрипт не может ни открыть файл, ни выполнить команду. Файлы читают и пишут агенты; измерения
-делает питон, запущенный агентом с доступом к Bash. Скрипт только передаёт пути и получает назад
-структурированные ответы.
+The script can neither open a file nor run a command. Agents read and write files; measurements
+are made by Python launched by an agent with access to Bash. The script only passes paths and
+gets structured answers back.
 
-Это не ограничение, с которым борются, — это ось всей дальнейшей конструкции. Почти все проблемы
-из третьего и четвёртого разделов растут отсюда: между тем, что скрипт знает, и тем, что лежит на
-диске, всегда стоит агент.
+This is not a limitation one fights against — it is the axis of the whole design that follows.
+Almost all the problems in the third and fourth sections grow from here: between what the script
+knows and what lies on disk there always stands an agent.
 
-### Часов и случайности нет, и это проверено
+### There is no clock and no randomness, and this has been checked
 
-Утверждение: скрипт не может вызвать `Date.now()`, `new Date()` или `Math.random()`.
+The claim: a script cannot call `Date.now()`, `new Date()` or `Math.random()`.
 
-Проверка. Я подал на исполнение скрипт, который вызывает эти функции внутри `try` и записывает,
-что вышло. Ответ пришёл не от скрипта, а вместо него:
+The check. I submitted for execution a script that calls these functions inside `try` and records
+what came out. The answer came not from the script but instead of it:
 
 ```
 Workflow scripts must be deterministic: Date.now()/Math.random()/new Date() are unavailable
 (breaks resume). Stamp results after the workflow returns, or pass timestamps via args.
 ```
 
-То есть отказ происходит на подаче, до запуска: скрипт не начал исполняться вовсе. Моя прежняя
-формулировка «рантайм их убирает» была неверной — их не убирают, скрипт с ними не принимают.
+That is, the refusal happens at submission, before launch: the script did not begin executing at
+all. My earlier wording "the runtime strips them out" was wrong — they are not stripped, a script
+containing them is not accepted.
 
-Второй эксперимент: тот же вызов, но только упомянутый в комментарии и внутри строковой
-константы. Такой скрипт приняли и исполнили. Значит проверка отличает вызов от упоминания, то есть
-разбирает код, а не ищет подстроку.
+The second experiment: the same call, but only mentioned in a comment and inside a string
+constant. Such a script was accepted and executed. So the check distinguishes a call from a
+mention, that is, it parses the code rather than searching for a substring.
 
-Почему так. Возобновление в Dynamic Workflows работает повтором: при перезапуске скрипта самый
-длинный неизменившийся начальный отрезок вызовов `agent()` не исполняется заново, а отдаёт
-сохранённые результаты. Совпадение определяется по вызову — по промпту и опциям. Значит скрипт
-обязан на тех же входных данных строить те же промпты в том же порядке; при одинаковом скрипте и
-одинаковых аргументах повтор попадает в кэш полностью. Часы и случайность это ломают: ветвление по
-текущему времени даёт другой порядок вызовов и другие промпты, кэш не совпадает, и повтор тихо
-разъезжается с оригиналом — часть работы переделывается заново, часть отдаётся ответами на другой
-вопрос. Дешевле запретить недетерминизм на входе, чем ловить его последствия.
+Why it is so. Resumption in Dynamic Workflows works by replay: when a script is restarted, the
+longest unchanged initial run of `agent()` calls is not executed again but returns the saved
+results. A match is determined by the call — by the prompt and the options. So the script must,
+on the same input, build the same prompts in the same order; with the same script and the same
+arguments the replay hits the cache completely. A clock and randomness break this: branching on
+the current time gives a different order of calls and different prompts, the cache does not
+match, and the replay quietly drifts apart from the original — part of the work is redone from
+scratch, part is served with answers to a different question. It is cheaper to forbid
+non-determinism at the entrance than to catch its consequences.
 
-Практическое следствие оказалось крупнее, чем звучит. Скрипт не может назвать каталог прогона по
-моменту старта, поэтому имя чеканится снаружи и приходит аргументом. Пока этого не было, семь
-запусков одной статьи ушли в один каталог, где каждый честно подхватывал материал предыдущего — и
-сравнивать эти прогоны между собой было нечего.
+The practical consequence turned out larger than it sounds. The script cannot name the run
+directory by the moment of start, so the name is minted outside and arrives as an argument. Before
+this was in place, seven launches of one article went into one directory, where each one
+dutifully picked up the material of the previous one — and there was nothing to compare these
+runs with one another.
 
-### Нет `import()`
+### No `import()`
 
-Работа с библиотеками живёт внутри задач агентов. Следствие неприятнее, чем кажется. Конвейер
-разбит на этапы, потому что процесс не переживает перезапуск, но разрезать скрипт по файлам
-нельзя: общие сто двадцать строк — конфигурация, схемы ответов, команды инструментов — превратятся
-в две копии, которые начнут расходиться после первой правки. Поэтому один файл на все этапы, и он
-большой.
+Work with libraries lives inside the agents' tasks. The consequence is more unpleasant than it
+seems. The pipeline is split into stages because the process does not survive a restart, but the
+script cannot be cut into files: the shared hundred and twenty lines — configuration, answer
+schemas, tool commands — would turn into two copies that start diverging after the first edit.
+Hence one file for all stages, and it is big.
 
-### Нет человека посреди прогона
+### No human in the middle of a run
 
-Спросить у пользователя во время исполнения нельзя. Точка решения человека — это граница этапов,
-то есть отдельная команда. Мы от диалога внутри прогона отказались совсем и не пожалели: конвейер
-стал набором коротких запусков, каждый из которых оставляет результат на диске.
+You cannot ask the user anything during execution. A human's decision point is a stage boundary,
+that is, a separate command. We gave up dialogue inside a run entirely and did not regret it: the
+pipeline became a set of short launches, each of which leaves a result on disk.
 
-### Мелочи, каждая из которых один раз стоила прогона
+### Small things, each of which cost a run once
 
-Блок `meta` в скрипте обязан быть чистым литералом: ни переменных, ни вызовов, ни шаблонных
-строк.
+The `meta` block in a script must be a pure literal: no variables, no calls, no template strings.
 
-CRLF или нулевой байт в файле скрипта — отказ запуска с сообщением про «control characters that
-would be hidden in the approval dialog». На Windows `autocrlf` возвращает CRLF при каждом
-checkout, поэтому конец строки пришлось объявить в `.gitattributes` и проверять байты перед каждым
-запуском. Сейчас это тест.
+CRLF or a null byte in the script file — a launch refusal with a message about "control characters
+that would be hidden in the approval dialog". On Windows `autocrlf` brings CRLF back on every
+checkout, so the line ending had to be declared in `.gitattributes` and the bytes checked before
+each launch. Now it is a test.
 
-Самое неочевидное: новый агент недоступен в том же ходе разговора, в котором создан. Список типов
-агентов снимается один раз и держится до следующего сообщения человека. Файл лежит, генератор
-отработал, прогон на заглушках зелёный — а живой прогон падает мгновенно: `agent type
-'brief-writer' not found`, и в списке доступных видно агента, собранного ходом раньше. Порядок
-работы: собрать агентов, дождаться следующего сообщения, запускать.
+The least obvious: a new agent is not available in the same conversation turn in which it was
+created. The list of agent types is taken once and held until the next human message. The file
+is there, the generator has run, the stubbed run is green — and the live run fails instantly:
+`agent type 'brief-writer' not found`, and the list of available ones shows the agent built a
+turn earlier. The working order: build the agents, wait for the next message, launch.
 
-## 2. Почему прогоны падали
+## 2. Why runs failed
 
-Три причины, и только одна из них — ошибка в коде.
+Three causes, and only one of them is a bug in the code.
 
-### Прогон живёт внутри процесса CLI, а процесс перезапускается сам
+### A run lives inside the CLI process, and the process restarts by itself
 
-Перезапуск процесса или переезд сессии в фоновую задачу убивает воркфлоу на полпути. За один
-рабочий день машины, на которой это строилось, — пять самообновлений и один выход по простою.
-Механизм возобновления по идентификатору прогона спасает только внутри той же сессии; в новой кэш
-пуст.
+A process restart, or the session moving into a background task, kills the workflow halfway. In
+one working day of the machine this was built on — five self-updates and one exit on idle. The
+mechanism of resumption by run id saves you only within the same session; in a new one the cache
+is empty.
 
-Один живой прогон потерял так сорок минут поиска, и дальше стало хуже: возобновление пошло с
-самого начала, составитель брифа выдумал новые слаги аспектов, и одиннадцать уже найденных файлов
-источников остались лежать под старыми именами, никому не переданные.
+One live run lost forty minutes of searching this way, and then it got worse: resumption started
+from the very beginning, the brief writer invented new aspect slugs, and eleven source files
+already found were left lying under the old names, handed to no one.
 
-Вывод отсюда не «сделать возобновление надёжнее», а сменить понятие точки сохранения. Точка
-сохранения — не кэш, а диск. Перед тратой скрипт спрашивает у диска, что уже готово, и пропускает
-такие стадии с явной записью в лог.
+The conclusion from this is not "make resumption more reliable" but change the notion of a save
+point. A save point is not the cache but the disk. Before spending, the script asks the disk what
+is already done, and skips such stages with an explicit entry in the log.
 
-У этого решения есть жёсткое условие устойчивости: бриф обязан записать слаги аспектов в файл.
-Слаг аспекта — это имя, по которому потом называются файлы источников; если он живёт только в
-памяти процесса, то после перезапуска его неоткуда взять, и всё исследование уходит заново.
-Вердикты критиков — та же история: каждый круг правки пишется отдельным файлом, и лимит кругов
-становится свойством статьи, а не свойством запуска. Без этого три падения дают шесть кругов
-правок там, где заказ разрешал два.
+This solution has a hard condition for stability: the brief must write the aspect slugs to a file.
+An aspect slug is the name by which the source files are later named; if it lives only in the
+process's memory, then after a restart there is nowhere to take it from, and the whole research
+goes again. Critics' verdicts are the same story: each revision round is written as a separate
+file, and the round limit becomes a property of the article rather than a property of the launch.
+Without this, three crashes give six revision rounds where the order allowed two.
 
-### Лимит сессии выглядит как поломка агента
+### A session limit looks like a broken agent
 
-`You've hit your session limit` приходит от трёх агентов подряд, а скрипт видит только `null`.
-Умерший на лимите писатель успел записать файл, но не успел ответить: артефакт есть, результата
-нет.
+`You've hit your session limit` comes from three agents in a row, and the script sees only
+`null`. The writer that died on the limit managed to write the file but not to answer: the
+artifact exists, the result does not.
 
-Отсюда правило приёмки: смотреть на файл, а не на то, вернулся ли агент.
+Hence the acceptance rule: look at the file, not at whether the agent came back.
 
-### Ошибки в самом скрипте
+### Bugs in the script itself
 
-Одна стоила показательно: `SOURCE_PATHS is not defined` в последней строке `return` — 468 тысяч
-токенов и двадцать минут работы, чтобы узнать про опечатку. Обычная проверка синтаксиса тут
-бесполезна: `node --check` разбирает файл с `export` как CommonJS и молчит.
+One was tellingly expensive: `SOURCE_PATHS is not defined` in the last `return` line — 468 thousand
+tokens and twenty minutes of work to learn about a typo. An ordinary syntax check is useless here:
+`node --check` parses a file with `export` as CommonJS and stays silent.
 
-Лечение — прогон на заглушках. Функция `agent()` подменяется заглушкой, которая отвечает по схеме
-вызова (то есть выдаёт правдоподобный объект нужной формы), и исполняется настоящий поток
-управления скрипта. Не в двух режимах, а во всех ветках, какие у скрипта есть; у нашего их девять:
-полный путь, продолжение с диска, только исследование, конвейер без корректоров, все ветви
-провалов, занятый каталог, несовпадение заказа с брифом, урезавший ответ посредник и петля, уже
-стоящая на месте. Это заняло вечер и с тех пор ловит всё.
+The cure is a stubbed run. The `agent()` function is replaced by a stub that answers according to
+the call's schema (that is, produces a plausible object of the required shape), and the script's
+real control flow is executed. Not in two modes, but in every branch the script has; ours has
+nine: the full path, continuation from disk, research only, the pipeline without correctors, all
+the failure branches, a busy directory, a mismatch between order and brief, an intermediary that
+truncated its answer, and a loop already standing still. This took an evening and has caught
+everything since.
 
-## 3. Почему написанные файлы никто не читал
+## 3. Why nobody read the files that were written
 
-Это главная часть. Все потери, найденные за один день, имели одну и ту же форму: файл произвели, и
-никто его не прочитал. Ни одна не выглядела сбоем в тот момент, когда происходила — прогон шёл,
-статья получалась, ошибок не было. Это самое неприятное свойство этого класса дефектов.
+This is the main part. All the losses found in one day had one and the same form: a file was
+produced, and nobody read it. Not one looked like a failure at the moment it happened — the run
+went on, the article came out, there were no errors. This is the most unpleasant property of this
+class of defects.
 
-### Что именно теряли
+### What exactly was lost
 
-Двадцать пять заметок по источникам, написанных искателями, не были переданы никому. Измеренный
-прогон: четыре файла-сводки по аспектам на 79 килобайт доезжали до аналитика, а на диске лежало 28
-файлов на 260. То есть семьдесят процентов найденного никем не открывалось; дальше я такие
-файлы называю сиротами.
+Twenty-five source notes written by the finders were handed to no one. A measured run: four
+per-aspect summary files totalling 79 kilobytes reached the analyst, while 28 files totalling 260
+lay on disk. That is, seventy percent of what was found was opened by nobody; from here on I call
+such files orphans.
 
-Это самое правдоподобное объяснение того, почему ошибки атрибуции пережили одиннадцать кругов
-правок. Писатель цитировал сводку по аспекту, пока заметка по конкретной работе лежала рядом
-закрытой, а сверяющий получал на проверку те же четыре сводки — то есть проверял текст по тому же
-источнику, из которого он и был написан.
+This is the most plausible explanation of why attribution errors survived eleven revision rounds.
+The writer quoted the per-aspect summary while the note on the specific work lay next to it
+unopened, and the verifier was given the same four summaries to check against — that is, it
+checked the text against the same source it had been written from.
 
-Каталог упавшего искателя целиком: аспект выпал из списка, и никто не заглянул, что там лежит.
+The whole directory of a failed finder: the aspect dropped out of the list, and nobody looked at
+what was lying there.
 
-Файл `_index.json` с URL и статусом каждого источника — писался с самого начала и был прочитан
-впервые через неделю. Сведения о происхождении материала лежали в одном каталоге от тех, кому они
-были нужны.
+The file `_index.json` with the URL and status of each source — written from the very beginning and
+read for the first time a week later. The information about the material's provenance lay one
+directory away from those who needed it.
 
-Черновые файлы агентов в каталоге прогона и в корне репозитория. За день в корне нашлись четыре, и
-три попали в коммит, потому что `git add -A`. Механизм у них другой: агент перенаправляет вывод
-команды в файл, чтобы прочитать обратно, вместо того чтобы вернуть его.
+Agents' scratch files in the run directory and in the repository root. In one day four turned up
+in the root, and three got into a commit, because `git add -A`. Their mechanism is different: an
+agent redirects a command's output into a file in order to read it back, instead of returning it.
 
-### Почему это происходит
+### Why this happens
 
-Скрипт не умеет читать каталог. Значит ширина веера — сколько параллельных агентов запускать и
-как назвать их файлы — обязана быть известна заранее, до того как хоть один из них начнёт
-работать. Заранее известны только аспекты
-из брифа: их слаги становятся именами файлов, и по одному искателю запускается на аспект.
+The script cannot read a directory. So the width of the fan — how many parallel agents to launch
+and what to name their files — must be known in advance, before any one of them starts working.
+Only the aspects from the brief are known in advance: their slugs become file names, and one
+finder is launched per aspect.
 
-Но искатель по своему контракту пишет ещё и по файлу на каждый оставленный источник, и этих имён
-скрипт знать не может. Спросить у агента, куда он положил файл, нельзя — и это отдельное правило проекта, не
-предосторожность. Путь придумывает скрипт. Если добавить в схему ответа поле «путь», у агента
-появляется способ отчитаться о работе, не сделав её: сказать, куда он якобы записал, дешевле, чем
-записать, и по ответу эти два случая не отличаются.
+But the finder, by its contract, also writes a file for each source it keeps, and those names the
+script cannot know. Asking the agent where it put the file is not allowed — and this is a separate
+project rule, not a precaution. The script invents the path. If a "path" field is added to the
+answer schema, the agent gains a way to report on the work without doing it: saying where it
+supposedly wrote is cheaper than writing, and from the answer the two cases cannot be told apart.
 
-Мы этот запрет подтвердили дорого. Проверка диска однажды вернула абсолютные пути с обратными
-слешами, скрипт сравнивал их с относительными POSIX, ничего не совпало, и четыре искателя с
-аналитиком отработали заново по уже готовому материалу. Причём прошлый прогон того же кода вернул
-относительные пути и сработал: баг, который срабатывает через раз, ждёт дорогого прогона. Поэтому
-результаты сопоставляются по индексу — порядок команд задал скрипт, — а поле «путь» из схем убрано
-совсем.
+We confirmed this ban at a high price. A disk check once returned absolute paths with backslashes,
+the script compared them with relative POSIX ones, nothing matched, and four finders and the
+analyst worked again over material that was already done. Moreover, the previous run of the same
+code returned relative paths and worked: a bug that fires every other time waits for an expensive
+run. So results are matched by index — the order of commands was set by the script — and the
+"path" field has been removed from the schemas entirely.
 
-### Чем лечится
+### What cures it
 
-Перечислением. Отдельный инструмент возвращает список файлов в каталоге, и дальше аналитик и
-сверяющий получают все, а писатель — по-прежнему сводки, чтобы не платить за 260 килобайт на
-каждом круге правки. Перечисление — не то же самое, что спросить путь: скрипт по-прежнему сам
-называет всё, что пишет, а это лишь отчёт о том, что есть.
+Enumeration. A separate tool returns the list of files in a directory, and from then on the analyst
+and the verifier get all of them, while the writer still gets the summaries, so as not to pay for
+260 kilobytes on every revision round. Enumeration is not the same as asking for a path: the script
+still names everything it writes itself, and this is only a report of what exists.
 
-И у каждого искателя свой каталог. В общей куче два искателя, работающие разные аспекты одной
-темы, неизбежно доходят до одной известной работы и сохраняют её дважды под разными именами:
-`annotated-transformer-maskirovanie-kod.md` и `annotated-transformer-scaling-masking-code.md` — это
-один источник, сохранённый двумя агентами. Каталог на каждого делает столкновение невозможным и
-позволяет перечислять по аспектам, а не разбирать одну кучу.
+And each finder has its own directory. In a common heap two finders working different aspects of
+one topic inevitably reach the same well-known work and save it twice under different names:
+`annotated-transformer-maskirovanie-kod.md` and `annotated-transformer-scaling-masking-code.md` are
+one source saved by two agents. A directory per finder makes the collision impossible and allows
+enumerating by aspect rather than sorting through one heap.
 
-### Как теперь проверяется, что ничего не потерялось
+### How it is now checked that nothing was lost
 
-Идея простая: сравнить два списка. Первый — что лежит на диске. Второй — что хоть один агент
-получил на вход. Разница между ними и есть потери.
+The idea is simple: compare two lists. The first — what lies on disk. The second — what at least
+one agent received as input. The difference between them is the losses.
 
-Второй список надо откуда-то взять, и вот здесь важная деталь. Его ведёт скрипт, и ведёт не
-отдельным действием «а теперь запиши в журнал», а внутри той самой функции, которая составляет
-текст задачи для агента. Устроено так:
+The second list has to come from somewhere, and here is the important detail. The script keeps it,
+and keeps it not as a separate action "and now write it to the log", but inside the very function
+that composes the task text for the agent. It is built like this:
 
 ```js
-const touched = new Set()          // сюда попадает каждый путь, отданный агенту
+const touched = new Set()          // every path handed to an agent goes here
 
 function task({ inputs, output }) {
-  for (const i of inputs) touched.add(i.path)   // <- учёт
-  touched.add(output)                            // <- учёт
+  for (const i of inputs) touched.add(i.path)   // <- accounting
+  touched.add(output)                            // <- accounting
   return `INPUT\n${inputs.map((i) => `${i.port}: ${i.path}`).join('\n')}\n\n` +
-         `OUTPUT\n${output}\n\n` + OUTPUT_RULE   // <- собственно задача
+         `OUTPUT\n${output}\n\n` + OUTPUT_RULE   // <- the task itself
 }
 ```
 
-`touched` — это множество строк, куда добавляется каждый путь, попавший в текст задачи. Отдать
-агенту файл можно только одним способом: назвать путь в задаче. А текст задачи собирает только эта
-функция, и она же в тех же двух строчках делает запись. Отдельного способа передать файл, минуя
-учёт, в скрипте нет — пришлось бы написать вторую такую функцию.
+`touched` is a set of strings to which every path that got into a task text is added. There is only
+one way to hand a file to an agent: name the path in the task. And the task text is assembled only
+by this function, and the same function makes the record in the same two lines. There is no
+separate way in the script to pass a file bypassing the accounting — one would have to write a
+second such function.
 
-Это и есть весь фокус. Учёт нельзя забыть, потому что он не отдельный шаг, а часть того же
-действия. Первая версия была устроена иначе — путь передавался в одном месте, а записывался в
-другом, — и разошлась она в первую же неделю.
+That is the whole trick. The accounting cannot be forgotten, because it is not a separate step but
+part of the same action. The first version was built differently — the path was passed in one place
+and recorded in another — and the two diverged within the very first week.
 
-В конце этапа скрипт просит перечислить каталог прогона целиком и вычитает одно из другого:
-
-```
-[audit] файлов в каталоге 34, прочитано агентами 34, никем не прочитано 0
-[audit] потерь нет: всё, что произведено, кем-то прочитано
-```
-
-Файлы, которых нет во втором списке, печатаются по именам, а не считаются. Число говорит, что
-что-то пропало; имя говорит что именно, и без имени отчёт бесполезен — искать всё равно придётся
-руками.
-
-Одно исключение пришлось сделать явным. Снимок черновика каждого круга существует для человека:
-его никто из агентов не читает и читать не должен. Такой файл записывается в `touched` отдельной
-строкой прямо в коде, с объяснением рядом. Иначе он попадал бы в потери каждый прогон, а ревизия,
-которая каждый раз ругается по делу и не по делу вперемешку, перестаёт работать как ревизия.
-
-## 4. Как врёт посредник
-
-Скрипт не может ни читать файлы, ни запускать команды. Значит любое измерение приезжает к нему
-через агента-посредника: тот выполняет команду, читает вывод инструмента и возвращает его по
-заданной схеме. Носильщик — это канал, у которого есть бюджет и собственное мнение о том, что в
-выводе важно.
-
-Первый случай. Инструмент, читающий записи кругов правки, печатал все замечания всех кругов
-дословно: пять кругов — около ста килобайт JSON. Носильщик вернул два круга вместо пяти. Скрипт
-прочитал это как «пройдено два», начал петлю с третьего и прогнал четыре круга вместо одного.
-Полтора миллиона токенов за молчаливое сокращение.
-
-Вывод: ограничивать объём надо там, где он производится, а не надеяться на посредника. У
-инструмента появился ключ «только последний круг», и признак болезни теперь формулируется просто:
-подозрительна любая стадия, которая читает через агента что-то, растущее с числом кругов или
-файлов.
-
-Второй случай, в более чистом виде, случился вчера. Инструмент напечатал 37 путей. Агент вернул
-скрипту один — сам каталог прогона. Ревизия отчиталась:
+At the end of a stage the script asks for the whole run directory to be enumerated and subtracts
+one from the other:
 
 ```
-файлов на диске 1, прочитано агентами 38, сирота: docs-runs/vnimanie-v-transformerah-...
+[audit] files in the directory 34, read by agents 34, read by nobody 0
+[audit] no losses: everything produced has been read by someone
 ```
 
-Ответ неверен целиком, и выглядел он как ответ.
+Files missing from the second list are printed by name, not counted. A number says that something
+is missing; a name says what exactly, and without the name the report is useless — you would have
+to search by hand anyway.
 
-Лечение общее и, кажется, единственно работающее: посредника надо проверять им же самим. Схема
-ответа теперь требует не только список, но и число из измерений инструмента. Агент, сокративший
-список, сокращает и число, они расходятся, и ревизия честно говорит, что не проведена. Число —
-единственное, чего сокращающий агент не укорачивает.
+One exception had to be made explicit. The snapshot of each round's draft exists for a human: none of
+the agents reads it, and none should. Such a file is entered into `touched` by a separate line right
+in the code, with an explanation next to it. Otherwise it would end up among the losses every run,
+and an audit that complains every time, rightly and wrongly mixed together, stops working as an
+audit.
 
-Отсюда более общий принцип: если единственный источник факта — то, что вернул агент, у вас нет
-факта. Нужна вторая запись, независимая от его памяти и его добросовестности.
+## 4. How the intermediary lies
 
-## 5. Почему петля правок не сходится
+The script can neither read files nor run commands. So any measurement reaches it through an
+intermediary agent: that agent runs the command, reads the tool's output and returns it according
+to the given schema. The carrier is a channel that has a budget and its own opinion about what in
+the output matters.
 
-Это то, чего мы совсем не ожидали, и то, что стоило дороже всего остального вместе.
+The first case. The tool that reads the revision round records printed all the remarks of all rounds
+verbatim: five rounds — about a hundred kilobytes of JSON. The carrier returned two rounds instead
+of five. The script read this as "two done", started the loop from the third and ran four rounds
+instead of one. A million and a half tokens for a silent truncation.
 
-Первая конструкция была очевидной: писатель и два критика по кругу, пока критики не примут. Живой
-прогон съел шесть кругов и пять миллионов токенов, и одни и те же пять замечаний возвращались
-дословно. Разбор показал несколько независимых причин.
+The conclusion: volume must be limited where it is produced, not left to the intermediary. The tool
+got a "last round only" switch, and the symptom is now stated simply: any stage that reads through
+an agent something that grows with the number of rounds or files is suspect.
 
-### Условие приёмки было невыполнимым
+The second case, in a purer form, happened yesterday. The tool printed 37 paths. The agent returned
+one to the script — the run directory itself. The audit reported:
 
-Требовать, чтобы два независимых судьи одновременно не нашли ничего в тексте на сорок тысяч
-знаков, — это условие, которое просто не выполняется. За одиннадцать живых кругов критики
-принимали по очереди, ни разу вместе, а общее число замечаний стояло на полке 8–10. Подсказка
-писателю о том, какая ось уже принята, этого не изменила: дело было не в писателе.
+```
+files on disk 1, read by agents 38, orphan: docs-runs/vnimanie-v-transformerah-...
+```
 
-Поэтому у петли появилось второе условие остановки, кроме приёмки. Скрипт помнит лучший
-результат — наименьшее число замечаний, какое удалось получить за все круги. Если два круга подряд
-этот результат не побили, петля останавливается: она вышла на полку, и следующий круг даст то же
-самое. Остальное решает автор по отчёту о незакрытом. Круги 9–11 одного прогона
-стоили двух с половиной миллионов токенов и не побили результат восьмого.
+The answer was wrong in its entirety, and it looked like an answer.
 
-### Критик умеет только сообщить, а сообщение стоит круга
+The cure is general and, it seems, the only one that works: the intermediary has to be checked by
+itself. The answer schema now requires not only the list but also the number from the tool's
+measurements. An agent that truncated the list truncates the number too, they diverge, and the audit
+honestly says it was not carried out. The number is the one thing a truncating agent does not
+shorten.
 
-Критик, обнаруживший, что `exp(2.887)` записан как 17.940 вместо 17.939, тратит на это целый круг
-правки. Между писателем и критиками поэтому встали корректоры — агенты, которые правят то, что
-решаемо: арифметику примера пересчитывают питоном, утверждения сверяют с заметками.
+Hence a more general principle: if the only source of a fact is what an agent returned, you do not
+have a fact. You need a second record, independent of its memory and its good faith.
 
-На первом же круге с ними корректор нашёл то, чего шесть кругов двух опусов не увидели: три
-расхождения в четвёртом знаке и «8.34% при 12 головах» вместо 8.33%. Глазами это не ловится в
-принципе.
+## 5. Why the revision loop does not converge
 
-Правило: всё, что может закрыть корректор, не должно становиться замечанием.
+This is what we did not expect at all, and what cost more than everything else put together.
 
-### Писатель молча терял замечания
+The first design was the obvious one: a writer and two critics in a circle until the critics
+approve. A live run ate six rounds and five million tokens, and the same five remarks came back
+verbatim. The analysis showed several independent causes.
 
-Пять пунктов вернулись дословно в двух кругах подряд. В контракте писателя не было места, куда
-писать, чего он НЕ сделал: схема просила список изменений, то есть только сделанное.
+### The acceptance condition was impossible to meet
 
-Лечится ведомостью. Замечания нумеруются одним списком на круг, писатель обязан вернуть строку на
-каждый номер со статусом «исправил» или «отклонил», скрипт сверяет номера с теми, что выдал, а
-непокрытое и отклонённое переносится в следующий круг и в отчёт.
+Requiring two independent judges to find nothing at the same time in a text of forty thousand
+characters is a condition that simply is not met. Over eleven live rounds the critics approved in
+turn, never together, and the total number of remarks sat on a plateau of 8–10. A hint to the
+writer about which axis had already been approved did not change this: the problem was not the
+writer.
 
-Вчера в этой же ведомости нашёлся дефект того же рода, зашедший с другой стороны: критик по
-существу нумерует свой список сам, а ведомость нумеровала его второй раз. В записи круга стояло
-«1. 1. …», и дальше два номера расходились — шестой пункт ведомости оказывался первым стилевым. А
-писатель отвечает именно по номеру.
+So the loop got a second stopping condition besides approval. The script remembers the best
+result — the smallest number of remarks achieved over all rounds. If two rounds in a row do not
+beat this result, the loop stops: it has reached a plateau, and the next round will give the same.
+The rest is decided by the author from the report on what remains open. Rounds 9–11 of one run cost
+two and a half million tokens and did not beat the result of the eighth.
 
-### Отклонённое должно доезжать до критиков вместе с причиной
+### A critic can only report, and a report costs a round
 
-Критик, который не знает, почему замечание отклонили, поднимает его снова, писатель отклоняет
-снова, и пара сжигает круг на согласие не соглашаться. Три круга живого прогона ушли ровно так.
+A critic that discovers `exp(2.887)` written as 17.940 instead of 17.939 spends a whole revision
+round on it. So correctors were placed between the writer and the critics — agents that fix what is
+decidable: they recompute the example's arithmetic in Python and check claims against the notes.
 
-### Перебор по объёму нельзя подавать пунктом в списке
+In the very first round with them a corrector found what six rounds of two Opus instances had not
+seen: three discrepancies in the fourth digit and "8.34% at 12 heads" instead of 8.33%. By eye this
+cannot be caught in principle.
 
-Круг получил «превышение на 616 знаков» шестнадцатым пунктом из шестнадцати и ответил на него
-девятью тысячами знаков хорошо обоснованного материала: каждая правка добавляла осмысленную фразу,
-и черновик вырос вместо того, чтобы сжаться.
+The rule: everything a corrector can close must not become a remark.
 
-Потолок — это арифметика, которую знает скрипт. Поэтому он и говорит, сколько снять, и запрещает
-добавлять на этом круге. После такой подачи сокращение сработало с первого раза: 41 877 знаков
-превратились в 37 829.
+### The writer silently lost remarks
 
-### И тот же дефект, что у лимита кругов, только у детектора полки
+Five items came back verbatim in two rounds in a row. The writer's contract had no place to write
+what it did NOT do: the schema asked for a list of changes, that is, only what was done.
 
-Вчерашний прогон дал 16, 12, 16, 12, 16 замечаний по кругам. Детектор полки обязан был
-остановиться на втором двенадцатом и не остановился, потому что круги 1–2 судились в прошлом
-процессе, а их счёт в память нового запуска не попал. Свойство запуска вместо свойства статьи —
-ровно то, что уже лечили у лимита кругов, и в другом месте это пропустили. Два круга из шести
-оказались лишними, порядка миллиона токенов.
+It is cured by a ledger of answers. Remarks are numbered in one list per round, the writer must
+return a line for each number with the status "fixed" or "declined", the script checks the numbers
+against the ones it issued, and whatever is uncovered or declined is carried into the next round and
+into the report.
 
-## 6. Хуки: единственная проверка, которую агент не может обойти
+Yesterday a defect of the same kind turned up in this very ledger, coming in from the other side:
+the substance critic numbers its list itself, and the ledger numbered it a second time. The round
+record read "1. 1. …", and further on the two numbers diverged — the sixth item of the ledger turned
+out to be the first style item. And the writer answers precisely by number.
 
-Хук — команда, которую Claude Code запускает сам в ответ на событие, отдельным процессом, получая
-на вход JSON с описанием события. Это не агент и не часть скрипта, и именно поэтому хук оказался
-самым надёжным источником правды во всей конструкции.
+### What was declined must reach the critics together with the reason
 
-У нас настроен один, на событие остановки подагента:
+A critic that does not know why a remark was declined raises it again, the writer declines it again,
+and the pair burns a round agreeing to disagree. Three rounds of a live run went exactly that way.
+
+### An overrun in length must not be served as an item in the list
+
+A round received "over by 616 characters" as item sixteen of sixteen and answered it with nine
+thousand characters of well-reasoned material: each edit added a meaningful sentence, and the draft
+grew instead of shrinking.
+
+The ceiling is arithmetic, which the script knows. So it is the script that says how much to cut,
+and forbids adding anything in that round. Served this way, the cut worked the first time: 41 877
+characters became 37 829.
+
+### And the same defect as with the round limit, only in the plateau detector
+
+Yesterday's run gave 16, 12, 16, 12, 16 remarks per round. The plateau detector should have stopped
+at the second twelve and did not, because rounds 1–2 were judged in the previous process, and their
+count did not get into the new launch's memory. A property of the launch instead of a property of
+the article — exactly what had already been cured for the round limit, and in another place it was
+missed. Two rounds out of six turned out to be superfluous, on the order of a million tokens.
+
+## 6. Hooks: the only check an agent cannot get around
+
+A hook is a command that Claude Code launches by itself in response to an event, as a separate
+process, receiving as input JSON describing the event. It is not an agent and not part of the
+script, and precisely for this reason the hook turned out to be the most reliable source of truth in
+the whole design.
+
+We have one configured, on the subagent stop event:
 
 ```json
 "hooks": { "SubagentStop": [ { "hooks": [
   { "type": "command", "command": "python -X utf8 tools/stop_audit.py" } ] } ] }
 ```
 
-Что он делает. Открывает транскрипт только что закончившего агента, вынимает оттуда все его
-собственные вызовы `Write` и `Edit` — то есть какие файлы агент писал — и проверяет, лежат ли эти
-файлы на диске сейчас. Пишет одну строку на агента: тип агента, сколько файлов записал, и вердикт:
-всё на месте, ничего не писал, или писал и не оставил.
+What it does. It opens the transcript of the agent that has just finished, extracts from it all of
+the agent's own `Write` and `Edit` calls — that is, which files the agent wrote — and checks whether
+those files are on disk now. It writes one line per agent: the agent type, how many files it wrote,
+and the verdict: everything in place, wrote nothing, or wrote and did not leave it.
 
-Почему это крепче всего остального. Хук выполняется в собственном процессе Claude Code, ничего не
-стоит по токенам, и агент не может его пропустить — он вообще о нём не знает. Смотрит хук на то,
-что подделать нельзя: не на слова агента о своей работе, а на его фактические вызовы инструментов
-из транскрипта. Агент, который вызвал `Write` и ничего не оставил, попадает в журнал, ни у кого
-ничего не спрашивая.
+Why this is sturdier than everything else. The hook runs in Claude Code's own process, costs nothing
+in tokens, and the agent cannot skip it — it does not even know about it. The hook looks at what
+cannot be faked: not at the agent's words about its work, but at its actual tool calls from the
+transcript. An agent that called `Write` and left nothing ends up in the log without anybody being
+asked anything.
 
-За три календарных дня хук собрал 351 запись: 129 агентов реально писали файлы и все файлы
-оказались на месте, 222 не писали ничего (критик и не должен). И он зафиксировал искателя,
-писавшего по семь-восемь файлов на вызов, — те самые сироты из третьего раздела, задолго до того,
-как кто-то заметил, что их никто не читает.
+Over three calendar days the hook collected 351 records: 129 agents actually wrote files and all the
+files turned out to be in place, 222 wrote nothing (a critic is not supposed to). And it recorded a
+finder writing seven or eight files per call — those very orphans from the third section, long
+before anyone noticed that nobody read them.
 
-Чего хук не может, и это стоило проверить отдельно. Блокировать он не умеет — для агентов
-воркфлоу это измерено: хук срабатывает, данные приходят полностью, код возврата 2 игнорируется, и
-агент всё равно завершается нормально. Поэтому хук у нас называется ревизором, а не гейтом, и
-всегда возвращает ноль: хук, который падает, не должен уносить с собой прогон.
+What the hook cannot do, and this was worth checking separately. It cannot block — for workflow
+agents this has been measured: the hook fires, the data arrive in full, exit code 2 is ignored, and
+the agent still finishes normally. So our hook is called an auditor, not a gate, and always returns
+zero: a hook that fails must not take the run down with it.
 
-Первая версия этого хука искала в структурированном ответе агента поле «путь» и проверяла, лежит
-ли там файл. Из пятидесяти строк журнала сорок восемь сказали «путь не заявлен» — потому что поле
-«путь» из схем к тому времени убрали намеренно, по причине из третьего раздела. Хук стал полезен
-ровно тогда, когда перестал спрашивать агента и начал смотреть на его действия.
+The first version of this hook looked in the agent's structured answer for a "path" field and
+checked whether a file lay there. Of fifty log lines forty-eight said "path not declared" — because
+by that time the "path" field had been deliberately removed from the schemas, for the reason in the
+third section. The hook became useful exactly when it stopped asking the agent and started looking
+at its actions.
 
-Два других применения хуков в этой конструкции: изоляция рабочего каталога подагентов делается
-хуком на событие перед вызовом инструмента, а секреты в окружении агентов — настройкой, а не
-кодом. Ни то, ни другое мы не писали сами, и это правильное распределение работ.
+Two other uses of hooks in this design: isolation of the subagents' working directory is done by a
+hook on the before-tool-call event, and secrets in the agents' environment by configuration, not
+code. We wrote neither ourselves, and that is the right division of labour.
 
-## 7. Четыре записи о прогоне, три из которых переживают падение процесса
+## 7. Four records of a run, three of which survive a process crash
 
-Полный ответ на вопрос «всё ли правильно передалось и ничего ли не потерялось» собирается из
-четырёх независимых источников. Ни один не является воспоминанием модели.
+A full answer to the question "was everything handed over correctly and was nothing lost" is
+assembled from four independent sources. None of them is a memory of the model.
 
-| запись | что говорит | кто пишет | переживает падение |
+| record | what it says | who writes it | survives a crash |
 |---|---|---|---|
-| журнал хука | что агент реально записал и лежит ли это на диске | Claude Code | да |
-| журнал инструментов | что нашла каждая детерминированная проверка | сам инструмент | да |
-| ревизия каталога | не осталось ли непрочитанного | скрипт вычитанием | да, файлы на диске |
-| запись передач | что кому собирались передать | скрипт составил, агент записал | нет |
+| hook log | what the agent actually wrote and whether it is on disk | Claude Code | yes |
+| tool log | what each deterministic check found | the tool itself | yes |
+| directory audit | whether anything is left unread | the script, by subtraction | yes, files on disk |
+| handoff record | what was meant to be handed to whom | the script composed it, an agent wrote it | no |
 
-Последняя — единственная, что копится в памяти и пишется в конце этапа. Это её честное
-ограничение, и оно терпимо ровно потому, что первая перекрывает её по сути: запись передач говорит
-о намерении, а хук — о состоявшемся факте.
+The last is the only one that accumulates in memory and is written at the end of the stage. That is
+its honest limitation, and it is tolerable precisely because the first one covers it in substance:
+the handoff record speaks of intention, the hook of an accomplished fact.
 
-Про журнал инструментов стоит сказать отдельно, потому что он окупился быстрее всего. Каждый
-инструмент оставляет расписку: одна строка на вызов — аргументы, вердикт, измерения, проблемы, и
-никогда содержимое.
+The tool log deserves a separate word, because it paid for itself fastest. Each tool leaves a
+receipt: one line per call — arguments, verdict, measurements, problems, and never the content.
 
 ```
 14:28:38  gate      ok=False {"chars": 27572, "prose_chars": 24387}
-                    проблемы: max_prose 100 exceeded (got 24387)
+                    problems: max_prose 100 exceeded (got 24387)
 16:05:16  gate      ok=True  round 4
 16:14:52  listing   ok=True  {"files": 37}   audit: anything produced and never read
 ```
 
-Пишет инструмент, а не агент: посреднику создавать файлы запрещено, и этот запрет уже дважды себя
-оправдал. Измерение оставляет расписку, и пишет её тот, кто мерил. По этим строкам вчера нашлись
-три дефекта из одиннадцати, включая тот, где посредник довёз один путь из тридцати семи.
+The tool writes, not the agent: the intermediary is forbidden to create files, and this ban has
+already justified itself twice. A measurement leaves a receipt, and it is written by whoever
+measured. Yesterday these lines turned up three defects out of eleven, including the one where the
+intermediary delivered one path out of thirty-seven.
 
-И одна деталь, которая сначала казалась косметикой. У строки журнала есть пометка, зачем был вызов.
-Без неё чистый прогон открывается восемью строками «файла нет», и это выглядит как восемь отказов —
-хотя на входе прогона «файла нет» правильный ответ, именно так скрипт решает, что нужно строить. Те
-же слова при проверке результата агента — дефект. Одинаковые слова, противоположный смысл;
-различает их только пометка о назначении вызова.
+And one detail that at first seemed cosmetic. A log line carries a note of what the call was for.
+Without it a clean run opens with eight "no file" lines, and that looks like eight failures — although
+at the start of a run "no file" is the correct answer, that is exactly how the script decides what
+needs building. The same words when checking an agent's result are a defect. The same words, the
+opposite meaning; only the note on the call's purpose tells them apart.
 
-## 8. Проблемы самого подхода, без попытки его защитить
+## 8. Problems of the approach itself, with no attempt to defend it
 
-Скрипт большой и растёт. 2192 строки, из которых оркестрация — почти всё, потому что промптов в
-нём нет вообще. Отсутствие `import()` не даёт разрезать его без появления двух расходящихся копий
-общей части. Это терпимо, но это стена, в которую упрёшься.
+The script is big and growing. 2192 lines, of which orchestration is almost all, because there are
+no prompts in it at all. The absence of `import()` does not allow cutting it without producing two
+diverging copies of the shared part. This is tolerable, but it is a wall you will hit.
 
-Читать диск нельзя, поэтому размерность любого веера обязана быть известна заранее. Каждое «а
-сколько их будет, узнаем по ходу» превращается в отдельную стадию перечисления через агента — то
-есть в ещё один канал с бюджетом и ещё один способ соврать.
+The disk cannot be read, so the dimension of any fan must be known in advance. Every "how many of
+them there will be, we'll find out along the way" turns into a separate enumeration stage through an
+agent — that is, into one more channel with a budget and one more way to lie.
 
-Каждый факт о мире стоит вызова агента. Проверить, что файл на месте, — агент. Измерить длину —
-агент. Узнать, сколько кругов пройдено, — агент. Дешёвых агентов много, но они не бесплатны, и
-каждый может вернуть не то. В последнем прогоне из 43 агентов больше двадцати были посредниками — они ничего не сочиняли, только выполняли команды и возвращали вывод.
+Every fact about the world costs an agent call. Checking that a file is in place — an agent.
+Measuring length — an agent. Finding out how many rounds have been done — an agent. Cheap agents are
+plentiful, but they are not free, and each can return the wrong thing. In the last run, of 43 agents
+more than twenty were intermediaries — they composed nothing, they only ran commands and returned
+the output.
 
-Прогон не переживает процесс, а процесс перезапускается сам. Лечится этапами и диском, но это
-означает, что «одна команда — один этап» становится дисциплиной, а не удобством, и что между
-этапами нельзя передать ничего, кроме файлов.
+A run does not survive the process, and the process restarts by itself. This is cured by stages and
+the disk, but it means that "one command — one stage" becomes a discipline rather than a convenience,
+and that nothing but files can be passed between stages.
 
-Ход разговора — единица гранулярности реестра агентов. Сгенерировал агента — до следующего
-сообщения не запустишь. Для автоматизации, которая сама себе генерирует агентов, это обязательная
-пауза в неудобном месте.
+A conversation turn is the unit of granularity of the agent registry. Generated an agent — you
+cannot launch it until the next message. For automation that generates its own agents, this is a
+mandatory pause in an awkward place.
 
-Ошибка в скрипте стоит полного прогона, если её не поймать заранее. Своего линтера у скрипта нет,
-проверка синтаксиса не работает, типов нет. Прогон на заглушках закрывает это почти полностью, но
-его надо было построить, и до него мы заплатили несколькими прогонами.
+A bug in the script costs a full run if it is not caught in advance. The script has no linter of its
+own, the syntax check does not work, there are no types. A stubbed run covers this almost entirely,
+but it had to be built, and before it existed we paid with several runs.
 
-Против всего этого стоит один довод, и он оказался сильнее суммы. В предыдущей версии проекта у нас
-был свой планировщик, свой леджер и своё восстановление после сбоя — примерно половина кода и почти
-весь источник собственных ошибок. Из десяти правил, которые тот движок держал сам, после переезда выжили два, и оба относятся не
-к исполнению, а к договору между скриптом и агентом: инструкции по вводу-выводу генерируются из
-контракта, а коллекции файлов создаёт скрипт, а не агент.
+Against all this stands one argument, and it turned out stronger than the sum. In the previous
+version of the project we had our own scheduler, our own ledger and our own recovery after a failure
+— roughly half the code and almost the entire source of our own bugs. Of the ten rules that engine
+enforced itself, two survived the move, and both concern not execution but the contract between the
+script and the agent: input-output instructions are generated from the contract, and file
+collections are created by the script, not by the agent.
 
-## 9. К чему пришли
+## 9. Where we arrived
 
-Принципы, которые выдержали прогоны. Каждый оплачен, и рядом сказано чем.
+Principles that withstood the runs. Each has been paid for, and next to it is said with what.
 
-Мы генерируем, мы не исполняем. Никакого планировщика, леджера и восстановления — это делает
-платформа.
+We generate, we do not execute. No scheduler, ledger or recovery — the platform does that.
 
-Промптов в скрипте нет ни одного. Скрипт передаёт только то, что знает он сам: пути, команды, номера кругов, перечень аспектов
-для параллельного запуска. Раздел ввода-вывода в инструкции агента генерируется из контракта и
-никогда не пишется руками. До этого правила аналитик однажды сидел между двумя описаниями
-собственного вывода — своей инструкцией и требованием скрипта — и не выдал ни одного.
+There is not a single prompt in the script. The script passes only what it knows itself: paths,
+commands, round numbers, the list of aspects for the parallel launch. The input-output section of an
+agent's instruction is generated from the contract and never written by hand. Before this rule the
+analyst once sat between two descriptions of its own output — its instruction and the script's
+requirement — and produced neither.
 
-Пути придумывает скрипт, и обратно они не запрашиваются. Результаты сопоставляются по индексу,
-потому что порядок команд задал скрипт.
+Paths are invented by the script, and they are not asked back. Results are matched by index,
+because the order of commands was set by the script.
 
-Всё, что решаемо детерминированно, решает питон, а не модель. Длина, штампы, жирный шрифт,
-арифметика примера, номер последнего круга, пустые заголовки, занятость каталога. Спрошенные на
-глаз, два критика назвали длину «10 500–11 500» там, где ответ был 10 033.
+Everything that is decidable deterministically is decided by Python, not by the model. Length,
+clichés, bold type, the example's arithmetic, the number of the last round, empty headings, whether
+a directory is busy. Asked to judge by eye, two critics put the length at "10 500–11 500" where the
+answer was 10 033.
 
-Запреты и профиль авторской манеры — данные, а не код. Список штампов лежит по регулярке на строку
-рядом с описанием голоса, и правит его человек, не открывая парсер. Пропавший файл шаблонов —
-проблема, а не пустая проверка: гейт, не нашедший нарушений, потому что у него не было шаблонов,
-читается ровно как гейт, который прошёл.
+Prohibitions and the profile of the author's manner are data, not code. The list of clichés lies one
+regex per line next to the voice description, and a human edits it without opening the parser. A
+missing pattern file is a problem, not an empty check: a gate that found no violations because it
+had no patterns reads exactly like a gate that passed.
 
-Один запуск — один этап, и между этапами не передаётся ничего, кроме файлов.
+One launch — one stage, and nothing but files is passed between stages.
 
-Новый прогон — новый каталог, и это правило, а не соглашение. Скрипт отказывается начинать
-исследование там, где уже лежит результат, пока ему явно не сказали, что имелось в виду:
-продолжаю прерванный или пересобираю здесь же с нуля. Три намерения — три разных действия, и ни
-одно не угадывается за вызывающего, потому что неверная догадка дорога в одну сторону и незаметна
-в другую.
+A new run — a new directory, and this is a rule, not a convention. The script refuses to begin
+research where a result already lies until it is told explicitly what was meant: I am continuing an
+interrupted run, or I am rebuilding here from scratch. Three intentions — three different actions,
+and none is guessed on the caller's behalf, because a wrong guess is expensive in one direction and
+invisible in the other.
 
-Проверка не в том, что агент сказал, а в том, что лежит на диске. И проверка эта — вычитание, а не
-обещание.
+The check is not in what the agent said but in what lies on disk. And that check is a subtraction,
+not a promise.
 
-Ни одна проверка не имеет права молчать. «Никто не смотрел» и «смотрели, всё хорошо» совпадают
-только для отчёта, который не читают, поэтому пропущенная проверка идёт в незакрытые пункты явной
-строкой.
+No check has the right to stay silent. "Nobody looked" and "looked, all is well" coincide only for a
+report nobody reads, so a skipped check goes into the open items as an explicit line.
 
-## 10. Выводы
+## 10. Conclusions
 
-Выбор оркестратора не определяет качество документа. Определяет его форма круга правки. Мы
-сравнивали Dynamic Workflows со своим питоновским движком и получили девять дефектов конструкции
-конвейера против четырёх дефектов платформы — причём токены сожгли именно первые.
+The choice of orchestrator does not determine the quality of the document. The shape of the revision
+round does. We compared Dynamic Workflows with our own Python engine and got nine defects in the
+pipeline's design against four defects of the platform — and it was the former that burned the
+tokens.
 
-Дефект, который не выглядит сбоем, живёт до тех пор, пока его не начнут искать вычитанием. Все
-потери артефактов имели одну форму — «произвели и не прочитали» — и ни одна не давала ошибки,
-падения или хотя бы предупреждения. Прогон шёл, статья получалась, а семьдесят процентов
-найденного лежали закрытыми.
+A defect that does not look like a failure lives until someone starts looking for it by subtraction.
+All artifact losses had one form — "produced and not read" — and not one gave an error, a crash or
+even a warning. The run went on, the article came out, and seventy percent of what was found lay
+unopened.
 
-Вердикт, который можно поставить, не выполнив работу, будет поставлен. Проверяющий агент выдал «всё
-в порядке» трём картинкам, две из которых несли английские подписи в русской статье. Помогло не
-усиление формулировок в инструкции, а поле схемы, которое нельзя заполнить, не выполнив работу:
-«выпиши каждую надпись дословно». После этого нашлись и подписи, и подменённый знак умножения.
-Кажется, это самый переносимый вывод всей истории: требуйте не вердикт, а улику.
+A verdict that can be given without doing the work will be given. The checking agent gave "all in
+order" to three pictures, two of which carried English labels in a Russian article. What helped was
+not strengthening the wording in the instruction but a schema field that cannot be filled without
+doing the work: "write out every label verbatim". After that both the labels and a substituted
+multiplication sign were found. This seems to be the most transferable conclusion of the whole
+story: demand not a verdict but evidence.
 
-Всё, что зависит от процесса, надо считать потерянным. Лимит кругов, счёт лучшего результата,
-вердикты критиков, найденные источники — всё это в первой версии жило в памяти процесса, и каждое
-пришлось переносить на диск после того, как процесс умирал. Не потому что он ненадёжен, а потому
-что он перезапускается сам, штатно, несколько раз в день.
+Everything that depends on the process must be treated as lost. The round limit, the best-result
+count, critics' verdicts, sources found — in the first version all of this lived in the process's
+memory, and each had to be moved to disk after the process died. Not because it is unreliable, but
+because it restarts by itself, routinely, several times a day.
 
-Агент — самый ненадёжный элемент конструкции, и роль ему надо давать по этой мерке. Мы всерьёз
-рассматривали «агента-логгера», который писал бы полный журнал прогона. От идеи отказались именно
-потому, что агент уже дважды соврал в этой роли: урезал вывод инструмента и вернул пути в другом
-формате. Логи пишет тот, кто мерил, — сам инструмент. А самая надёжная проверка вообще не агент, а
-хук: отдельный процесс, который смотрит на действия, а не на слова.
+The agent is the least reliable element of the design, and its role must be assigned by that
+measure. We seriously considered a "logger agent" that would write a full log of the run. The idea
+was dropped precisely because an agent had already lied twice in that role: it truncated a tool's
+output and returned paths in a different format. Logs are written by whoever measured — the tool
+itself. And the most reliable check is not an agent at all but a hook: a separate process that looks
+at actions, not at words.
 
-И последнее, самое неудобное. Записанные грабли не помогают сами по себе. «Два прогона на одном
-каталоге портят состояние» стояло в инструкции проекта черным по белому — и вчера я это повторил:
-журнал каталога молчал шесть минут, я прочитал молчание как конец прогона и запустил второй.
-Молчали искатели, которые инструментов не зовут вовсе. Происхождение получившегося черновика после
-такого недоказуемо.
+And the last, the most uncomfortable. Recorded pitfalls do not help by themselves. "Two runs on one
+directory corrupt the state" stood in the project instructions in black and white — and yesterday I
+repeated it: the directory log was silent for six minutes, I read the silence as the end of the run
+and launched a second one. The silent ones were the finders, which do not call tools at all. The
+provenance of the resulting draft after that cannot be proven.
 
-Помогло не «читать внимательнее», а сделать вопрос наблюдаемым: отдельный инструмент смотрит на
-возраст последней строки журнала, скрипт спрашивает до первой траты, и на живом каталоге он
-отвечает «занято». Правило, которое нельзя проверить машиной, — это не правило, а пожелание.
+What helped was not "read more carefully" but making the question observable: a separate tool looks
+at the age of the last log line, the script asks before the first spend, and on a live directory it
+answers "busy". A rule that cannot be checked by a machine is not a rule but a wish.

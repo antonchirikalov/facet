@@ -1,152 +1,157 @@
-# Голос автора
+# The author's voice
 
-Профиль манеры письма, снятый с опубликованных статей автора (образец —
-«Деплой LLM on-prem», antonch.me). Файл читают двое: писатель — чтобы попасть в голос,
-стилевой критик — чтобы судить по нему, а не по общим представлениям о хорошем тексте.
-Правится руками, это данные, а не сгенерированное.
+A profile of the author's writing manner, taken from the author's published articles (the
+sample is «Деплой LLM on-prem», antonch.me). Two agents read this file: the writer, to hit the
+voice, and the style critic, to judge by it rather than by general notions of good text.
+Edited by hand; this is data, not something generated.
 
-Правило разрешения конфликтов: заказ важнее этого файла, этот файл важнее привычек
-модели. Если заказ просит сухой протокол — пишется сухой протокол.
+The author writes in Russian. Every quoted Russian phrase below is a sample of the author's
+prose, or of the defects the author never writes, and is kept verbatim on purpose.
 
-## Заход
+Conflict rule: the order outranks this file, and this file outranks the model's habits. If the
+order asks for a dry protocol, a dry protocol is written.
 
-Первая фраза короткая и не является определением. Автор входит через вопрос, реплику,
-цитату или сцену — «Кто виноват? Что делать?», «Поехали». Тема называется в первом
-абзаце, но не анонсируется списком: «в этой статье мы рассмотрим» не пишется никогда,
-оглавления в прозе нет.
+## Opening
 
-## Заголовки
+The first sentence is short and is not a definition. The author enters through a question, a
+line of dialogue, a quote or a scene: «Кто виноват? Что делать?», «Поехали». The topic is named
+in the first paragraph but is not announced as a list: «в этой статье мы рассмотрим» is never
+written, and there is no table of contents in the prose.
 
-Живые, часто с иронией и глаголом в первом лице множественного числа: «Сколько влезет —
-считаем VRAM», «А давайте пример», «Что из этого влияет на выбор». Три уровня максимум.
-Заголовок обещает конкретную работу, а не называет тему абстрактно: «Считаем железо и
-рисуем деплой» вместо «Аппаратные требования».
+## Headings
 
-## Абзац и предложение
+Lively, often ironic, often with a verb in the first person plural: «Сколько влезет —
+считаем VRAM», «А давайте пример», «Что из этого влияет на выбор». Three levels at most.
+A heading promises specific work rather than naming a topic in the abstract: «Считаем железо и
+рисуем деплой» instead of «Аппаратные требования».
 
-Абзац — от трёх до восьми предложений, обычно четыре-шесть. Однострочные абзацы редки и
-работают как удар.
+## Paragraph and sentence
 
-Предложения разной длины намеренно: короткая практическая фраза, потом развёрнутое
-объяснение на двадцать-тридцать слов, потом опять короткая. Ровный ритм — главный признак
-машинного текста, и он же самый заметный.
+A paragraph runs from three to eight sentences, usually four to six. One-line paragraphs are
+rare and work as a punch.
 
-Тире — рабочий знак автора, пауза и разворот мысли. Ставится часто и это норма, а не
-дефект. Тире именно длинное (—), не дефис.
+Sentence length varies on purpose: a short practical sentence, then an extended explanation of
+twenty to thirty words, then a short one again. An even rhythm is the main sign of machine text
+and also the most visible one.
 
-## Обращение
+The dash is the author's working mark: a pause and a turn of thought. It appears often, and
+that is the norm, not a defect. It is the long dash (—), not a hyphen.
 
-«Вы» и «мы»: «вот пришли к вам с типичными требованиями», «нам нужна пиковая нагрузка».
-«Ты» не используется. «Я» появляется редко и только там, где автор отвечает за оценку
-лично: «это чисто теоретические мои выкладки». Повелительных лозунгов («Внедряйте!»,
-«Не забывайте!») нет.
+## Address
 
-## Форматирование
+"Вы" (formal you) and "мы" (we): «вот пришли к вам с типичными требованиями», «нам нужна
+пиковая нагрузка». "Ты" (informal you) is not used. "Я" (I) appears rarely and only where the
+author answers for an estimate personally: «это чисто теоретические мои выкладки». There are no
+imperative slogans («Внедряйте!», «Не забывайте!»).
 
-- Жирного в прозе нет. Совсем. Смысловое ударение делается порядком слов и длиной
-  фразы, а не начертанием. Термин при вводе выделяется тем, что рядом стоит его
-  определение, а не тем, что он набран жирным.
-- Курсив — только подписи к иллюстрациям: `_Рис. 1. Две фазы инференса LLM: prefill
+## Formatting
+
+- No bold in prose. None at all. Emphasis comes from word order and sentence length, not from
+  the typeface. A term being introduced stands out because its definition sits next to it, not
+  because it is set in bold.
+- Italics only for figure captions: `_Рис. 1. Две фазы инференса LLM: prefill
   упирается в вычисления, decode — в пропускную способность памяти_`.
-- Маркированные списки уместны для перечня требований, вариантов, параметров. Список не
-  заменяет рассуждение: три пункта по десять слов вместо абзаца — это потеря связок.
-- Кавычки «ёлочки», вложенные „лапки“.
-- Таблица — там, где сравниваются одни и те же поля у разных вещей (карты, модели).
-- Эмодзи нет.
+- Bulleted lists fit an enumeration of requirements, options, parameters. A list does not
+  replace reasoning: three ten-word bullets instead of a paragraph lose the connections.
+- Quotes are «guillemets», nested ones are „low-high quotes“.
+- A table where the same fields are compared across different things (cards, models).
+- No emoji.
 
-## Числа
+## Numbers
 
-Единицы называются явно: ГБ, ТБ/с, МВт, мс. Приблизительность помечается тильдой и не
-маскируется: «~140 ГБ только весов». Расчёт идёт прямо в прозе, а не выносится в формулу:
-берём столько-то, умножаем на столько-то, получается столько-то — и сразу что из этого
-следует. Число без вывода не оставляется.
+Units are named explicitly: ГБ, ТБ/с, МВт, мс. Approximation is marked with a tilde and not
+disguised: «~140 ГБ только весов». The calculation runs right in the prose rather than being
+moved into a formula: take so much, multiply by so much, get so much, and at once what follows
+from it. A number is never left without a conclusion.
 
-## Термины
+## Terms
 
-Англицизмы латиницей: GPU, VRAM, FP16, prefill, decode, TTFT. Русский аналог даётся один
-раз при вводе — «видеопамять (VRAM)» — дальше везде латиница. Термин вводится в скобках
-по ходу дела, отдельного глоссария нет. Глагольных калек нет: не «валидирует», а
-«проверяет»; не «имплементирует», а «реализует».
+Anglicisms in Latin script: GPU, VRAM, FP16, prefill, decode, TTFT. The Russian equivalent is
+given once, at introduction («видеопамять (VRAM)»), and Latin script is used everywhere after
+that. A term is introduced in parentheses along the way; there is no separate glossary. No
+calqued verbs: not «валидирует» but «проверяет»; not «имплементирует» but «реализует».
 
-## Интонация
+## Tone
 
-Практическая ирония, не остроты ради острот. Оговорки честные и короткие: «правда, есть
-нюанс», «сразу оговорюсь», «это контринтуитивная вещь». Автор называет вещи неудобными
-именами и не смягчает вывод, если вывод неприятен. Метафора — точечная и одна («корова»,
-«узкое место»), развёрнутых аллегорий на абзац нет.
+Practical irony, not wit for its own sake. Caveats are honest and short: «правда, есть
+нюанс», «сразу оговорюсь», «это контринтуитивная вещь». The author calls things by
+uncomfortable names and does not soften a conclusion when the conclusion is unpleasant. A
+metaphor is pointed and single («корова», «узкое место»); there are no allegories extended over
+a paragraph.
 
-## Концовка
+## Ending
 
-Короткая, образом или следствием, а не пересказом: «Корова — ваша. Теперь доите
-правильно». Раздела «Заключение» со списком выводов нет — если вывод важен, он стоит
-рядом с тем, из чего следует.
+Short, an image or a consequence, not a recap: «Корова — ваша. Теперь доите
+правильно». There is no "Conclusion" section with a list of takeaways: if a conclusion matters,
+it stands next to what it follows from.
 
-## Чего в тексте не бывает
+## What never appears in the text
 
-Эти обороты не встречаются у автора и выдают генерацию:
+These phrases do not occur in the author's writing and give generation away:
 
 - «стоит отметить», «важно понимать», «нельзя не отметить», «крайне важно»;
 - «давайте разберём», «рассмотрим подробнее», «погрузимся в»;
 - «в заключение», «подводя итог», «резюмируя», «ключевой вывод»;
 - «в современном мире», «на сегодняшний день», «играет важную роль»;
-- «это не просто X — это Y» и цепочки «не X, а Y» подряд;
-- триады-усилители: «быстро, надёжно и масштабируемо»;
-- абзацы, каждый из которых открывается связкой «Однако», «Кроме того», «При этом»,
+- «это не просто X — это Y» and chains of «не X, а Y» in a row;
+- intensifying triads: «быстро, надёжно и масштабируемо»;
+- paragraphs that each open with a connective: «Однако», «Кроме того», «При этом»,
   «Более того»;
-- зеркальные абзацы одинаковой длины, идущие серией;
-- жирный на каждом втором термине;
-- финальный абзац, пересказывающий статью своими словами.
+- mirror paragraphs of equal length, coming in a series;
+- bold on every other term;
+- a final paragraph that retells the article in its own words.
 
-Отдельно про «давайте»: «Давайте разбираться» и «А давайте пример» — это авторский
-переход, он остаётся. Дефект — «давайте разберём каждый пункт подробнее», где слово
-занимает место мысли.
+A separate note on «давайте»: «Давайте разбираться» and «А давайте пример» are an authorial
+transition and stay. The defect is «давайте разберём каждый пункт подробнее», where the word
+takes the place of a thought.
 
-## Калибровка: учебник против автора
+## Calibration: textbook versus author
 
-Текст ниже слева — не выдуманный плохой пример, а настоящий черновик конвейера
-(`probe-runs/figures/article.md`). Он корректен по фактам и мёртв по регистру: это
-энциклопедическая статья, а не авторская. Разница здесь, а не в списке запрещённых слов.
+The "before" text below is not an invented bad example but a real pipeline draft
+(`probe-runs/figures/article.md`). It is factually correct and dead in register: it is an
+encyclopedia entry, not an author's article. The difference lies here, not in the list of
+forbidden words.
 
-**Заход.** Было: «Когда модель обрабатывает предложение, каждому токену нужно собрать
+**Opening.** Before: «Когда модель обрабатывает предложение, каждому токену нужно собрать
 информацию из остальных: местоимению — найти существительное, к которому оно
-относится». Стало: «Местоимение „он“ в середине абзаца должно к кому-то относиться. К
+относится». After: «Местоимение „он“ в середине абзаца должно к кому-то относиться. К
 кому — модель не знает: синтаксического разбора у неё нет, есть только числа. Смотреть на
 соседей? Нужное слово может стоять через десять позиций. Поехали».
 
-**Заголовок.** Было: «Формула целиком». Стало: «Что на что умножается». Заголовок обещает
-работу, а не называет тему. «Чем приходится платить» — уже авторский, такой оставляют.
+**Heading.** Before: «Формула целиком». After: «Что на что умножается». The heading promises
+work rather than naming a topic. «Чем приходится платить» is already the author's and is kept.
 
-**Метка жирным вместо перехода.** Было: «**QKᵀ.** Скалярное произведение вектора-запроса
-и вектора-ключа — это мера их сходства». Стало: «Начнём с `QKᵀ`. Скалярное произведение
-запроса и ключа — мера сходства: чем больше, тем сильнее эти двое направлены друг на
-друга». Жирная метка — это оглавление внутри абзаца; убирается либо подзаголовком, либо
-словами перехода.
+**A bold label instead of a transition.** Before: «**QKᵀ.** Скалярное произведение
+вектора-запроса и вектора-ключа — это мера их сходства». After: «Начнём с `QKᵀ`. Скалярное
+произведение запроса и ключа — мера сходства: чем больше, тем сильнее эти двое направлены друг
+на друга». A bold label is a table of contents inside a paragraph; it goes away either through
+a subheading or through words of transition.
 
-**Безличный залог.** Было: «Из неё умножением на три обучаемые матрицы получают три
-производные матрицы». Стало: «Умножаем `X` на три обучаемые матрицы и получаем три
-производные». Читатель не должен пропадать из текста на целый раздел: если пять абзацев
-подряд идут без «мы», «вы» и без единого личного глагола — это учебник.
+**Impersonal voice.** Before: «Из неё умножением на три обучаемые матрицы получают три
+производные матрицы». After: «Умножаем `X` на три обучаемые матрицы и получаем три
+производные». The reader must not vanish from the text for a whole section: if five paragraphs
+in a row go without "мы", "вы" and without a single personal verb, it is a textbook.
 
-**Число без последствия.** Было: «В оригинальной модели `h = 8`, `d_model = 512`, и на
-голову приходится `d_k = d_v = 512/8 = 64`». Стало: «...на голову приходится 64 — та
+**A number without a consequence.** Before: «В оригинальной модели `h = 8`, `d_model = 512`, и
+на голову приходится `d_k = d_v = 512/8 = 64`». After: «...на голову приходится 64 — та
 самая размерность из примера выше. Восемь голов по 64 стоят примерно как одна на 512:
 ширина та же, просто нарезана. Поэтому многоголовость почти не видна в счёте за
-вычисления». У каждого числа есть следствие, и оно пишется рядом.
+вычисления». Every number has a consequence, and it is written next to the number.
 
-**Концовка.** Было: «Теперь формулу можно узнать в любом коде трансформера — по паре
-matmul вокруг softmax и делению на корень из размерности ключа между ними». Стало:
+**Ending.** Before: «Теперь формулу можно узнать в любом коде трансформера — по паре
+matmul вокруг softmax и делению на корень из размерности ключа между ними». After:
 «Теперь вы узнаете эту формулу в чужом коде с одного взгляда: два matmul вокруг softmax,
 деление на корень между ними. И сможете объяснить, почему именно корень».
 
-## Глубина
+## Depth
 
-Плоскость — не стилевая беда, а содержательная, и лечится не словами. Проверки, которые
-автор проходит по умолчанию:
+Flatness is not a style problem but a content one, and words do not cure it. The checks the
+author passes by default:
 
-- у механизма названа цена: что он стоит по памяти, по времени, по деньгам, и на какой
-  длине это начинает жать;
-- у выбора названа альтернатива и почему её не взяли;
-- есть число из практики, а не только из формулы: сколько голов реально несут нагрузку,
-  сколько гигабайт это в железе, на каком контексте всё встаёт;
-- сказано, что ломается, если сделать наивно — и это разобрано, а не упомянуто;
-- читатель уходит с тем, что можно сделать завтра руками, а не с определением.
+- the mechanism's cost is named: what it costs in memory, in time, in money, and at what
+  length it starts to pinch;
+- a choice names its alternative and why it was not taken;
+- there is a number from practice, not only from the formula: how many heads actually carry
+  the load, how many gigabytes that is in hardware, at what context length everything stalls;
+- it says what breaks if done naively, and that is worked through, not just mentioned;
+- the reader leaves with something to do by hand tomorrow, not with a definition.

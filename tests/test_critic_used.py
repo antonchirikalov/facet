@@ -1,7 +1,8 @@
-"""Кто на самом деле судил картинку: по логу целиком, а не по баннеру.
+"""Who really judged the image: from the whole log, not from the banner.
 
-На одном живом прогоне критик Kimi начал отвечать 403 посреди прогона, инструмент сам переключился на Claude,
-а иллюстратор отчитался «критик Kimi K3» — он прочёл баннер, а лог триста строк ниже говорил другое.
+In one live run the Kimi critic started answering 403 midway, the tool switched to Claude on its
+own, and the illustrator reported "critic Kimi K3": it had read the banner, while the log three
+hundred lines further down said otherwise.
 """
 
 from __future__ import annotations

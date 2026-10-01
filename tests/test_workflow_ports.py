@@ -1,9 +1,9 @@
-"""Что агенты конвейера действительно получают в тексте задачи.
+"""What the pipeline's agents actually receive in their task text.
 
-Счётчики агентов и формы результатов не видят главного: дошло ли до агента то, что человек
-положил в запуск. Один живой прогон закончился успешно, а текст заказа не прочитал ни один агент —
-он уходил портом на каталог `inputs`, которого скрипт не пишет. Тест гоняет настоящий скрипт на
-заглушках (`tools/dry_run.mjs`) и читает тексты задач, которые тот раздал.
+Agent counters and result shapes miss the main thing: whether what a person put into the launch
+reached the agent. One live run finished successfully, yet no agent read the order text: it was
+handed as a port to an `inputs` directory the script never writes. The test runs the real script
+on stubs (`tools/dry_run.mjs`) and reads the task texts it handed out.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ DRY_RUN = ROOT / "tools" / "dry_run.mjs"
 ORDER = "ORDER-MARK scope and audience"
 DECISION = "DEC-MARK backend in Go"
 
-pytestmark = pytest.mark.skipif(shutil.which("node") is None, reason="node не установлен")
+pytestmark = pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
 
 
 def prompts(tmp_path: Path, args: dict[str, object]) -> list[dict[str, str]]:
@@ -61,8 +61,8 @@ def test_order_reaches_requirements_and_design_agents(tmp_path: Path) -> None:
         "solution-design-critic",
     ):
         texts = by_agent(items, agent_type)
-        assert texts, f"{agent_type} не вызывался"
-        assert all(ORDER in t for t in texts), f"{agent_type} не получил текст заказа"
+        assert texts, f"{agent_type} was not called"
+        assert all(ORDER in t for t in texts), f"{agent_type} did not receive the order text"
 
 
 def test_decisions_reach_every_design_agent_and_only_them(tmp_path: Path) -> None:
@@ -73,7 +73,7 @@ def test_decisions_reach_every_design_agent_and_only_them(tmp_path: Path) -> Non
         assert texts and all(DECISION in t and "[decided]" in t for t in texts), agent_type
     for agent_type in ("requirements-critic", "requirements-fact-checker"):
         assert not any(DECISION in t for t in by_agent(items, agent_type)), (
-            f"{agent_type}: решения по дизайну не должны влиять на требования"
+            f"{agent_type}: design decisions must not influence the requirements"
         )
 
 
@@ -150,7 +150,7 @@ def test_brief_carries_the_style_and_the_check_lists(tmp_path: Path) -> None:
 
 
 def test_client_stage_passes_the_id_map_and_checks_quotes(tmp_path: Path) -> None:
-    """Редакция дизайна получает карту номеров от редакции требований; цитаты сверяются с извлечениями."""
+    """The design edition receives the id map from the requirements edition; quotes are checked against the extracts."""
     items = prompts(tmp_path, {**RUN, "config": {"stages": ["client"]}})
     editors = by_agent(items, "client-editor")
     assert len(editors) == 2
@@ -166,7 +166,7 @@ def test_client_stage_passes_the_id_map_and_checks_quotes(tmp_path: Path) -> Non
 
 
 def test_design_and_client_gates_check_figure_numbers(tmp_path: Path) -> None:
-    """Каждый рисунок подписан «Figure N.» по порядку: это проверяет гейт, а не критик."""
+    """Every figure is captioned "Figure N." in order: the gate checks this, not the critic."""
     design = prompts(
         tmp_path, {**RUN, "config": {"stages": ["requirements", "design"], "fresh": True}}
     )
@@ -201,7 +201,7 @@ PROPOSAL = ROOT / ".claude" / "workflows" / "proposal-review.js"
 
 
 def test_proposal_review_gates_carry_the_profile_rules(tmp_path: Path) -> None:
-    """Правила профиля пропозала проверяет гейт, а не читатель: «you», пустые ячейки, ссылки, рисунки, покрытие."""
+    """The proposal profile's rules are checked by the gate, not by a reader: "you", empty cells, links, figures, coverage."""
     out = tmp_path / "prompts.json"
     args = {"runDir": "dry/prop", "document": "dry/prop/prop.md", "sources": ["dry/prop/t.md"]}
     done = subprocess.run(
@@ -228,8 +228,8 @@ def test_proposal_review_gates_carry_the_profile_rules(tmp_path: Path) -> None:
 
 
 def test_numbered_remarks_still_score_by_severity() -> None:
-    """Проверяющий на одном прогоне нумеровал замечания сам («1. [HIGH] ...»): счёт кругов 2 и 3 вышел 0 при
-    открытых HIGH, а полка сравнивала нули. Номер снимается до подсчёта и до записи круга."""
+    """In one run the reviewer numbered its remarks itself ("1. [HIGH] ..."): rounds 2 and 3 counted 0 with
+    HIGH remarks open, and the plateau compared zeros. The number is stripped before counting and before the round is recorded."""
     text = PROPOSAL.read_text(encoding="utf-8")
     funcs = [
         m.group(0)
@@ -248,7 +248,7 @@ def test_numbered_remarks_still_score_by_severity() -> None:
 
 
 def test_client_voice_reaches_the_requirements_writer_and_critic(tmp_path: Path) -> None:
-    """Вес требования берётся из листа голоса заказчика: лист пишется до писателя и доходит до критика."""
+    """A requirement's weight comes from the client voice sheet: the sheet is written before the writer and reaches the critic."""
     items = prompts(tmp_path, {**RUN, "config": {"fresh": True, "stages": ["requirements"]}})
     labels = [p["label"] for p in items]
     assert labels.index("voice") < labels.index("req:write:1")
@@ -262,7 +262,7 @@ def test_client_voice_reaches_the_requirements_writer_and_critic(tmp_path: Path)
 
 
 def test_slop_critic_judges_every_client_facing_loop(tmp_path: Path) -> None:
-    """Нейрослоп ловят дважды: узкий список в гейте и критик в каждом круге документа для заказчика."""
+    """Generated-text slop is caught twice: a narrow list in the gate and a critic in every round of a client document."""
     items = prompts(tmp_path, {**RUN, "config": {"fresh": True}})
     labels = [p["label"] for p in items]
     assert "req:SLOP:1" in labels and "design:SLOP:1" in labels
@@ -306,7 +306,7 @@ def word_prompts(tmp_path: Path, mode: str) -> list[dict[str, str]]:
 
 
 def test_word_documents_become_markdown_before_extraction(tmp_path: Path) -> None:
-    """Read не читает .docx: конвейер сам переводит его в .md и отдаёт агенту текст."""
+    """Read cannot read .docx: the pipeline converts it to .md itself and hands the agent the text."""
     items = word_prompts(tmp_path, "ok")
     convert = next(p for p in by_agent(items, "file-copier") if "to_text.py" in p)
     assert "--dir dry/run/inputs" in convert and "scope.docx" not in convert
@@ -316,7 +316,8 @@ def test_word_documents_become_markdown_before_extraction(tmp_path: Path) -> Non
 
 
 def test_failed_conversion_never_hands_a_missing_markdown(tmp_path: Path) -> None:
-    """Если pandoc не сработал, агент получает исходный файл, а не несуществующий .md."""
+    """If pandoc failed, the agent gets the original file, not a .md that does not exist."""
+
     items = word_prompts(tmp_path, "bad")
     extracts = by_agent(items, "source-processor")
     assert not any("scope.docx.md" in p for p in extracts)

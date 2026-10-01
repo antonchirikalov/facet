@@ -1,156 +1,159 @@
-# Находки этапа 1: генератор агентов и два живых конвейера
+# Stage 1 findings: the agent generator and two live pipelines
 
-Дата: 2026-08-13/14. Что делалось: перенесены `library/` и `models/agent.py`, написан
-`emit_agents.py` с тестами, и на сгенерированных определениях прогнаны два конвейера —
-статья (`attn-article.js`) и иллюстрации к ней (`attn-figures.js`).
+Date: 2026-08-13/14. What was done: `library/` and `models/agent.py` were moved over,
+`emit_agents.py` was written with tests, and two pipelines were run on the generated
+definitions — the article (`attn-article.js`) and its illustrations (`attn-figures.js`).
 
-Итог короткой строкой: **компилятор работает**. Статья собралась начисто с первого круга,
-иллюстрации — за два круга перерисовки, и отпечатком доказано, что во всех ролях работали
-именно наши сгенерированные файлы. Ниже то, что при этом выяснилось; почти всё меняет
-устройство генератора.
+The result in one line: **the compiler works**. The article came together cleanly in the first
+round, the illustrations in two rounds of redrawing, and a fingerprint proved that in every role
+it was precisely our generated files that worked. Below is what came to light along the way;
+almost all of it changes the design of the generator.
 
-## Платформа: правила, которых нет в документации
+## The platform: rules that are not in the documentation
 
-**Расширение решает: `.js` регистрируется, `.mjs` — нет.** Вопрос, оставленный открытым после
-этапа 0, закрыт. `ext-js.js` появился в списке команд, `tools-probe.mjs` не появился ни разу,
-а `attn-article.js`, `attn-figures.js` и `critic-check.js` появились все. Значит
-`emit_workflow.py` пишет `.js`, и **обёртки-скиллы из `emit_commands.py` не нужны**: файл в
-`.claude/workflows/` становится командой сам. Строка плана «лечится обёрткой, а не
-расширением» неверна и снимается.
+**The extension decides: `.js` is registered, `.mjs` is not.** The question left open after
+stage 0 is closed. `ext-js.js` appeared in the command list, `tools-probe.mjs` never appeared
+once, and `attn-article.js`, `attn-figures.js` and `critic-check.js` all appeared. So
+`emit_workflow.py` writes `.js`, and **the wrapper skills from `emit_commands.py` are not
+needed**: a file in `.claude/workflows/` becomes a command by itself. The plan's line "cured by a
+wrapper, not by the extension" is wrong and is withdrawn.
 
-**Реестры обновляются с задержкой, а не заморожены на старте сессии.** Порядка двадцати минут,
-и это касается и агентов, и воркфлоу: `source-finder`, `article-writer`, `domain-analyst` и
-`illustrator` приехали посреди сессии. Для `collimate build` вывод такой: перезапускать сессию
-не нужно, но между сборкой и запуском есть лаг, и о нём стоит печатать строку.
+**Registries update with a delay rather than being frozen at session start.** On the order of
+twenty minutes, and this applies to both agents and workflows: `source-finder`, `article-writer`,
+`domain-analyst` and `illustrator` arrived in the middle of a session. The conclusion for
+`collimate build`: there is no need to restart the session, but there is a lag between the build
+and the launch, and it is worth printing a line about it.
 
-**Подагенту запрещено писать `.md`, в имени которого есть `analysis`, `report`, `findings`
-или `summary`.** Ответ платформы: `Subagents should return findings as text, not write report
-files.` Измерено на девяти именах: `analysis.md`, `analysis-notes.md`, `report.md`,
-`findings.md`, `summary.md`, `sources/analysis.md` — отказ; `material.md`, `svodka.md`,
-`analysis.txt` — записаны. Каталог не спасает, другое расширение спасает.
+**A subagent is forbidden to write a `.md` whose name contains `analysis`, `report`, `findings`
+or `summary`.** The platform's answer: `Subagents should return findings as text, not write report
+files.` Measured on nine names: `analysis.md`, `analysis-notes.md`, `report.md`,
+`findings.md`, `summary.md`, `sources/analysis.md` — refused; `material.md`, `svodka.md`,
+`analysis.txt` — written. A directory does not help, a different extension does.
 
-Это стоило четырёх молчаливых провалов подряд: аналитик вызывал `Write`, получал отказ, честно
-писал об этом текстом и отдавал результат схемой, а конвейер шёл дальше как ни в чём не бывало.
-**`collimate build` обязан падать** на `pipeline.yaml`, где порт назван так, — ровно та
-гарантия «не скомпилируется то, что не проходит валидатор».
+This cost four silent failures in a row: the analyst called `Write`, got a refusal, honestly
+wrote about it in text and returned the result by the schema, and the pipeline went on as if
+nothing had happened. **`collimate build` must fail** on a `pipeline.yaml` where a port is named
+like that — exactly the guarantee "what does not pass the validator will not compile".
 
-**`SubagentStop` для агентов воркфлоу — наблюдатель, а не гейт.** Хук срабатывает, и payload
-несёт всё нужное: `agent_type`, `agent_id`, `agent_transcript_path`, `cwd`, `stop_hook_active`.
-Но **код возврата 2 игнорируется**: агент, заявивший несуществующий файл, завершился за 2,6
-секунды, повторной попытки не было. Документация обещает обратное для обычных подагентов; наш
-случай другой.
+**`SubagentStop` for workflow agents is an observer, not a gate.** The hook fires, and the
+payload carries everything needed: `agent_type`, `agent_id`, `agent_transcript_path`, `cwd`,
+`stop_hook_active`. But **exit code 2 is ignored**: an agent that claimed a non-existent file
+finished in 2.6 seconds, and there was no retry. The documentation promises the opposite for
+ordinary subagents; our case is different.
 
-Отсюда: принуждение остаётся в скрипте — стадия проверки плюс круг повтора, — а хук годится как
-бесплатный детектор: ноль токенов, обойти нельзя, ведёт протокол. Оговорка: транскрипт на
-момент срабатывания может быть ещё не сброшен на диск, и хук видит `skip:no_claimed_path` там,
-где путь на самом деле был заявлен.
+Hence: enforcement stays in the script — a check stage plus a retry round — and the hook is good
+as a free detector: zero tokens, impossible to bypass, keeps a log. A caveat: at the moment it
+fires, the transcript may not yet have been flushed to disk, and the hook sees
+`skip:no_claimed_path` where a path was in fact claimed.
 
-**Коллизия имён с пользовательскими агентами возможна.** `article-critic` из библиотеки совпал
-с личным агентом в `~/.claude/agents/`. После переименования пользовательского проектное
-определение заняло имя — доказано отпечатком: инструменты `Read, Write, Edit` без
-`Grep/Glob/Bash`, задача «оценивать механизм», язык инструкций английский. `collimate build`
-должен проверять пересечение с `~/.claude/agents/` и предупреждать.
+**A name collision with user agents is possible.** `article-critic` from the library coincided
+with a personal agent in `~/.claude/agents/`. After the user one was renamed, the project
+definition took the name — proved by a fingerprint: tools `Read, Write, Edit` without
+`Grep/Glob/Bash`, the task "judge the mechanism", the language of the instructions English.
+`collimate build` must check for overlap with `~/.claude/agents/` and warn.
 
-## Устройство генератора: что подтвердилось и что меняется
+## The generator's design: what was confirmed and what changes
 
-**`emit_agents.py` — как в плане, без правок.** Отображение `needs` в инструменты работает; MCP
-оказался ровно у пяти агентов из 22; префикс `mcp__<сервер>` раскрывается в конкретные
-инструменты сервера (`mcp__tavily-remote` → пять `tavily_*`); фронтматтер — настоящее
-ограничение, а не украшение: у `source_finder` есть `WebFetch` и оба сервера, у остальных
-только `Read, Write, Edit`.
+**`emit_agents.py` — as in the plan, no edits.** Mapping `needs` to tools works; MCP turned out
+to be on exactly five agents of 22; the `mcp__<server>` prefix expands into the server's
+concrete tools (`mcp__tavily-remote` → five `tavily_*`); the frontmatter is a real restriction,
+not decoration: `source_finder` has `WebFetch` and both servers, the others only
+`Read, Write, Edit`.
 
-**Маркер генератора в теле определения — доказательство происхождения.** Строка
-`<!-- Сгенерировано collimate build из library/agents/<name>/ -->` есть только в
-сгенерированном файле, и агент цитирует её дословно по запросу. Это даёт дешёвую проверку
-«кто на самом деле отвечает на это имя», и её стоит сохранить.
+**The generator's marker in the body of a definition is proof of origin.** The line
+`<!-- Generated by collimate build from library/agents/<name>/ -->` exists only in the generated file, and the agent quotes it verbatim
+on request. This gives a cheap check of "who actually answers to this name", and it is worth
+keeping.
 
-**Схема агента не должна содержать `path`.** Путь придумывает скрипт и передаёт в промпт;
-спрашивать его обратно нечего, зато это создаёт канал, где «сообщить путь» выглядит как
-«записать файл». Это поправка к строке в `CLAUDE.md`: «скрипт передаёт пути и **получает их
-обратно** через `schema`» — получать обратно не надо. Исключение одно: значение, которого
-скрипт знать не может, например каталог прогона внешнего CLI со своей меткой времени.
+**An agent's schema must not contain `path`.** The script invents the path and passes it into
+the prompt; there is nothing to ask back, while this creates a channel where "report a path"
+looks like "write a file". This is a correction to the line in `CLAUDE.md`: "the script passes
+paths and **gets them back** via `schema`" — getting them back is not needed. There is one
+exception: a value the script cannot know, for example the run directory of an external CLI with
+its own timestamp.
 
-Оговорка о причинности: провал с `analysis.md` вызвало **не** это поле, а запрет платформы.
-Правило остаётся верным, но оно устраняет двусмысленность, а не тот баг.
+A caveat on causality: the failure with `analysis.md` was caused **not** by this field but by the
+platform's prohibition. The rule stays correct, but it removes an ambiguity, not that bug.
 
-**Единицы порога обязаны совпадать с единицами брифа.** Бриф просил 6000–9000 знаков *прозы*,
-а гейт стоял на `--max-length` (знаки файла) — статья на 10 033 знака прозы прошла как годная,
-и оба критика потратили по замечанию на прикидку объёма на глаз. С правильной парой
-`--min-prose/--max-prose` прогон сложился в один круг вместо двух: 175 тысяч токенов и 10 минут
-против 355 тысяч и 25. `collimate build` должен предупреждать, когда бриф задаёт диапазон, а в
-правилах нет потолка.
+**The units of a threshold must match the units of the brief.** The brief asked for 6000–9000
+characters of *prose*, while the gate was set on `--max-length` (characters of the file) — an
+article of 10,033 characters of prose passed as fit, and both critics spent a remark each on
+estimating the length by eye. With the right pair `--min-prose/--max-prose` the run came together
+in one round instead of two: 175 thousand tokens and 10 minutes against 355 thousand and 25.
+`collimate build` must warn when the brief sets a range and the rules have no ceiling.
 
-**Вердикт штампуется, улика — нет.** Проверка рисунков вернула `ok` с пустым списком дефектов
-для трёх картинок, две из которых несли английские подписи в русской статье. Лечится не
-уговорами, а требованием улики: поле `labels_seen`, куда обязано попасть **каждое** слово с
-картинки дословно. После этого та же проверка нашла и английские подписи, и знак `·` между
-проекциями, который в статье означает умножение матриц. Общий приём для генератора: у
-проверяющего узла в схеме должно быть поле, которое нельзя заполнить, не выполнив работу.
+**The verdict gets rubber-stamped, the evidence does not.** The figure check returned `ok` with an
+empty defect list for three pictures, two of which carried English labels in a Russian article.
+This is cured not by persuasion but by requiring evidence: a `labels_seen` field into which
+**every** word from the picture must go verbatim. After that the same check found both the
+English labels and the `·` sign between projections, which in the article means matrix
+multiplication. A general technique for the generator: a checking node's schema must have a field
+that cannot be filled without doing the work.
 
-**Нижняя граница в гейте не защищает каталог поставки.** Проверка нарезала фрагменты картинок
-и положила их рядом с результатом; `--min-entries 4` насчитал 8 и сказал «годится». Для
-каталога, который уезжает вместе со статьёй, нужна точная сверка числа.
+**A lower bound in the gate does not protect a delivery directory.** The check sliced fragments
+of the pictures and put them next to the result; `--min-entries 4` counted 8 and said "fit". For
+a directory that ships together with the article, an exact count check is needed.
 
-## Windows: грабли, оплаченные временем
+## Windows: rakes paid for in time
 
-**POSIX-путь в `TEMP` ломает чтение связки ключей.** `$PWD` в Git Bash — это `/c/Users/…`.
-Windows такой путь не разрешает → PowerShell не стартует → мост шлюза, который читает токены
-**через** PowerShell, получает пустоту по всем восьми аккаунтам → строит 3 заголовка вместо 11
-→ шлюз отвечает 401 `missing bearer token`. Снаружи неотличимо от протухших учёток. Правильно:
-`pwd -W`. Цена ошибки — час и ложный диагноз, выданный владельцу.
+**A POSIX path in `TEMP` breaks reading the keychain.** `$PWD` in Git Bash is `/c/Users/…`.
+Windows does not resolve such a path → PowerShell does not start → the gateway bridge, which reads
+tokens **through** PowerShell, gets nothing for all eight accounts → builds 3 headers instead of
+11 → the gateway answers 401 `missing bearer token`. From the outside it is indistinguishable from
+stale credentials. The right way: `pwd -W`. The cost of the mistake: an hour and a false
+diagnosis given to the owner.
 
-**Каждый вызов Bash у агента — новая оболочка.** Экспорты, сделанные отдельным вызовом, в
-следующем мертвы. Отсюда мигающий 401: первый круг рисования работал, второй падал. Правило:
-окружение и команда — в одном вызове.
+**Every Bash call of an agent is a new shell.** Exports made in a separate call are dead in the
+next one. Hence the flickering 401: the first drawing round worked, the second failed. The rule:
+the environment and the command go in one call.
 
-**`node --check` на этих скриптах бесполезен.** `.js` с `export` он разбирает как CommonJS и
-молчит на лишней скобке. Ловит диагностика IDE, но и она не видит необъявленную переменную —
-это валидный JavaScript.
+**`node --check` is useless on these scripts.** It parses a `.js` with `export` as CommonJS and
+stays silent on an extra bracket. The IDE diagnostics catch it, but they too do not see an
+undeclared variable — that is valid JavaScript.
 
-## Инструменты, появившиеся по необходимости
+## Tools that appeared out of necessity
 
-**`tools/dry_run.mjs`** — исполняет скрипт воркфлоу целиком, подменив `agent()` заглушкой,
-которая отвечает по схеме вызова. Два режима: счастливый путь и все ветви провалов. Ловит класс
-ошибок, который иначе стоит полного прогона: `SOURCE_PATHS is not defined` сидел в последней
-строке `return` и обошёлся в 468 тысяч токенов и двадцать минут. Для `emit_workflow.py` это
-обязательная часть: сгенерированный скрипт прогоняется на заглушках до того, как потратит
-деньги.
+**`tools/dry_run.mjs`** — runs a workflow script in full, replacing `agent()` with a stub that
+answers according to the call's schema. Two modes: the happy path and all failure branches. It
+catches a class of errors that otherwise costs a full run: `SOURCE_PATHS is not defined` sat in
+the last `return` line and cost 468 thousand tokens and twenty minutes. For `emit_workflow.py`
+this is a mandatory part: a generated script is run on stubs before it spends money.
 
-**`tools/gate_hook.py`** — хук `SubagentStop`, проверяющий существование заявленного файла.
-Принуждать не может, но протокол ведёт бесплатно.
+**`tools/gate_hook.py`** — a `SubagentStop` hook that checks that the claimed file exists. It
+cannot enforce, but it keeps a log for free.
 
-**`tools/sweep_junk.py`** — дворник: сносит из корня только пустые каталоги не из белого
-списка. Нужен из-за соседнего репозитория, см. ниже.
+**`tools/sweep_junk.py`** — a janitor: removes from the root only empty directories not on the
+allow list. Needed because of the neighbouring repository, see below.
 
-## figgybanana: два дефекта соседа
+## figgybanana: two defects of the neighbour
 
-**Относительные пути к данным.** `reference_set_path` и `guidelines_path` по умолчанию `data/…`
-и разрешаются от текущего каталога. Мы зовём CLI из своего репозитория, поэтому ретривер молча
-возвращал `retrieved_examples: []` — эталонный корпус не использовался вовсе, и это никак не
-проявлялось, кроме качества. Лечится экспортом абсолютных `REFERENCE_SET_PATH` и
-`GUIDELINES_PATH`; агенту вменено проверить `planning.json` после первого рисунка и
-остановиться, если список пуст.
+**Relative paths to data.** `reference_set_path` and `guidelines_path` default to `data/…` and are
+resolved from the current directory. We call the CLI from our own repository, so the retriever
+silently returned `retrieved_examples: []` — the reference corpus was not used at all, and this
+showed in nothing but quality. Cured by exporting absolute `REFERENCE_SET_PATH` and
+`GUIDELINES_PATH`; the agent is charged with checking `planning.json` after the first picture and
+stopping if the list is empty.
 
-**Системный промпт уходит в argv.** `claude_code.py:111`: `cmd += ["--system-prompt", …]`, тогда
-как пользовательский промпт автор аккуратно пустил через stdin с комментарием про предел
-Windows. На Windows `claude` — это `.cmd`-обёртка, то есть текст идёт через `cmd.exe`. Измерено:
-4 и 12 КБ проходят, на 20 КБ вызов умирает с `The command line is too long`.
+**The system prompt goes into argv.** `claude_code.py:111`: `cmd += ["--system-prompt", …]`,
+whereas the author carefully routed the user prompt through stdin with a comment about the
+Windows limit. On Windows `claude` is a `.cmd` wrapper, that is, the text goes through `cmd.exe`.
+Measured: 4 and 12 KB pass, at 20 KB the call dies with `The command line is too long`.
 
-Это же — единственный найденный механизм, объясняющий пустые каталоги с мусорными именами
-(`OF_PROCESSORS=16`, кириллица и иероглифы), которые появлялись в корне во время прогонов
-иллюстраций: произвольный текст промпта проходит через шелл, толкующий метасимволы.
-Доказательством не считаю — на синтетическом промпте из одних `x` не воспроизвелось. Зато
-воспроизвелось обратное: прогон **целиком на Kimi** (`--vlm-provider kimi`, без `claude_code` в
-любом слоте) не оставил ни одного каталога. Подпроцесса нет — сорить нечем.
+This is also the only mechanism found that explains the empty directories with junk names
+(`OF_PROCESSORS=16`, Cyrillic and hieroglyphs) that appeared in the root during illustration
+runs: arbitrary prompt text passes through a shell that interprets metacharacters. I do not count
+this as proof — it did not reproduce on a synthetic prompt made of nothing but `x`. But the
+reverse did reproduce: a run **entirely on Kimi** (`--vlm-provider kimi`, with no `claude_code`
+in any slot) did not leave a single directory. No subprocess — nothing to litter with.
 
-Лечится в figgybanana одной правкой: отдавать системный промпт через stdin, как уже отдаётся
-пользовательский.
+Cured in figgybanana with one edit: pass the system prompt through stdin, as the user prompt
+already is.
 
-## Что осталось открытым
+## What remained open
 
-- строковая форма `args` (`/attn-article probe-runs/x`) по-прежнему не проверялась;
-- мусорные каталоги: механизм назван, но не доказан; пока лечится дворником и Kimi во всех
-  слотах;
-- `emit_workflow.py`, `emit_commands.py` и `cli.py` ещё не написаны. Оба конвейера пока
-  рукописные — и именно поэтому в них воспроизвелись ошибки, которые генератор обязан
-  исключать по построению.
+- the string form of `args` (`/attn-article probe-runs/x`) has still not been checked;
+- junk directories: the mechanism is named but not proven; for now it is cured by the janitor and
+  Kimi in all slots;
+- `emit_workflow.py`, `emit_commands.py` and `cli.py` are not written yet. Both pipelines are
+  still handwritten — and that is exactly why errors reproduced in them that the generator must
+  rule out by construction.

@@ -1,4 +1,4 @@
-# прогоны пробника и рабочие каталоги документов — результат, не исходник
+# probe runs and document work directories are output, not source
 probe-runs/
 docs-runs/
 
@@ -9,8 +9,8 @@ __pycache__/
 .ruff_cache/
 .pytest_cache/
 
-# машинное: пути, UUID профиля шлюза — не для публичного репозитория
+# machine-specific: paths, the gateway profile UUID; not for a public repository
 .claude/settings.local.json
-# полные эталоны — клиентские документы; в репозитории только скелеты (SPEC Р8)
+# full exemplars are client documents; the repository holds skeletons only (SPEC R8)
 exemplars.local.yaml
 logs/

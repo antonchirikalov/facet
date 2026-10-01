@@ -1,31 +1,32 @@
-# Почему такой эталон
+# Why this exemplar
 
-Тип: `solution-design`. Скелет: `skeleton.md` рядом. Полного клиентского документа-эталона
-пока нет; путь появится в `exemplars.local.yaml`, когда выберем.
+Type: `solution-design`. Skeleton: `skeleton.md` next to this file. There is no full client
+document to serve as the exemplar yet; its path will appear in `exemplars.local.yaml` once we
+choose one.
 
-## Из чего собран
+## What it is built from
 
-Из двух источников. Первый — шаблон `solution-design-template` конвейера spectra: одна
-архитектура без вариантов на выбор, никаких оценок сроков и денег, таблицы стейкхолдеров,
-модулей, фаз, НФТ и инфраструктурных сервисов, сквозные сценарии на фазу, плейсхолдеры
-рисунков как обязательная часть, чек-лист критика с тяжестями и правило вердикта. Второй —
-лучший живой дизайн этого конвейера (демо ветклиник, 20.09.2026, победивший кандидат на opus):
-решения с идентификаторами `D-NN`, прочтения неоднозначных требований отдельным разделом,
-полная карта потоков персональных данных, настройки вместо гипотез там, где требования
-оставили конфликт открытым.
+Two sources. The first is the spectra pipeline's `solution-design-template`: one architecture
+with no options to choose from, no estimates of time or money, tables of stakeholders, modules,
+phases, NFRs and infrastructure services, end-to-end scenarios per phase, figure placeholders as
+a mandatory part, a critic checklist with severities and a verdict rule. The second is the best
+live design of this pipeline (the vet-clinic demo, 20.09.2026, the winning candidate on opus):
+decisions with `D-NN` ids, readings of ambiguous requirements in a section of their own, a full
+map of personal-data flows, settings instead of hypotheses where the requirements left a
+conflict open.
 
-## Что взято у spectra и что изменено
+## What was taken from spectra and what was changed
 
-- Взято: одна архитектура; ноль оценок; таблицы вместо прозы там, где сравнивают; сценарий
-  на область; инфраструктура из требований, а не по умолчанию, с одним оговорочным
-  предложением; критик игнорирует отсутствие PNG у плейсхолдера.
-- Изменено: без YAML-шапки и счётчиков (правило facet: метаблок, который никто не проверяет,
-  устаревает при следующей правке); плейсхолдеры в формате иллюстратора facet
-  `![подпись](figures/<slug>.png)`, а не HTML-комментарий; разделы пронумерованы, чтобы гейт
-  проверял по номерам на любом языке; раздел 3 идёт по областям требований в их порядке,
-  чтобы два документа читались рядом; добавлены разделы «Риски» и «Предположения к
-  подтверждению» из промпта дизайнера facet; фазы поставки не обязательны — они нужны
-  предложению на RFP, не каждому дизайну.
-- Добавлено из живого прогона: требование к критику предпочитать замечания, закрываемые
-  сокращением или переносом в предположения, потому что дизайн вырос с 24 до 34 тысяч знаков
-  за три круга при неубывающем числе замечаний.
+- Taken: one architecture; zero estimates; tables instead of prose where things are compared; a
+  scenario per area; infrastructure from the requirements, not by default, with one caveat
+  sentence; the critic ignores a placeholder's missing PNG.
+- Changed: no YAML header and counters (facet's rule: a meta block nobody checks goes stale at
+  the next edit); placeholders in the format of facet's illustrator,
+  `![caption](figures/<slug>.png)`, not an HTML comment; sections are numbered so the gate checks
+  them by number in any language; section 3 follows the requirement areas in their order so the
+  two documents read side by side; "Risks" and "Assumptions to confirm" sections added from the
+  facet designer's prompt; delivery phases are optional: an RFP proposal needs them, not every
+  design.
+- Added from a live run: the critic is required to prefer remarks that close by cutting or by
+  moving into assumptions, because the design grew from 24 to 34 thousand characters over three
+  rounds while the number of remarks did not fall.

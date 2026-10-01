@@ -1,6 +1,6 @@
-# Жирный шрифт внутри прозы. Отдельным файлом, потому что это правило вёрстки, а не
-# словарь языка: конвейеру может понадобиться одно без другого, и издание со своим
-# стайлгайдом заменит этот файл своим.
+# Bold inside prose. A separate file because this is a layout rule, not a language
+# dictionary: a pipeline may need one without the other, and a publication with its own
+# style guide replaces this file with its own.
 
 \*\*[^\n*]+\*\*
 __[^\n_]+__

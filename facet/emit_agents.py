@@ -1,31 +1,32 @@
-"""Генератор определений подагентов: `agent.yaml` + `prompt.md` → `.claude/agents/<slug>.md`.
+"""Generator of subagent definitions: `agent.yaml` + `prompt.md` → `.claude/agents/<slug>.md`.
 
-Определение агента для Claude Code — это один markdown-файл: YAML-фронтматтер с именем,
-описанием и списком разрешённых инструментов, дальше телом системный промпт. Всё, кроме
-тела, выводится из контракта агента, поэтому руками этот файл не пишется и правится только
-источник в `library/agents/<name>/`.
+A Claude Code agent definition is a single markdown file: YAML frontmatter with the name, the
+description and the list of allowed tools, followed by the system prompt as the body. Everything
+except the body is derived from the agent's contract, so this file is never written by hand;
+only the source in `library/agents/<name>/` is edited.
 
-Форма фронтматтера взята не из документации, а из пробника этапа 0: `tools` строкой через
-запятую и `mcpServers` блочным списком — ровно так был объявлен `probe-researcher`, который
-в живом прогоне поднялся под своим `agentType` и дотянулся до `mcp__tavily-remote__tavily_search`
-(`docs/decisions/2026-08-13-probe-findings.md`, пункты 2 и 3).
+The frontmatter shape comes not from the documentation but from the stage 0 probe: `tools` as a
+comma-separated string and `mcpServers` as a block list. That is exactly how `probe-researcher`
+was declared, and in a live run it came up under its `agentType` and reached
+`mcp__tavily-remote__tavily_search` (`docs/decisions/2026-08-13-probe-findings.md`, items 2 and 3).
 
-Профили типов документов (facet SPEC §6) приезжают полем `skills:` фронтматтера: рантайм
-подгружает `.claude/skills/<имя>/SKILL.md` в контекст агента при запуске. Несуществующий
-профиль рантайм **молча пропускает** — предупреждение уходит только в debug-журнал, агент
-стартует без контракта, и прогон этого не покажет. Поэтому сборка проверяет каждый названный
-профиль на диске и падает, если его нет: это та же порода тихого провала, что и путь к
-ненаписанному файлу в порту.
+Document-type profiles (facet SPEC §6) arrive through the `skills:` frontmatter field: the runtime
+loads `.claude/skills/<name>/SKILL.md` into the agent's context at launch. A profile that does not
+exist is **silently skipped** by the runtime: the warning goes only to the debug log, the agent
+starts without its contract, and the run does not show it. So the build checks every named
+profile on disk and fails if one is missing. It is the same kind of silent failure as a port
+pointing at a file nobody wrote.
 
-`omitClaudeMd: true` стоит у каждого агента. По умолчанию Claude Code кладёт всю иерархию
-CLAUDE.md в контекст каждого подагента отдельным блоком instructions — проверено по транскрипту
-носильщика: 40 КБ на момент замера, у писателя перечитывается на каждом ходу. Агенту это не
-нужно: его роль описывает промпт, документ — профиль, входы и выходы — задача из скрипта.
-CLAUDE.md остаётся инструкцией для сессии разработчика (Claude Code ≥ 2.1.271).
+Every agent carries `omitClaudeMd: true`. By default Claude Code puts the whole CLAUDE.md
+hierarchy into the context of every subagent as a separate instructions block. Checked against a
+carrier agent's transcript: 40 KB at the time of measurement, and the writer rereads it on every
+turn. The agent does not need it: the prompt describes its role, the profile its document, and
+the task from the script its inputs and outputs. CLAUDE.md remains the instructions for the
+developer session (Claude Code ≥ 2.1.271).
 
-Модель здесь не пишется намеренно. У агента в библиотеке её нет: `params.model` живёт у узла
-конвейера, потому что один и тот же агент в разных конвейерах стоит разных денег. Модель
-задаёт вызов `agent()` в скрипте — это работа `emit_workflow.py`.
+The model is deliberately not written here. A library agent has none: `params.model` belongs to
+the pipeline node, because the same agent costs different money in different pipelines. The model
+is set by the `agent()` call in the script; that is the job of `emit_workflow.py`.
 """
 
 from __future__ import annotations
@@ -37,9 +38,9 @@ import yaml
 
 from facet.models.agent import AgentSpec
 
-# Отображение возможностей контракта в инструменты Claude Code. `vision` не отдельный
-# инструмент: картинки читает тот же `Read`, поэтому `read` и `vision` сходятся в один
-# элемент и дубль убирается.
+# Mapping of contract capabilities to Claude Code tools. `vision` is not a separate tool:
+# images are read by the same `Read`, so `read` and `vision` collapse into one entry and the
+# duplicate is dropped.
 CAPABILITY_TOOLS: dict[str, tuple[str, ...]] = {
     "read": ("Read",),
     "edit": ("Write", "Edit"),
@@ -48,8 +49,8 @@ CAPABILITY_TOOLS: dict[str, tuple[str, ...]] = {
     "vision": ("Read",),
 }
 
-# Порядок инструментов в файле фиксирован, а не унаследован из `needs`: один YAML обязан
-# давать один и тот же файл, иначе diff сгенерированного перестаёт что-либо значить.
+# The tool order in the file is fixed, not inherited from `needs`: one YAML must produce one and
+# the same file, otherwise a diff of the generated files stops meaning anything.
 TOOL_ORDER = ("Read", "Write", "Edit", "Bash", "WebFetch")
 
 MCP_PREFIX = "mcp:"
@@ -73,32 +74,32 @@ GENERATED_MARKER = (
 def slug_of(name: str) -> str:
     """`article_critic` → `article-critic`.
 
-    Имена в библиотеке в змеином регистре, а Claude Code свои агенты называет через дефис —
-    так выглядят и штатные, и наш `probe-researcher`, который запустился. Дефис выбран как
-    проверенная форма; имя в файле и имя в `agentType` берутся из одной функции, поэтому
-    разойтись они не могут.
+    Library names are snake_case, while Claude Code names its agents with hyphens: so do the
+    built-in ones, and so did our `probe-researcher`, which launched. The hyphen is chosen as
+    the proven form; the file name and the `agentType` name come from one function, so they
+    cannot diverge.
     """
     return name.replace("_", "-")
 
 
 def mcp_servers_of(needs: Iterable[str]) -> list[str]:
-    """Серверы MCP, названные контрактом: `"mcp:tavily-remote"` → `tavily-remote`."""
+    """MCP servers named by the contract: `"mcp:tavily-remote"` → `tavily-remote`."""
     return sorted({cap[len(MCP_PREFIX) :] for cap in needs if cap.startswith(MCP_PREFIX)})
 
 
 def tools_of(needs: Iterable[str]) -> list[str]:
-    """Возможности контракта → список инструментов для фронтматтера.
+    """Contract capabilities → the tool list for the frontmatter.
 
-    Сервер MCP попадает в список одним элементом `mcp__<сервер>` без имени инструмента:
-    в пробнике так объявленный агент получил доступ и к `tavily_search`, и к
-    `tavily_extract`, то есть префикс работает как разрешение на весь сервер.
+    An MCP server enters the list as one entry `mcp__<server>` without a tool name: in the
+    probe, an agent declared this way got access to both `tavily_search` and
+    `tavily_extract`, so the prefix works as a permission for the whole server.
     """
     caps = list(needs)
     unknown = [c for c in caps if c not in CAPABILITY_TOOLS and not c.startswith(MCP_PREFIX)]
     if unknown:
-        # Возможность, добавленная в модель без отображения сюда, обязана ломать сборку:
-        # молча выданный агенту пустой список инструментов отладить намного дороже.
-        raise ValueError(f"возможности без отображения в инструменты: {sorted(unknown)}")
+        # A capability added to the model without a mapping here must break the build: an
+        # empty tool list silently handed to an agent is far more expensive to debug.
+        raise ValueError(f"capabilities with no tool mapping: {sorted(unknown)}")
 
     granted = {tool for cap in caps for tool in CAPABILITY_TOOLS.get(cap, ())}
     ordered = [tool for tool in TOOL_ORDER if tool in granted]
@@ -106,41 +107,41 @@ def tools_of(needs: Iterable[str]) -> list[str]:
 
 
 def missing_skills(spec: AgentSpec, skills_dir: Path) -> list[str]:
-    """Профили, названные контрактом, которых нет в `skills_dir`."""
+    """Profiles named by the contract that are missing from `skills_dir`."""
     return [skill for skill in spec.skills if not (skills_dir / skill / SKILL_MD).is_file()]
 
 
 def check_skills(spec: AgentSpec, skills_dir: Path | None) -> None:
-    """Названный профиль обязан лежать на диске — рантайм отсутствующий пропустит молча."""
+    """A named profile must exist on disk: the runtime silently skips a missing one."""
     if skills_dir is None:
         return
     missing = missing_skills(spec, skills_dir)
     if missing:
         raise FileNotFoundError(
-            f"агент {spec.name} называет профили, которых нет в {skills_dir}: {missing}"
+            f"agent {spec.name} names profiles missing from {skills_dir}: {missing}"
         )
 
 
 def load_agent(agent_dir: Path) -> tuple[AgentSpec, str]:
-    """Прочитать пакет агента из библиотеки: контракт плюс системный промпт."""
+    """Read an agent package from the library: the contract plus the system prompt."""
     spec_path = agent_dir / AGENT_YAML
     prompt_path = agent_dir / PROMPT_MD
     if not spec_path.is_file():
-        raise FileNotFoundError(f"нет контракта агента: {spec_path}")
+        raise FileNotFoundError(f"no agent contract: {spec_path}")
     if not prompt_path.is_file():
-        raise FileNotFoundError(f"нет системного промпта: {prompt_path}")
+        raise FileNotFoundError(f"no system prompt: {prompt_path}")
 
     spec = AgentSpec.model_validate(yaml.safe_load(spec_path.read_text(encoding="utf-8")))
     return spec, prompt_path.read_text(encoding="utf-8")
 
 
 def render_agent(spec: AgentSpec, prompt: str) -> str:
-    """Собрать текст `.claude/agents/<slug>.md`."""
+    """Build the text of `.claude/agents/<slug>.md`."""
     slug = slug_of(spec.name)
     head: dict[str, object] = {
         "name": slug,
-        # Описание в библиотеке — сложенный многострочный скаляр; во фронтматтере он
-        # обязан быть одной строкой, иначе YAML читается иначе, чем задумано.
+        # In the library the description is a folded multi-line scalar; in the frontmatter it
+        # must be one line, otherwise the YAML reads differently from what was intended.
         "description": " ".join(spec.description.split()),
         "tools": ", ".join(tools_of(spec.needs)),
     }
@@ -151,8 +152,8 @@ def render_agent(spec: AgentSpec, prompt: str) -> str:
     # The project's CLAUDE.md is for the developer session and costs the agent only tokens.
     head["omitClaudeMd"] = True
     if spec.skills:
-        # Списком, а не строкой: так поле описано у рантайма, и так его читает YAML без
-        # догадок о разделителе.
+        # A list, not a string: that is how the runtime describes the field, and that is how
+        # YAML reads it without guessing the separator.
         head["skills"] = list(spec.skills)
 
     frontmatter = yaml.safe_dump(
@@ -207,10 +208,10 @@ def render_inputs(spec: AgentSpec) -> str:
 
 
 def emit_agent(agent_dir: Path, out_dir: Path, skills_dir: Path | None = None) -> Path:
-    """Сгенерировать один файл определения. Возвращает записанный путь.
+    """Generate one definition file. Returns the path written.
 
-    `skills_dir` — каталог профилей (`.claude/skills`); если задан, названные контрактом
-    профили проверяются на диске до записи файла.
+    `skills_dir` is the profiles directory (`.claude/skills`); when given, the profiles named
+    by the contract are checked on disk before the file is written.
     """
     spec, prompt = load_agent(agent_dir)
     check_skills(spec, skills_dir)
@@ -221,6 +222,6 @@ def emit_agent(agent_dir: Path, out_dir: Path, skills_dir: Path | None = None) -
 
 
 def emit_all(agents_dir: Path, out_dir: Path, skills_dir: Path | None = None) -> list[Path]:
-    """Сгенерировать определения всех агентов библиотеки, в устойчивом порядке."""
+    """Generate the definitions of every library agent, in a stable order."""
     packages = sorted(p for p in agents_dir.iterdir() if (p / AGENT_YAML).is_file())
     return [emit_agent(package, out_dir, skills_dir) for package in packages]

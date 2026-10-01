@@ -1,8 +1,8 @@
-"""Тесты наблюдателя за завершением подагентов.
+"""Tests for the observer of subagent completion.
 
-Хук ничего не блокирует — его единственный результат это строка в протоколе, поэтому
-проверяется, что строка говорит правду: сколько файлов агент писал, и лежат ли они на диске
-на момент его завершения.
+The hook blocks nothing; its only result is a line in the log, so the tests check that the line
+tells the truth: how many files the agent wrote, and whether they are on disk at the moment it
+finishes.
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ import stop_audit
 
 
 def transcript(tmp_path: Path, calls: list[tuple[str, str]], name: str = "agent.jsonl") -> Path:
-    """Транскрипт из пар (инструмент, путь), в формате, который пишет рантайм."""
+    """A transcript of (tool, path) pairs, in the format the runtime writes."""
     path = tmp_path / name
     lines = []
     for tool, file_path in calls:
@@ -38,7 +38,7 @@ def transcript(tmp_path: Path, calls: list[tuple[str, str]], name: str = "agent.
 
 
 def test_agent_that_wrote_nothing(tmp_path: Path) -> None:
-    """Критик файлов не пишет, и это не дефект."""
+    """A critic writes no files, and that is not a defect."""
     t = transcript(tmp_path, [])
     record = stop_audit.audit({"agent_type": "article-critic", "agent_transcript_path": str(t)})
     assert record["verdict"] == "no_writes"
@@ -47,7 +47,7 @@ def test_agent_that_wrote_nothing(tmp_path: Path) -> None:
 
 def test_written_file_that_exists(tmp_path: Path) -> None:
     target = tmp_path / "material.md"
-    target.write_text("материал", encoding="utf-8")
+    target.write_text("material", encoding="utf-8")
     t = transcript(tmp_path, [("Write", str(target))])
     record = stop_audit.audit({"agent_type": "domain-analyst", "agent_transcript_path": str(t)})
     assert record["verdict"] == "ok"
@@ -56,7 +56,7 @@ def test_written_file_that_exists(tmp_path: Path) -> None:
 
 
 def test_written_file_that_vanished(tmp_path: Path) -> None:
-    """Главный случай: Write был, файла нет. Ради него хук и существует."""
+    """The main case: there was a Write, but there is no file. The hook exists for this case."""
     target = tmp_path / "material.md"
     t = transcript(tmp_path, [("Write", str(target))])
     record = stop_audit.audit({"agent_type": "domain-analyst", "agent_transcript_path": str(t)})
@@ -66,7 +66,7 @@ def test_written_file_that_vanished(tmp_path: Path) -> None:
 
 def test_edit_counts_as_writing(tmp_path: Path) -> None:
     target = tmp_path / "article.md"
-    target.write_text("статья", encoding="utf-8")
+    target.write_text("article", encoding="utf-8")
     t = transcript(tmp_path, [("Edit", str(target))])
     record = stop_audit.audit({"agent_type": "article-writer", "agent_transcript_path": str(t)})
     assert record["verdict"] == "ok"
@@ -74,7 +74,7 @@ def test_edit_counts_as_writing(tmp_path: Path) -> None:
 
 def test_repeated_edits_of_one_file_count_once(tmp_path: Path) -> None:
     target = tmp_path / "article.md"
-    target.write_text("статья", encoding="utf-8")
+    target.write_text("article", encoding="utf-8")
     t = transcript(tmp_path, [("Write", str(target)), ("Edit", str(target)), ("Edit", str(target))])
     record = stop_audit.audit({"agent_type": "article-writer", "agent_transcript_path": str(t)})
     assert record["wrote"] == 1
@@ -88,7 +88,7 @@ def test_reading_tools_are_not_writing(tmp_path: Path) -> None:
 
 def test_missing_transcript_is_reported_not_crashed(tmp_path: Path) -> None:
     record = stop_audit.audit(
-        {"agent_type": "x", "agent_transcript_path": str(tmp_path / "нет.jsonl")}
+        {"agent_type": "x", "agent_transcript_path": str(tmp_path / "missing.jsonl")}
     )
     assert record["verdict"] == "no_writes"
 
@@ -100,9 +100,9 @@ def test_payload_without_transcript_path(tmp_path: Path) -> None:
 
 def test_broken_lines_in_transcript_are_skipped(tmp_path: Path) -> None:
     target = tmp_path / "material.md"
-    target.write_text("материал", encoding="utf-8")
+    target.write_text("material", encoding="utf-8")
     t = transcript(tmp_path, [("Write", str(target))])
-    t.write_text("не json\n" + t.read_text(encoding="utf-8"), encoding="utf-8")
+    t.write_text("not json\n" + t.read_text(encoding="utf-8"), encoding="utf-8")
     record = stop_audit.audit({"agent_type": "x", "agent_transcript_path": str(t)})
     assert record["verdict"] == "ok"
 
@@ -111,7 +111,7 @@ def test_main_appends_a_line_and_always_succeeds(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     target = tmp_path / "material.md"
-    target.write_text("материал", encoding="utf-8")
+    target.write_text("material", encoding="utf-8")
     t = transcript(tmp_path, [("Write", str(target))])
     log = tmp_path / "log" / "stop-audit.jsonl"
     monkeypatch.setattr(stop_audit, "LOG", log)
@@ -129,17 +129,17 @@ def test_main_appends_a_line_and_always_succeeds(
 def test_garbage_on_stdin_does_not_break_the_run(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Хук, падающий на мусоре, утащил бы за собой прогон."""
+    """A hook that crashed on garbage would take the run down with it."""
     monkeypatch.setattr(stop_audit, "LOG", tmp_path / "stop-audit.jsonl")
-    monkeypatch.setattr(sys, "stdin", __import__("io").StringIO("{не json"))
+    monkeypatch.setattr(sys, "stdin", __import__("io").StringIO("{not json"))
     assert stop_audit.main() == 0
 
 
-# --- форма пути в записи --------------------------------------------------------------
+# --- the form of a path in the record --------------------------------------------------
 #
-# Единственный вопрос, который к этому журналу задают, — «что записали агенты ЭТОГО прогона»,
-# и это обычное совпадение подстроки с каталогом прогона. Абсолютный путь с обратными слешами
-# на такое не отвечает и делает журнал привязанным к машине.
+# The only question anyone asks of this log is "what did the agents of THIS run write", and
+# that is a plain substring match against the run directory. An absolute path with backslashes
+# cannot answer it and ties the log to one machine.
 
 
 def test_path_inside_the_repo_is_recorded_relative() -> None:
@@ -148,18 +148,18 @@ def test_path_inside_the_repo_is_recorded_relative() -> None:
 
 
 def test_path_outside_the_repo_stays_absolute_but_posix(tmp_path: Path) -> None:
-    outside = tmp_path / "чужой.md"
+    outside = tmp_path / "foreign.md"
     got = stop_audit.relative(outside)
     assert "\\" not in got
-    assert got.endswith("чужой.md")
+    assert got.endswith("foreign.md")
 
 
 def test_log_path_is_overridable(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    """`probe-runs/` был вдвойне неверен: это один конкретный прогон, а не место для логов."""
-    monkeypatch.setenv("COLLIMATOR_STOP_AUDIT", str(tmp_path / "своё.jsonl"))
+    """`probe-runs/` was doubly wrong: it is one particular run, not a place for logs."""
+    monkeypatch.setenv("COLLIMATOR_STOP_AUDIT", str(tmp_path / "own.jsonl"))
     import importlib
 
     reloaded = importlib.reload(stop_audit)
-    assert reloaded.LOG == tmp_path / "своё.jsonl"
+    assert reloaded.LOG == tmp_path / "own.jsonl"
     monkeypatch.delenv("COLLIMATOR_STOP_AUDIT")
     importlib.reload(stop_audit)

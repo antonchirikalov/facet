@@ -1,9 +1,9 @@
-"""Тесты замка на каталог прогона.
+"""Tests for the lock on a run directory.
 
-Вопрос «идёт ли по этому каталогу другой прогон» до сих пор не имел ответа, и это стоило
-прогона: журнал молчал шесть минут, каталог выглядел свободным, а первый прогон был жив —
-молчали искатели, которые вообще не зовут инструментов. Два процесса писали один разбор, и
-какую версию читал писатель, установить уже нельзя.
+The question "is another run working in this directory" had no answer, and that cost a run:
+the log was silent for six minutes, the directory looked free, but the first run was alive;
+the silent ones were the finders, which call no tools at all. Two processes wrote one analysis,
+and which version the writer read can no longer be established.
 """
 
 from __future__ import annotations
@@ -48,10 +48,10 @@ def log_of(tmp_path: Path, *records: dict[str, Any]) -> Path:
 def test_release_line_frees_the_directory_however_young(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Ревизия конца этапа пишет release — и следующий этап стартует встык, а не через десять минут.
+    """The end-of-stage audit writes release, so the next stage starts right away, not ten minutes later.
 
-    Оплачено запуском: draft остановился, потому что за 72 секунды до него research закончил
-    собственной ревизией, и замок прочитал её как чужую работу.
+    Paid for by a launch: draft stopped because research had finished with its own audit 72
+    seconds earlier, and the lock read that audit as someone else's work.
     """
     log = log_of(
         tmp_path,
@@ -67,7 +67,7 @@ def test_release_line_frees_the_directory_however_young(
 def test_work_after_a_release_is_busy_again(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """release — это конец ТОГО прогона; расписка после него значит, что начался следующий."""
+    """release ends THAT run; a receipt after it means the next one has started."""
     log = log_of(
         tmp_path,
         {"at": "2026-08-16T15:20:00+03:00", "tool": "listing", "ok": True, "release": True},
@@ -80,7 +80,7 @@ def test_work_after_a_release_is_busy_again(
 def test_own_receipts_are_not_activity(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Вопрос «занято ли» — не работа в каталоге: замок не должен запираться своей же расписки."""
+    """Asking "is it busy" is not work in the directory: the lock must not lock itself on its own receipt."""
     log = log_of(
         tmp_path,
         {"at": "2026-08-16T15:00:00+03:00", "tool": "gate", "ok": True},
@@ -94,13 +94,13 @@ def test_own_receipts_are_not_activity(
 def test_log_release_flag_writes_the_marker(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Флаг --log-release у любого инструмента кладёт release в его расписку."""
+    """The --log-release flag of any tool puts release into its receipt."""
     receipt = tmp_path / "receipts.jsonl"
     run(
         capsys,
         monkeypatch,
         "--file",
-        str(tmp_path / "нет.jsonl"),
+        str(tmp_path / "missing.jsonl"),
         "--now",
         NOW,
         "--log",
@@ -114,7 +114,7 @@ def test_log_release_flag_writes_the_marker(
         capsys,
         monkeypatch,
         "--file",
-        str(tmp_path / "нет.jsonl"),
+        str(tmp_path / "missing.jsonl"),
         "--now",
         NOW,
         "--log",
@@ -126,8 +126,8 @@ def test_log_release_flag_writes_the_marker(
 def test_missing_log_is_free(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Свежий каталог — обычное состояние, а не подозрительное."""
-    report, code = run(capsys, monkeypatch, "--file", str(tmp_path / "нет.jsonl"), "--now", NOW)
+    """A fresh directory is the normal state, not a suspicious one."""
+    report, code = run(capsys, monkeypatch, "--file", str(tmp_path / "missing.jsonl"), "--now", NOW)
     assert report["busy"] is False
     assert report["ok"] is True
     assert code == 0
@@ -171,7 +171,7 @@ def test_last_line_wins_not_the_first(
 def test_truncated_final_line_falls_back_to_the_one_before(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Оборванная последняя строка — как раз то, как выглядит журнал прогона на ходу."""
+    """A truncated last line is exactly what the log of a running run looks like."""
     log = log_with(tmp_path, "2026-08-16T15:29:00+03:00")
     with log.open("a", encoding="utf-8") as fh:
         fh.write('{"at": "2026-08-16T15:29')
@@ -183,9 +183,9 @@ def test_truncated_final_line_falls_back_to_the_one_before(
 def test_unreadable_now_is_busy_not_free(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Сломанные часы не должны читаться как «свободно»: это ответ, который пускает второй прогон."""
+    """A broken clock must not read as "free": that is the answer that lets a second run in."""
     log = log_with(tmp_path, "2026-08-16T15:29:00+03:00")
-    report, code = run(capsys, monkeypatch, "--file", str(log), "--now", "вчера", "--strict")
+    report, code = run(capsys, monkeypatch, "--file", str(log), "--now", "yesterday", "--strict")
     assert report["busy"] is True
     assert code == 1
 
@@ -193,7 +193,7 @@ def test_unreadable_now_is_busy_not_free(
 def test_future_line_does_not_read_as_free(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Часы разошлись — это не причина объявлять каталог свободным."""
+    """Clocks that drifted apart are no reason to declare the directory free."""
     log = log_with(tmp_path, "2026-08-16T16:00:00+03:00")
     report, _ = run(capsys, monkeypatch, "--file", str(log), "--now", NOW)
     assert report["busy"] is True
@@ -212,7 +212,7 @@ def test_strict_exits_one_when_busy(
 def test_naive_and_aware_stamps_compare(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Часовой пояс есть не у всякого, кто передаёт время; падать на этом нельзя."""
+    """Not everyone who passes a time passes a time zone; failing on that is not allowed."""
     log = log_with(tmp_path, "2026-08-16T15:29:00")
     report, _ = run(capsys, monkeypatch, "--file", str(log), "--now", NOW)
     assert report["busy"] is True
@@ -226,7 +226,7 @@ def test_receipt_goes_to_its_own_log(
         capsys,
         monkeypatch,
         "--file",
-        str(tmp_path / "нет.jsonl"),
+        str(tmp_path / "missing.jsonl"),
         "--now",
         NOW,
         "--log",

@@ -1,12 +1,12 @@
-# Обороты, которые читаются как сгенерированный английский. По регулярке на строку, «#» —
-# комментарий. Ищется вне кода, без учёта регистра.
+# Phrases that read as generated English. One regex per line, "#" starts a comment. Matched
+# outside code, case-insensitive.
 #
-# Список нарочно узкий: только то, что не несёт информации ни в каком контексте. «Robust»,
-# «scalable», «not only … but also» сюда не входят — они бывают законными, и судит их критик
-# (library/style/en-style-tells.md), а не регулярка: правило, срабатывающее на нормальной
-# прозе, стоит круга переписывания.
+# The list is deliberately narrow: only what carries no information in any context. "Robust",
+# "scalable", "not only ... but also" are left out: they can be legitimate, and the critic
+# (library/style/en-style-tells.md) judges them, not a regex. A rule that fires on normal prose
+# costs a rewrite round.
 #
-# Это ДАННЫЕ: правится руками, без правки кода.
+# This is DATA: edit it by hand, no code change needed.
 
 it(?:'s| is) worth (?:noting|mentioning|highlighting)|it is important to (?:note|emphasi[sz]e)|importantly,
 in today's (?:fast-paced|digital|ever-changing|competitive)|ever-evolving landscape

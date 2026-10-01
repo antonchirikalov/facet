@@ -1,8 +1,8 @@
-"""Тесты сверки цитат с источниками.
+"""Tests of checking quotes against their sources.
 
-Каждое правило здесь оплачено документом для живого клиента: цитата, которой нет в транскрипте,
-видна заказчику сразу, а подписи интерфейса в кавычках, помеченные как «не найдено», приучают
-не читать отчёт.
+Every rule here was paid for by a document for a real client: a quote that is not in the
+transcript is visible to the client at once, and interface labels in quotation marks reported as
+"not found" teach the reader to stop reading the report.
 """
 
 from __future__ import annotations
@@ -110,7 +110,7 @@ def test_cli_missing_file_is_a_problem(
 def test_cli_source_folder(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Папка извлечений как источник: скрипт не умеет перечислить её файлы сам."""
+    """A directory of extracts as the source: the script cannot list its files itself."""
     doc, folder = tmp_path / "doc.md", tmp_path / "extracts"
     folder.mkdir()
     (folder / "t.md").write_text(SOURCE, encoding="utf-8")

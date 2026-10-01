@@ -1,7 +1,7 @@
-"""Тесты преднастройки этапа схем: какой критик доступен и не сломан ли TMPDIR.
+"""Tests for the preflight of the figures stage: which critic is available and whether TMPDIR is broken.
 
-Все случаи — из одного живого прогона: ключ Kimi протух (401), баланс кончился (429), TMPDIR с именем
-8.3 ослеплял критика. Сеть в тестах не нужна: запрос подменяется.
+All cases come from one live run: the Kimi key expired (401), the balance ran out (429), and a
+TMPDIR with an 8.3 name blinded the critic. The tests need no network: the request is stubbed.
 """
 
 from __future__ import annotations

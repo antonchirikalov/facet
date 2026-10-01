@@ -1,8 +1,9 @@
-"""Тесты карты покрытия: каждая просьба клиента либо имеет место в документе, либо явно вне объёма.
+"""Tests of the coverage map: every client ask either has a place in the document or is explicitly out of scope.
 
-На одном живом прогоне распространение через магазины, обучение регистратуры и готовые типы
-приёмов читатель находил по одному, уже после «готового» черновика. Карта делает пропуск видимым до чтения, а этот
-инструмент не даёт карте соврать: цитата дословная, раздел существует, «вне объёма» с причиной.
+On one live run the reader found app-store distribution, front-desk training and predefined
+appointment types one at a time, after the draft was already "done". The map makes a gap visible
+before reading, and this tool keeps the map honest: the quote is verbatim, the section exists,
+and "out of scope" carries a reason.
 """
 
 from __future__ import annotations
@@ -43,7 +44,7 @@ def test_placed_rows_pass() -> None:
 
 
 def test_unanswered_ask_is_named() -> None:
-    """Обучение регистратуры, которое на прогоне забыли: пустая ячейка — пропуск, а не мелочь."""
+    """Front-desk training, forgotten on that run: an empty cell is a gap, not a detail."""
     rows = "| CV-03 | Owner | 22:28 | “need some training on it” | |\n"
     problems, _ = check(rows)
     assert problems == ["CV-03: not answered (“empty”)"]

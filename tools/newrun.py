@@ -33,7 +33,7 @@ SLUG_OK = re.compile(r"[^a-z0-9]+")
 # Cyrillic labels are the normal case here and dropping them produced `run-20260816-142530` for
 # every experiment — a name that identifies nothing, which is the opposite of the point.
 # Transliteration is the plain GOST-ish one: readable, reversible enough to recognise, ASCII.
-# fmt: off  # таблица данных читается таблицей, а не колонкой из тридцати трёх строк
+# fmt: off  # a data table reads as a table, not as a column of thirty-three lines
 TRANSLIT = {
     "а": "a",
     "б": "b",
@@ -98,7 +98,7 @@ def main() -> int:
     # Local time, made explicit: the name is read by a person deciding which run to open.
     target = run_dir(args.base, args.label, datetime.now().astimezone())
     if args.check and Path(target).exists():
-        print(f"уже существует: {target}", file=sys.stderr)
+        print(f"already exists: {target}", file=sys.stderr)
         return 1
     print(target)
     return 0

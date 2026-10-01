@@ -12,7 +12,7 @@ quotes its own interface ("Generate estimate") and banner texts, and flagging th
 to ignore the report. A quote is checked when it is attributed:
 
 - it sits in a table column whose header names quotes or the client's words ("In the client's
-  words", "Quote", "Source", "Цитата"), or
+  words", "Quote", "Source", or their Russian equivalents), or
 - it is followed by a parenthesised attribution, `“…” (owner)`.
 
 `--all` checks every curly-quoted string instead.

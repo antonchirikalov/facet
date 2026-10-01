@@ -1,55 +1,58 @@
-# Профиль требований: откуда взят контракт и что добавлено
+# The requirements profile: where the contract came from and what was added
 
-Дата: 2026-09-19. Шаги 3 и 4 плана (`SPEC.md` §10) для типа `requirements`.
+Date: 2026-09-19. Steps 3 and 4 of the plan (`SPEC.md` §10) for the `requirements` type.
 
-## Повод
+## The occasion
 
-Демо-прогон 18 сентября (вымышленная сеть ветклиник, пять документов) дал документ из 86
-пунктов прозой с ссылками в квадратных скобках. Сравнение с эталоном — документом требований
-стадии RFP, сверенным с несколькими сотнями письменных ответов клиента — показало разрыв не в
-трассировке (она у нас была), а в форме и полноте: у эталона девять разделов и таблицы с
-колонками ID / требование / приоритет / источник, у нас — FR/NFR/CON/ASM/OQ списком, без ролей,
-без границы объёма, без модели данных, без интеграций, без статусов у конфликтов.
+The demo run of 18 September (a fictional chain of veterinary clinics, five documents) produced a
+document of 86 items in prose with references in square brackets. A comparison with the reference
+document — an RFP-stage requirements document, checked against several hundred written answers
+from the client — showed the gap was not in traceability (we had that) but in form and
+completeness: the reference has nine sections and tables with the columns ID / requirement /
+priority / source, while ours had FR/NFR/CON/ASM/OQ as a list, with no roles, no scope boundary,
+no data model, no integrations, no statuses on conflicts.
 
-## Откуда контракт
+## Where the contract came from
 
-Эталон сделан нашим же конвейером предыдущего поколения, spectra, по шаблону
-`.github/skills/requirements-template/SKILL.md`: девять разделов, схема идентификаторов
-`FR-/NFR-/BR-/C-/G-/A-`, правила конфликтов, чек-лист критика из пятнадцати пунктов с
-тяжестями. При переходе к refract контракт был сознательно урезан до «заголовок, FR-n,
-Open questions», а структурные проверки вынесены в regex-ворота типа. Обе школы оказались
-правы наполовину: spectra давала форму, refract — строгость к фактам (корректор между
-писателем и критиком, «нет источника — нет требования», запрет YAML-метаблока с выдуманными
-счётчиками).
+The reference document was made by our own previous-generation pipeline, spectra, from the
+template `.github/skills/requirements-template/SKILL.md`: nine sections, the id scheme
+`FR-/NFR-/BR-/C-/G-/A-`, conflict rules, a fifteen-item critic checklist with severities. In the
+move to refract the contract was deliberately cut down to "heading, FR-n, Open questions", and the
+structural checks were moved into the type's regex gates. Both schools turned out to be half
+right: spectra gave the form, refract the rigour about facts (a corrector between the writer and
+the critic, "no source — no requirement", a ban on a YAML metadata block with invented counters).
 
-Профиль facet (`.claude/skills/requirements-profile/SKILL.md`) — шаблон spectra плюс строгости
-refract плюс три вещи, которых не было ни там, ни там:
+The facet profile (`.claude/skills/requirements-profile/SKILL.md`) is the spectra template plus
+refract's rigour plus three things that were in neither:
 
-- **указатель и цитата в каждой ссылке**, а не только имя файла: дата, время и говорящий для
-  чатов и встреч, номер ответа для Q&A, раздел или страница для документов;
-- **кванторы копируются, а не улучшаются** — критический дефект в чек-листе и явная проверка у
-  корректора: демо-прогон превратил «один врач в каждой клинике» в «каждый врач» при верной
-  ссылке, и три агента этого не увидели;
-- **язык замечаний критика — язык документа**: в демо критик писал по-английски с транслитом
-  русских цитат, и `UNRESOLVED.md` нельзя было показать клиенту.
+- **a locator and a quote in every reference**, not just the file name: date, time and speaker
+  for chats and meetings, the answer number for Q&A, the section or page for documents;
+- **quantifiers are copied, not improved** — a critical defect in the checklist and an explicit
+  check for the corrector: the demo run turned "one doctor in every clinic" into "every doctor"
+  with a correct reference, and three agents did not see it;
+- **the language of the critic's remarks is the language of the document**: in the demo the
+  critic wrote in English with transliterated Russian quotes, and `UNRESOLVED.md` could not be
+  shown to the client.
 
-## Что делает гейт
+## What the gate does
 
-Три новых правила в `tools/gate.py`, все механические и не зависящие от языка документа:
-`--require-heading` по номерам разделов (`## 1.` … `## 9.`, `### 8.1`–`8.3`),
-`--rows-have-source` (в таблице с колонкой Source/Источник каждая строка её заполняет),
-`--unique-ids`. Скрипт `solution-design.js` передаёт их петле требований через `gateFlags`.
-Старый демо-документ гейт отвергает по заголовкам; скелет эталона проходит все правила.
+Three new rules in `tools/gate.py`, all mechanical and independent of the document's language:
+`--require-heading` by section numbers (`## 1.` … `## 9.`, `### 8.1`–`8.3`),
+`--rows-have-source` (in a table with a `Source` column, every row fills it in; the gate also accepts the Russian column name),
+`--unique-ids`. The `solution-design.js` script passes them to the requirements loop through
+`gateFlags`. The gate rejects the old demo document on its headings; the reference skeleton passes
+all the rules.
 
-## Эталон
+## The reference
 
-`exemplars/requirements/skeleton.md` — обезличенный скелет: заголовки, по строке-заполнителю
-на таблицу, пометки «что здесь обязательно и почему». `why.md` — почему выбран именно этот
-документ. Ссылка на полный документ — в `exemplars.local.yaml` под `.gitignore` (SPEC Р8:
-клиентские данные в репозиторий не попадают).
+`exemplars/requirements/skeleton.md` — an anonymised skeleton: the headings, one placeholder row
+per table, notes on "what is mandatory here and why". `why.md` — why exactly this document was
+chosen. The link to the full document is in `exemplars.local.yaml` under `.gitignore` (SPEC R8:
+client data does not get into the repository).
 
-## Что не сделано
+## What was not done
 
-Профиль `solution-design` остаётся скелетом; `gap-analysis` не начат. Извлекатель получил
-поля «роли» и «факты о среде», но его схема `extract@v1` их не требует — обязательными они
-станут, когда писатель покажет, что без них теряет разделы 1 и 9.
+The `solution-design` profile remains a skeleton; `gap-analysis` has not been started. The
+extractor got the fields "roles" and "facts about the environment", but its `extract@v1` schema
+does not require them — they will become mandatory when the writer shows that without them it
+loses sections 1 and 9.

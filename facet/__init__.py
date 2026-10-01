@@ -1,7 +1,7 @@
-"""facet — практика подготовки документов на Dynamic Workflows Claude Code.
+"""facet: a document practice on Claude Code Dynamic Workflows.
 
-Единственный код здесь — генератор определений подагентов из `library/agents`.
-Мы генерируем и запускаем, мы не пишем оркестрацию: агентов запускает Claude Code.
+The only code here is the generator of subagent definitions from `library/agents`.
+We generate and run, we do not write orchestration: Claude Code runs the agents.
 """
 
 __version__ = "0.1.0"

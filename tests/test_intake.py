@@ -1,7 +1,7 @@
-"""Тесты описи входной папки.
+"""Tests for the inventory of the input folder.
 
-Каждый случай — с одного живого прогона: пропущенная подпапка со звонком, наши заметки рядом со словами клиента,
-пять кадров под двумя именами.
+Every case comes from one live run: a skipped subfolder holding the call, our notes next to the
+client's words, five frames under two names.
 """
 
 from __future__ import annotations
@@ -71,5 +71,5 @@ def test_read_with(tmp_path: Path) -> None:
 
 
 def test_missing_directory(tmp_path: Path) -> None:
-    files, problems = intake.inventory(tmp_path / "нет")
+    files, problems = intake.inventory(tmp_path / "missing")
     assert files == [] and problems

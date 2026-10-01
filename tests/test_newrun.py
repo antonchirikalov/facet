@@ -1,8 +1,8 @@
-"""Тесты именования каталога прогона.
+"""Tests for naming a run directory.
 
-Скрипт воркфлоу не имеет часов — `Date.now()` там недоступен, — поэтому имя каталога приходит
-снаружи. Семь запусков одной статьи ушли в один и тот же каталог, и переиспользование с диска
-честно подхватило чужой прогон: сравнивать стало нечего.
+A workflow script has no clock (`Date.now()` is unavailable there), so the directory name comes
+from outside. Seven launches of one article went into the same directory, and reuse from disk
+faithfully picked up the other run: there was nothing left to compare.
 """
 
 from __future__ import annotations
@@ -22,9 +22,9 @@ def test_name_carries_label_and_moment() -> None:
 
 
 def test_cyrillic_label_is_transliterated_not_dropped() -> None:
-    """Кириллица в пути ломала PowerShell, но выбрасывать метку нельзя.
+    """Cyrillic in a path broke PowerShell, but the label must not be thrown away.
 
-    Без транслитерации каждый прогон назывался `run-<время>` — имя, не отличающее ничего.
+    Without transliteration every run was called `run-<time>`, a name that tells nothing apart.
     """
     got = newrun.run_dir("docs-runs", "Внимание в трансформерах", WHEN)
     assert got == "docs-runs/vnimanie-v-transformerah-20260816-142530"
@@ -40,14 +40,14 @@ def test_empty_label_still_yields_a_name() -> None:
 
 
 def test_path_is_posix_even_on_windows() -> None:
-    """Обратный слеш уже однажды отправил четырёх искателей работать вхолостую."""
+    """A backslash once already sent four finders to work for nothing."""
     assert "\\" not in newrun.run_dir("a/b", "c", WHEN)
 
 
 def test_two_runs_in_the_same_second_collide_and_that_is_visible(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """`--check` существует ровно чтобы столкновение было отказом, а не тихим наследованием."""
+    """`--check` exists precisely so that a collision is a refusal, not a silent inheritance."""
     target = newrun.run_dir(str(tmp_path), "x", datetime.now(tz=UTC))
     Path(target).mkdir(parents=True)
     monkeypatch.setattr(
@@ -55,4 +55,4 @@ def test_two_runs_in_the_same_second_collide_and_that_is_visible(
     )
     monkeypatch.setattr(newrun, "run_dir", lambda *a, **k: target)
     assert newrun.main() == 1
-    assert "уже существует" in capsys.readouterr().err
+    assert "already exists" in capsys.readouterr().err

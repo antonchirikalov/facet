@@ -1,12 +1,11 @@
-"""Инварианты скриптов воркфлоу и сгенерированных агентов.
+"""Invariants of the workflow scripts and the generated agents.
 
-Всё, что здесь проверяется, оплачено живым прогоном. Проверки объективные и повторяемые:
-утверждение «хардкода нет» стоит ровно столько, сколько стоит способ его перепроверить через
-месяц.
+Everything checked here was paid for by a live run. The checks are objective and repeatable: the
+claim "nothing is hardcoded" is worth exactly as much as the way to recheck it a month later.
 
-Тесты читают `.claude/`, то есть **сгенерированное**. Это намеренно: рантайм грузит именно эти
-файлы, и вопрос «а совпадает ли собранное с источником» здесь не задаётся — на него отвечает
-`test_emit_agents`.
+The tests read `.claude/`, that is, the **generated** files. This is deliberate: the runtime loads
+exactly these files, and the question "does the build match the source" is not asked here;
+`test_emit_agents` answers it.
 """
 
 from __future__ import annotations
@@ -25,16 +24,17 @@ SKILLS = ROOT / ".claude" / "skills"
 AGENT_TYPE = re.compile(r"agentType:\s*'([a-z0-9-]+)'")
 COMMENT_LINE = re.compile(r"^\s*//")
 
-# Слова предметной области, которые уже утекали в промпты агентов. Список — растяжка, а не
-# определение: он ловит ровно тот случай, который случился (примеры из статьи про внимание,
-# оставшиеся в инструкции агента общего назначения), и пополняется, когда утечёт что-то ещё.
+# Subject-matter words that have already leaked into agent prompts. The list is a tripwire, not a
+# definition: it catches exactly the case that happened (examples from the article on attention
+# left in a general-purpose agent's instructions) and grows when something else leaks. The
+# Russian alternatives are data: they match Russian words in a prompt.
 SUBJECT_WORDS = re.compile(
     r"attention|softmax|transformer|трансформер|d_k\b|d_model|QK\^?T|токенизац",
     re.IGNORECASE,
 )
 
-# Агенты конвейера статьи. Именно они обязаны быть безразличны к теме: один и тот же писатель
-# пишет и про внимание, и про счета-фактуры.
+# The article pipeline's agents. They are the ones that must be indifferent to the subject: the
+# same writer writes about attention and about invoices.
 PIPELINE_AGENTS = [
     "brief-writer",
     "source-finder",
@@ -59,143 +59,144 @@ def agent_files() -> list[Path]:
 
 def frontmatter(path: Path) -> dict[str, object]:
     text = path.read_text(encoding="utf-8")
-    assert text.startswith("---\n"), f"{path.name}: файл не начинается с фронтматтера"
+    assert text.startswith("---\n"), f"{path.name}: the file does not start with frontmatter"
     parsed: dict[str, object] = yaml.safe_load(text.split("---\n", 2)[1])
     return parsed
 
 
 def code_lines(path: Path) -> list[str]:
-    """Строки скрипта без комментариев — то, что реально исполняется."""
+    """The script's lines without comments: what actually executes."""
     return [
         ln for ln in path.read_text(encoding="utf-8").splitlines() if not COMMENT_LINE.match(ln)
     ]
 
 
-# --- управляющие символы --------------------------------------------------------------
+# --- control characters ---------------------------------------------------------------
 
 
 @pytest.mark.parametrize("script", workflow_scripts(), ids=lambda p: p.name)
 def test_no_control_characters(script: Path) -> None:
-    """CR и NUL в скрипте — отказ запуска, а не косметика.
+    """CR and NUL in a script refuse the launch; they are not cosmetic.
 
-    Рантайм отвечает «script contains control characters that would be hidden in the approval
-    dialog» и не стартует. За один день это случилось дважды: `autocrlf` вернул CRLF после
-    checkout, и `\\u0000` в исходнике патча записался настоящим нулевым байтом, сделав скрипт
-    бинарным. Обе поломки молчаливые до самого запуска.
+    The runtime answers "script contains control characters that would be hidden in the approval
+    dialog" and does not start. It happened twice in one day: `autocrlf` brought CRLF back after a
+    checkout, and a `\\u0000` in a patch's source was written as a real NUL byte, making the script
+    binary. Both breakages are silent until the launch itself.
     """
     raw = script.read_bytes()
     bad = sorted({c for c in raw if c < 32 and c not in (9, 10)})
-    assert not bad, f"{script.name}: управляющие символы {bad} (13 — это CR, конец строки CRLF)"
+    assert not bad, f"{script.name}: control characters {bad} (13 is CR, a CRLF line ending)"
 
 
-# --- агенты, которых зовёт скрипт -----------------------------------------------------
+# --- agents the script calls ----------------------------------------------------------
 
 
 @pytest.mark.parametrize("script", workflow_scripts(), ids=lambda p: p.name)
 def test_every_agent_type_has_a_definition(script: Path) -> None:
-    """`agentType` без файла — падение прогона на первой же секунде.
+    """An `agentType` without a file fails the run in its first second.
 
-    Рантайм резолвит агента из `.claude/agents/`, и опечатка в имени видна только в живом
-    запуске: `agent type 'brief-writer' not found`.
+    The runtime resolves the agent from `.claude/agents/`, and a typo in the name shows only in a
+    live launch: `agent type 'brief-writer' not found`.
     """
     wanted = sorted(set(AGENT_TYPE.findall(script.read_text(encoding="utf-8"))))
     missing = [name for name in wanted if not (AGENTS / f"{name}.md").is_file()]
-    assert not missing, f"{script.name}: нет определений для {missing}"
+    assert not missing, f"{script.name}: no definitions for {missing}"
 
 
 @pytest.mark.parametrize("agent", agent_files(), ids=lambda p: p.name)
 def test_agent_name_matches_its_filename(agent: Path) -> None:
-    """Имя во фронтматтере и имя файла — одно и то же, иначе рантайм агента не найдёт.
+    """The frontmatter name and the file name are the same, otherwise the runtime will not find the agent.
 
-    Проверка нужна и против опечатки, и против порчи файла: четыре случайных символа,
-    попавшие перед `---`, перестают быть фронтматтером, и агент молча исчезает из реестра.
+    The check guards against a typo and against file damage: four stray characters before `---`
+    and it stops being frontmatter, and the agent silently disappears from the registry.
     """
     head = frontmatter(agent)
     assert head.get("name") == agent.stem, f"{agent.name}: name={head.get('name')!r}"
-    assert str(head.get("tools", "")).strip(), f"{agent.name}: пустой список инструментов"
+    assert str(head.get("tools", "")).strip(), f"{agent.name}: empty tool list"
 
 
 @pytest.mark.parametrize("agent", agent_files(), ids=lambda p: p.name)
 def test_every_declared_skill_exists(agent: Path) -> None:
-    """Профиль без файла — не падение, а хуже: рантайм пропускает его молча.
+    """A profile without a file is not a failure but worse: the runtime skips it silently.
 
-    Предупреждение уходит в debug-журнал, агент стартует без контракта типа документа и
-    работает как ни в чём не бывало. Здесь проверяется сгенерированное — то, что рантайм
-    реально читает.
+    The warning goes to the debug log, the agent starts without its document-type contract and
+    works as if nothing happened. This checks the generated files, the ones the runtime actually
+    reads.
     """
     skills = frontmatter(agent).get("skills", [])
-    assert isinstance(skills, list), f"{agent.name}: skills должен быть списком"
+    assert isinstance(skills, list), f"{agent.name}: skills must be a list"
     missing = [s for s in skills if not (SKILLS / str(s) / "SKILL.md").is_file()]
-    assert not missing, f"{agent.name}: нет профилей {missing} в {SKILLS}"
+    assert not missing, f"{agent.name}: profiles {missing} missing from {SKILLS}"
 
 
 def test_profile_names_do_not_shadow_saved_workflows() -> None:
-    """Сохранённый воркфлоу виден как скилл своего имени; проектный скилл его перекроет."""
+    """A saved workflow is visible as a skill of its own name; a project skill would shadow it."""
     workflows = {p.stem for p in workflow_scripts()}
     profiles = {p.name for p in SKILLS.iterdir() if p.is_dir()}
     clash = workflows & profiles
-    assert not clash, f"профили перекрывают точки запуска воркфлоу: {sorted(clash)}"
+    assert not clash, f"profiles shadow workflow entry points: {sorted(clash)}"
 
 
-# --- независимость от прогона и от темы -----------------------------------------------
+# --- independence from the run and from the subject -----------------------------------
 
 
 @pytest.mark.parametrize("script", workflow_scripts(), ids=lambda p: p.name)
 def test_no_run_directory_in_executable_code(script: Path) -> None:
-    """Каталог прогона приходит через `args`, а не живёт в скрипте.
+    """The run directory arrives through `args`; it does not live in the script.
 
-    В комментариях и в тексте ошибки пример пути допустим — он объясняет, что передавать.
-    В исполняемой строке путь означает, что скрипт умеет ровно один прогон.
+    In comments and in an error message an example path is allowed: it explains what to pass.
+    In an executable line a path means the script can do exactly one run.
     """
     offenders = [
         ln.strip()
         for ln in code_lines(script)
         if re.search(r"probe-runs/|docs-runs/", ln) and "Error(" not in ln
     ]
-    assert not offenders, f"{script.name}: каталог прогона в коде: {offenders[:3]}"
+    assert not offenders, f"{script.name}: run directory in code: {offenders[:3]}"
 
 
 @pytest.mark.parametrize("name", PIPELINE_AGENTS)
 def test_pipeline_agent_prompt_is_subject_neutral(name: str) -> None:
-    """Один и тот же писатель пишет и про внимание, и про счета-фактуры.
+    """The same writer writes about attention and about invoices.
 
-    Пример из предметной области, оставленный в инструкции агента общего назначения, не
-    ломает ничего заметно — он просто тянет следующую статью к предыдущей теме. В библиотеке
-    таких следов было четыре: `QK^T` как образец жирной метки, `h = 8, d_model = 512` как
-    образец числа без следствия, «How attention works» как образец плохой пары аспектов и слаг
-    `x-to-qkv` в примере заглушки рисунка.
+    A subject-matter example left in a general-purpose agent's instructions breaks nothing
+    visibly; it just pulls the next article towards the previous subject. The library held four
+    such traces: `QK^T` as a sample bold label, `h = 8, d_model = 512` as a sample number without
+    a consequence, "How attention works" as a sample bad pair of aspects, and the slug `x-to-qkv`
+    in a sample figure placeholder.
 
-    Исключение — словарь целевого языка у стилевого критика: штампы, которые он ищет, обязаны
-    быть на языке статьи. Но и они не про предметную область.
+    The exception is the style critic's target-language dictionary: the clichés it looks for must
+    be in the article's language. But they are not about the subject either.
     """
     path = AGENTS / f"{name}.md"
     if not path.is_file():
-        pytest.skip(f"{name} ещё не собран")
+        pytest.skip(f"{name} is not built yet")
     hits = SUBJECT_WORDS.findall(path.read_text(encoding="utf-8"))
-    assert not hits, f"{name}: предметная область в промпте: {sorted(set(hits))}"
+    assert not hits, f"{name}: subject matter in the prompt: {sorted(set(hits))}"
 
 
 def test_voice_profile_default_exists() -> None:
-    """Путь по умолчанию для профиля голоса указывает на файл, который есть.
+    """The default path of the voice profile points at a file that exists.
 
-    `voicePath` можно переопределить и можно занулить, но умолчание, указывающее в пустоту,
-    даст писателю порт с несуществующим файлом и ни одной ошибки.
+    `voicePath` can be overridden and can be nulled, but a default pointing at nothing would give
+    the writer a port with a missing file and not a single error.
     """
     script = (WORKFLOWS / "explainer-article.js").read_text(encoding="utf-8")
     match = re.search(r"cfg\.voicePath === undefined \? '([^']+)'", script)
-    assert match, "умолчание voicePath не найдено — тест устарел вместе со скриптом"
-    assert (ROOT / match.group(1)).is_file(), f"нет файла профиля голоса: {match.group(1)}"
+    assert match, "voicePath default not found: the test went stale with the script"
+    assert (ROOT / match.group(1)).is_file(), f"no voice profile file: {match.group(1)}"
 
 
 @pytest.mark.parametrize("script", sorted(p.name for p in WORKFLOWS.glob("*.js")))
 def test_tool_arguments_are_ascii(script: str) -> None:
-    """Всё, что уходит инструменту аргументом, — ASCII; кириллица ходит только файлом.
+    """Everything passed to a tool as an argument is ASCII; Cyrillic travels only in files.
 
-    Кириллица через argv на Windows зависит от кодовой страницы и от того, какой шелл выбрал
-    агент-носитель. Ради этого запреты уехали из кода в файлы — а следом я поставил по-русски
-    пометки вызовов `--log-note`, тот же argv и та же зависимость. Проверяется то, что можно
-    проверить механически: одинарные строки и шаблоны внутри вызова `noted(...)`.
+    Cyrillic through argv on Windows depends on the code page and on which shell the carrier
+    agent chose. That is why the forbidden-word lists moved from code into files, and right after
+    that I wrote the `--log-note` call notes in Russian: the same argv and the same dependency.
+    What can be checked mechanically is checked: single-quoted strings and templates inside a
+    `noted(...)` call.
     """
     text = (WORKFLOWS / script).read_text(encoding="utf-8")
     bad = [n for n in re.findall(r"noted\((.*?)\)", text) if re.search("[а-яА-ЯёЁ]", n)]
-    assert not bad, f"{script}: кириллица в аргументе инструмента: {bad}"
+    assert not bad, f"{script}: Cyrillic in a tool argument: {bad}"

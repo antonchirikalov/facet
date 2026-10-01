@@ -57,11 +57,11 @@ const order = (args && args.order) || ''
 // mode would otherwise turn a settled decision into an open one without anyone noticing.
 const decisions = (args && args.decisions) || []
 if (!Array.isArray(decisions)) {
-  throw new Error('args.decisions должен быть списком: [{ id, title, mode: "decided"|"compare", brief }]')
+  throw new Error('args.decisions must be a list: [{ id, title, mode: "decided"|"compare", brief }]')
 }
 for (const d of decisions) {
   if (!d || !d.id || !d.title || !['decided', 'compare'].includes(d.mode)) {
-    throw new Error(`решение ${JSON.stringify(d)}: нужны id, title и mode "decided" или "compare"`)
+    throw new Error(`decision ${JSON.stringify(d)}: needs id, title and mode "decided" or "compare"`)
   }
 }
 
@@ -108,8 +108,8 @@ const RUN_DISCOVERY = STAGES.includes('discovery') || (RUN_DESIGN && cfg.discove
 const RUN_CLIENT = STAGES.includes('client')
 if (RUN_CLIENT && STAGES.length > 1) {
   throw new Error(
-    `config.stages=["client"] запускается отдельно, после принятых requirements и design; ` +
-      `получено: ${STAGES.join(', ')}`,
+    `config.stages=["client"] runs on its own, after requirements and design have been accepted; ` +
+      `received: ${STAGES.join(', ')}`,
   )
 }
 if (!RUN_REQUIREMENTS && !RUN_DESIGN && !RUN_DISCOVERY && !RUN_CLIENT) {
@@ -322,7 +322,7 @@ const stemOf = (path) =>
 async function call(taskText, opts) {
   handoff.push({
     label: opts.label,
-    agent: opts.agentType || '(встроенный)',
+    agent: opts.agentType || '(built-in)',
     model: opts.model,
     inputs: (lastPorts && lastPorts.inputs) || [],
     output: (lastPorts && lastPorts.output) || null,
@@ -661,13 +661,13 @@ function record(path, heading, items) {
 
 async function recordHandoff() {
   const lines = handoff.map((h) => {
-    const ins = h.inputs.length ? h.inputs.join(' | ') : '(нет входов)'
-    const out = h.output || '(файла нет, только схема)'
-    return `${h.label} [${h.agent}, ${h.model}] ВХОД: ${ins} ВЫХОД: ${out}`
+    const ins = h.inputs.length ? h.inputs.join(' | ') : '(no inputs)'
+    const out = h.output || '(no file, schema only)'
+    return `${h.label} [${h.agent}, ${h.model}] IN: ${ins} OUT: ${out}`
   })
-  for (const w of warnings) lines.push(`ПРЕДУПРЕЖДЕНИЕ: ${w}`)
+  for (const w of warnings) lines.push(`WARNING: ${w}`)
   touched.add(HANDOFF_PATH)
-  const wrote = await call(record(HANDOFF_PATH, `Передачи между агентами, вызовов: ${lines.length}`, lines), {
+  const wrote = await call(record(HANDOFF_PATH, `Handoffs between agents, calls: ${lines.length}`, lines), {
     agentType: 'verbatim-writer',
     model: MODELS.record,
     label: 'handoff',
@@ -676,8 +676,8 @@ async function recordHandoff() {
   })
   log(
     wrote && wrote.written
-      ? `[handoff] записано передач: ${lines.length} → ${HANDOFF_PATH}`
-      : `[handoff] НЕ ЗАПИСАНО — что кому передавалось, останется только в логе прогона`,
+      ? `[handoff] handoffs written: ${lines.length} → ${HANDOFF_PATH}`
+      : `[handoff] NOT WRITTEN — what was handed to whom survives only in the run log`,
   )
 }
 
@@ -691,28 +691,28 @@ async function recordHandoff() {
 // round, and a report nobody wrote is a report nobody reads.
 async function recordUnresolved(items, accepted) {
   if (!items.length) {
-    log('[unresolved] незакрытых замечаний нет')
+    log('[unresolved] no open remarks')
     return
   }
   const wrote = await call(
     record(
       UNRESOLVED_PATH,
       accepted
-        ? 'Документ принят, но эти замечания остались незакрытыми'
-        : 'Круги правки кончились, эти замечания остались открытыми',
+        ? 'The document was accepted, but these remarks were left open'
+        : 'The revision rounds ran out; these remarks are still open',
       items,
     ),
     { agentType: 'verbatim-writer', model: MODELS.record, label: 'unresolved', phase: 'Gate', schema: WROTE },
   )
   log(
     wrote && wrote.written
-      ? `[unresolved] незакрытых пунктов ${items.length} → ${UNRESOLVED_PATH}`
-      : `[unresolved] ФАЙЛ НЕ ЗАПИСАН, а незакрытых пунктов ${items.length}`,
+      ? `[unresolved] open items: ${items.length} → ${UNRESOLVED_PATH}`
+      : `[unresolved] FILE NOT WRITTEN, and ${items.length} items are open`,
   )
   if (!(wrote && wrote.written)) {
-    warnings.push(`незакрытые замечания (${items.length}) не записаны в файл`)
+    warnings.push(`open remarks (${items.length}) were not written to a file`)
   }
-  for (const item of items) log(`[unresolved/пункт] ${item}`)
+  for (const item of items) log(`[unresolved/item] ${item}`)
 }
 
 async function auditRun() {
@@ -722,8 +722,8 @@ async function auditRun() {
   )
   const onDisk = (audit && audit.files) || []
   if (!onDisk.length) {
-    log('[audit] перечислить каталог прогона не удалось — ревизия не проведена')
-    warnings.push('ревизия каталога не проведена: перечисление не вернулось')
+    log('[audit] could not list the run directory — no audit was done')
+    warnings.push('directory audit not done: the listing did not come back')
     return { onDisk, orphans: [] }
   }
   // The carrier checked against itself. Subtraction only means anything on the whole list: paths
@@ -731,11 +731,11 @@ async function auditRun() {
   const counted = audit && typeof audit.count === 'number' ? audit.count : null
   if (counted !== null && counted !== onDisk.length) {
     log(
-      `[audit] инструмент насчитал ${counted} файлов, доехало ${onDisk.length} — ` +
-        `ревизия НЕ проведена: на неполном списке вычитание врёт в обе стороны`,
+      `[audit] the tool counted ${counted} files, ${onDisk.length} arrived — ` +
+        `audit NOT done: on an incomplete list the subtraction is wrong in both directions`,
     )
     warnings.push(
-      `ревизия не проведена: перечисление насчитало ${counted} файлов, а через агента доехало ${onDisk.length}`,
+      `audit not done: the listing counted ${counted} files, but only ${onDisk.length} arrived through the agent`,
     )
     return { onDisk, orphans: [] }
   }
@@ -752,12 +752,12 @@ async function auditRun() {
   const foreign = unread.filter((f) => elsewhere.some((prefix) => f.startsWith(prefix)))
   const orphans = unread.filter((f) => !foreign.includes(f))
   log(
-    `[audit] файлов в каталоге ${onDisk.length}, прочитано агентами ${touched.size}, ` +
-      `чужого этапа ${foreign.length}, никем не прочитано ${orphans.length}`,
+    `[audit] files in the directory ${onDisk.length}, read by agents ${touched.size}, ` +
+      `from another stage ${foreign.length}, read by nobody ${orphans.length}`,
   )
-  for (const f of foreign) log(`[audit/чужой-этап] ${f}`)
-  for (const f of orphans) log(`[audit/сирота] ${f}`)
-  if (!orphans.length) log('[audit] потерь нет: всё, что произвёл этот запуск, кем-то прочитано')
+  for (const f of foreign) log(`[audit/other-stage] ${f}`)
+  for (const f of orphans) log(`[audit/orphan] ${f}`)
+  if (!orphans.length) log('[audit] nothing lost: everything this launch produced was read by someone')
   return { onDisk, orphans, foreign }
 }
 
@@ -770,10 +770,10 @@ async function auditRun() {
 // to be measured, not judged.
 if (!now) {
   warnings.push(
-    'не проверено, идёт ли по каталогу другой прогон: args.now не передан — ' +
-      'два прогона на одном каталоге делают провенанс документа недоказуемым',
+    'not checked whether another run is using this directory: args.now was not passed — ' +
+      'two runs in one directory make the provenance of the document unprovable',
   )
-  log('[busy] args.now не передан — занятость каталога НЕ проверялась')
+  log('[busy] args.now was not passed — directory occupancy was NOT checked')
 } else {
   phase('Resume')
   const occupied = await call(
@@ -785,19 +785,19 @@ if (!now) {
   )
   const verdict = occupied && occupied.checks && occupied.checks[0]
   if (!verdict) {
-    log('[busy] проверка не вернулась — занятость каталога осталась невыясненной')
-    warnings.push('проверка занятости каталога не вернулась: ответ неизвестен')
+    log('[busy] the check did not come back — directory occupancy is unknown')
+    warnings.push('the directory occupancy check did not come back: the answer is unknown')
   } else if (verdict.busy && !cfg.ignoreBusy) {
     throw new Error(
-      `по каталогу ${run} похоже идёт другой прогон: ${verdict.problems.join('; ')}. ` +
-        `Новый прогон — новый каталог: python -X utf8 tools/newrun.py --base docs-runs --label <о чём>. ` +
-        `Если тот прогон точно мёртв — config.ignoreBusy=true.`,
+      `another run seems to be using ${run}: ${verdict.problems.join('; ')}. ` +
+        `A new run gets a new directory: python -X utf8 tools/newrun.py --base docs-runs --label <what>. ` +
+        `If that run is certainly dead, config.ignoreBusy=true.`,
     )
   } else if (verdict.busy) {
-    log(`[busy] каталог занят, но config.ignoreBusy — идём дальше: ${verdict.problems.join('; ')}`)
-    warnings.push('каталог был занят, прогон начат поверх по config.ignoreBusy')
+    log(`[busy] the directory is busy, but config.ignoreBusy is set — continuing: ${verdict.problems.join('; ')}`)
+    warnings.push('the directory was busy; the run was started over it under config.ignoreBusy')
   } else {
-    log('[busy] каталог свободен')
+    log('[busy] the directory is free')
   }
 }
 
@@ -822,8 +822,8 @@ const present = new Set()
     // One result per command is the contract. A different count means the results cannot be
     // matched to paths at all, and guessing which is which would reuse the wrong file.
     log(
-      `[resume] проверок ${checks.length} на ${resumePaths.length} путей — ` +
-        `сопоставить нельзя, ничего не переиспользуем`,
+      `[resume] ${checks.length} checks for ${resumePaths.length} paths — ` +
+        `they cannot be matched, nothing is reused`,
     )
   } else {
     resumePaths.forEach((path, i) => {
@@ -831,7 +831,7 @@ const present = new Set()
     })
   }
   log(
-    `[resume] найдено готового: требования=${present.has(REQ_PATH)} дизайн=${present.has(DESIGN_PATH)}`,
+    `[resume] already done: requirements=${present.has(REQ_PATH)} design=${present.has(DESIGN_PATH)}`,
   )
 
   // Starting the requirements over on top of somebody's finished run is the one ambiguous act
@@ -840,9 +840,9 @@ const present = new Set()
   // other.
   if (RUN_REQUIREMENTS && present.has(REQ_PATH) && !cfg.continue && !cfg.fresh) {
     throw new Error(
-      `в каталоге ${run} уже лежит ${REQ_PATH} от прошлого прогона. ` +
-        `Новый прогон — новый каталог: python -X utf8 tools/newrun.py --base docs-runs --label <о чём>. ` +
-        `Продолжить прерванный — config.continue=true. Пересобрать здесь же с нуля — config.fresh=true.`,
+      `${run} already holds ${REQ_PATH} from an earlier run. ` +
+        `A new run gets a new directory: python -X utf8 tools/newrun.py --base docs-runs --label <what>. ` +
+        `To continue an interrupted run, config.continue=true. To rebuild here from scratch, config.fresh=true.`,
     )
   }
   // Rebuilding means rebuilding. Found by the wiring check: with `fresh` the old requirements.md
@@ -941,12 +941,12 @@ async function reviseLoop({
     // A record that does not parse is not trusted into the loop: continuing from a guessed round
     // number would skip a revision the caller paid for.
     for (const problem of recorded.report.problems) {
-      log(`[${loop}/resume] ЗАПИСЬ КРУГОВ ИСПОРЧЕНА, не доверяем: ${problem}`)
+      log(`[${loop}/resume] ROUND RECORDS ARE CORRUPT, not trusted: ${problem}`)
     }
-    warnings.push(`записи кругов ${loop} испорчены: ${recorded.report.problems.join('; ')}`)
+    warnings.push(`round records of ${loop} are corrupt: ${recorded.report.problems.join('; ')}`)
   } else if (recorded && !roundsShape) {
-    log(`[${loop}/resume] ОТВЕТ НОСИЛЬЩИКА НЕ ПОХОЖ НА ВЫВОД rounds.py — не доверяем, считаем кругов 0`)
-    warnings.push(`носильщик вернул не отчёт rounds.py для ${loop}; круги начаты с первого`)
+    log(`[${loop}/resume] THE CARRIER'S ANSWER DOES NOT LOOK LIKE rounds.py OUTPUT — not trusted, counting 0 rounds`)
+    warnings.push(`the carrier did not return a rounds.py report for ${loop}; rounds restarted from the first`)
   } else if (recorded && recorded.rounds && recorded.rounds.length) {
     const last = recorded.rounds[recorded.rounds.length - 1]
     startRound = last.round + 1
@@ -961,8 +961,8 @@ async function reviseLoop({
     gateProblems = last.gate || []
     carried = [...(last.remarks || []), ...(last.style || [])].map(unnumbered)
     log(
-      `[${loop}/resume] кругов пройдено ${recorded.rounds.length}, продолжаем с ${startRound}: ` +
-        `вердикты=${verdicts.map((v) => (v && v.verdict) || 'unknown').join('/')}`,
+      `[${loop}/resume] rounds done ${recorded.rounds.length}, continuing from ${startRound}: ` +
+        `verdicts=${verdicts.map((v) => (v && v.verdict) || 'unknown').join('/')}`,
     )
 
     // Records and snapshots of rounds a previous launch judged: declared as writing, the same
@@ -988,12 +988,12 @@ async function reviseLoop({
     }
     if ((recorded.counts || []).length) {
       log(
-        `[${loop}/resume] лучший результат ${bestOpen} пунктов на круге ${bestRound}, ` +
-          `подряд без улучшения: ${sinceBest}`,
+        `[${loop}/resume] best result ${bestOpen} items in round ${bestRound}, ` +
+          `rounds in a row without improvement: ${sinceBest}`,
       )
     }
   } else {
-    log(`[${loop}/resume] записей о кругах нет, начинаем с первого`)
+    log(`[${loop}/resume] no round records, starting from the first`)
   }
 
   // Measure a draft a previous launch left behind. Otherwise the first round of a resumed run
@@ -1008,12 +1008,12 @@ async function reviseLoop({
     if (sized && sized.report) {
       measured = (sized.report.measures && sized.report.measures.prose_chars) || 0
       gateProblems = sized.report.problems || []
-      log(`[${loop}/resume] черновик на диске: ${measured} знаков прозы, проблем ${gateProblems.length}`)
+      log(`[${loop}/resume] draft on disk: ${measured} prose characters, ${gateProblems.length} problems`)
     }
   }
 
   if (startRound > maxRounds) {
-    log(`[${loop}] круги исчерпаны прошлыми запусками (${startRound - 1} из ${maxRounds})`)
+    log(`[${loop}] rounds used up by earlier launches (${startRound - 1} of ${maxRounds})`)
   }
   // A run that comes back onto a plateau should not buy one more round to rediscover it. The
   // detector inside the loop fires only after a round has been paid for; here the same verdict is
@@ -1021,8 +1021,8 @@ async function reviseLoop({
   const plateauAlready = startRound > 1 && sinceBest >= PLATEAU_ROUNDS
   if (plateauAlready) {
     log(
-      `[${loop}] ПОЛКА уже достигнута прошлыми запусками: лучший результат ${bestOpen} пунктов ` +
-        `на круге ${bestRound}. Круги не покупаются.`,
+      `[${loop}] PLATEAU already reached by earlier launches: best result ${bestOpen} items ` +
+        `in round ${bestRound}. No more rounds are bought.`,
     )
   }
 
@@ -1117,7 +1117,7 @@ async function reviseLoop({
     let drafted = null
     let unapplied = []
     if (skipWriter) {
-      log(`[${loop}/1] черновик уже на диске, писатель не запускается — сразу гейт и критики`)
+      log(`[${loop}/1] the draft is already on disk, the writer is not launched — straight to the gate and critics`)
     } else if (revision) {
       drafted = must(
         await call(
@@ -1154,7 +1154,7 @@ async function reviseLoop({
       // An edit that did not land is a remark the writer has not honoured: carried, by name.
       unapplied = appliedReport.problems.map((pr) => `EDIT NOT APPLIED — quote the draft exactly: ${pr}`)
       if (!appliedReport.ok) {
-        warnings.push(`круг ${round} (${loop}): не применилось правок — ${appliedReport.problems.length}`)
+        warnings.push(`round ${round} (${loop}): edits not applied — ${appliedReport.problems.length}`)
       }
     } else {
       drafted = must(
@@ -1190,14 +1190,14 @@ async function reviseLoop({
       }
       if (unanswered.length) {
         log(
-          `[${loop}/${round}] БЕЗ ОТВЕТА ${unanswered.length} из ${items.length} замечаний — ` +
-            `они уходят в следующий круг и в отчёт`,
+          `[${loop}/${round}] UNANSWERED ${unanswered.length} of ${items.length} remarks — ` +
+            `they go to the next round and to the report`,
         )
-        for (const it of unanswered) log(`[${loop}/${round}/без-ответа] [${it.source}] ${it.text}`)
+        for (const it of unanswered) log(`[${loop}/${round}/unanswered] [${it.source}] ${it.text}`)
       }
       declinedNotes = declined.map((it) => {
         const entry = [...answered.values()].find((a) => items[a.item - 1] === it)
-        return `[${it.source}] ${it.text}\n    → отклонено: ${entry ? entry.note : '(без причины)'}`
+        return `[${it.source}] ${it.text}\n    → declined: ${entry ? entry.note : '(no reason given)'}`
       })
       carried = [...unanswered, ...declined].map((it) => it.text).concat(unapplied)
     }
@@ -1220,12 +1220,12 @@ async function reviseLoop({
         })
         log(
           fixed
-            ? `[${loop}/${round}/${corrector.tag}] правок: ${(fixed.changes || []).length}`
-            : `[${loop}/${round}/${corrector.tag}] НЕ ОТРАБОТАЛ — этот слой проверки пропущен`,
+            ? `[${loop}/${round}/${corrector.tag}] edits: ${(fixed.changes || []).length}`
+            : `[${loop}/${round}/${corrector.tag}] DID NOT RUN — this layer of checking was skipped`,
         )
-        if (!fixed) warnings.push(`${corrector.tag} не отработал на круге ${round} (${loop})`)
+        if (!fixed) warnings.push(`${corrector.tag} did not run in round ${round} (${loop})`)
         for (const c of (fixed && fixed.changes) || []) {
-          log(`[${loop}/${round}/${corrector.tag}/правка] ${c}`)
+          log(`[${loop}/${round}/${corrector.tag}/edit] ${c}`)
         }
       }
     }
@@ -1261,8 +1261,8 @@ async function reviseLoop({
     gateProblems = gateReport.problems || []
     const grew = previousMeasured ? measured - previousMeasured : 0
     log(
-      `[${loop}/${round}/gate] ok=${gateReport.ok} знаков прозы=${measured}` +
-        (grew ? ` (${grew > 0 ? '+' : ''}${grew} к прошлому кругу)` : '') +
+      `[${loop}/${round}/gate] ok=${gateReport.ok} prose characters=${measured}` +
+        (grew ? ` (${grew > 0 ? '+' : ''}${grew} against the previous round)` : '') +
         (gateProblems.length ? ` | ${gateProblems.join('; ')}` : ''),
     )
 
@@ -1278,8 +1278,8 @@ async function reviseLoop({
     })
     const exists = onDisk && onDisk.checks && onDisk.checks[0] && onDisk.checks[0].ok
     if (!exists) {
-      log(`[${loop}/${round}] ЧЕРНОВИКА НА ДИСКЕ НЕТ — круг не может быть засчитан`)
-      warnings.push(`на круге ${round} (${loop}) черновик не оказался на диске`)
+      log(`[${loop}/${round}] NO DRAFT ON DISK — the round cannot be counted`)
+      warnings.push(`in round ${round} (${loop}) the draft did not reach the disk`)
     }
 
     // The critics in parallel: neither reads the other's output, and a round costs the slower of
@@ -1298,8 +1298,8 @@ async function reviseLoop({
     verdicts = critics.map((c, i) => {
       const v = judged[i] || noVerdict(`${c.tag} (${c.agentType})`)
       v.remarks = (v.remarks || []).map(unnumbered)
-      log(`[${loop}/${round}/${c.tag}] verdict=${v.verdict} замечаний=${v.remarks.length}`)
-      for (const r of v.remarks) log(`[${loop}/${round}/${c.tag}/замечание] ${r}`)
+      log(`[${loop}/${round}/${c.tag}] verdict=${v.verdict} remarks=${v.remarks.length}`)
+      for (const r of v.remarks) log(`[${loop}/${round}/${c.tag}/remark] ${r}`)
       return v
     })
 
@@ -1333,8 +1333,8 @@ async function reviseLoop({
     )
     log(
       wroteRound && wroteRound.written
-        ? `[${loop}/${round}] круг записан: ${roundPathOf(loop, round)} пунктов=${roundItems.length}`
-        : `[${loop}/${round}] КРУГ НЕ ЗАПИСАН — перезапуск будет судить документ заново`,
+        ? `[${loop}/${round}] round recorded: ${roundPathOf(loop, round)} items=${roundItems.length}`
+        : `[${loop}/${round}] ROUND NOT RECORDED — a restart will judge the document again`,
     )
 
     // The draft as it stood when this round judged it. The record keeps what the critics said;
@@ -1346,7 +1346,7 @@ async function reviseLoop({
       { agentType: 'file-copier', model: MODELS.copy, label: `${loop}:snapshot:${round}`, phase: phaseName, schema: GATE },
     )
     if (!(copied && copied.report && copied.report.ok)) {
-      log(`[${loop}/${round}] снимок черновика не сделан — сравнить круги потом будет нечем`)
+      log(`[${loop}/${round}] no snapshot of the draft was taken — there will be nothing to compare rounds with`)
     }
 
     // Counted before the acceptance check, not after. With the accounting below the break, the
@@ -1359,8 +1359,8 @@ async function reviseLoop({
     } else {
       sinceBest += 1
       log(
-        `[${loop}/${round}] не лучше достигнутого: ${roundItems.length} пунктов против ` +
-          `${bestOpen} на круге ${bestRound} (подряд без улучшения: ${sinceBest})`,
+        `[${loop}/${round}] no better than the best so far: ${roundItems.length} items against ` +
+          `${bestOpen} in round ${bestRound} (rounds in a row without improvement: ${sinceBest})`,
       )
     }
 
@@ -1369,14 +1369,14 @@ async function reviseLoop({
     const allApproved = verdicts.every((v) => v && v.verdict === 'approved')
     if (allApproved && gateReport.ok && exists) {
       accepted = true
-      log(`[${loop}/${round}] ПРИНЯТО: все критики approved, гейт чист, файл на диске`)
+      log(`[${loop}/${round}] ACCEPTED: all critics approved, the gate is clean, the file is on disk`)
       break
     }
 
     if (sinceBest >= PLATEAU_ROUNDS) {
       log(
-        `[${loop}/${round}] ПОЛКА: ${sinceBest} круга подряд не улучшили результат. Петля своё ` +
-          `отработала — остальное решает автор, и оно в отчёте.`,
+        `[${loop}/${round}] PLATEAU: ${sinceBest} rounds in a row did not improve the result. The loop has ` +
+          `done its part — the rest is for the author to decide, and it is in the report.`,
       )
       break
     }
@@ -1384,8 +1384,8 @@ async function reviseLoop({
     const signature = JSON.stringify(roundItems.slice().sort())
     if (previousItems === signature) {
       log(
-        `[${loop}/${round}] ПЕТЛЯ НЕ ДВИЖЕТСЯ: набор замечаний совпал с предыдущим кругом ` +
-          `(${roundItems.length} пунктов). Дальше круги не помогут.`,
+        `[${loop}/${round}] THE LOOP IS STUCK: the remark set matches the previous round ` +
+          `(${roundItems.length} items). More rounds will not help.`,
       )
       break
     }
@@ -1399,8 +1399,8 @@ async function reviseLoop({
     ...carried,
   ]
   log(
-    `[${loop}] кругов сделано ${rounds}, принято=${accepted}, ` +
-      `лучший круг ${bestRound} с ${bestOpen === Infinity ? '?' : bestOpen} пунктами, открыто ${open.length}`,
+    `[${loop}] rounds done ${rounds}, accepted=${accepted}, ` +
+      `best round ${bestRound} with ${bestOpen === Infinity ? '?' : bestOpen} items, open ${open.length}`,
   )
   return { rounds, accepted, open, bestRound, bestOpen: bestOpen === Infinity ? null : bestOpen, measured, verdicts }
 }
@@ -1431,15 +1431,15 @@ if (RUN_REQUIREMENTS) {
   const counted = listed && typeof listed.count === 'number' ? listed.count : null
   if (counted !== null && counted !== sources.length) {
     throw new Error(
-      `перечисление входных документов насчитало ${counted}, а через агента доехало ${sources.length}. ` +
-        `Строить конвейер на неполном списке нельзя: пропавший документ — это требование, ` +
-        `которого не будет в результате, и заметить это потом невозможно.`,
+      `the listing of input documents counted ${counted}, but only ${sources.length} arrived through the agent. ` +
+        `The pipeline must not be built on an incomplete list: a lost document is a requirement ` +
+        `that will be missing from the result, and nobody can notice it later.`,
     )
   }
   if (!sources.length) {
     throw new Error(
-      `в ${INPUTS_DIR} нет входных документов. Этому конвейеру их не из чего искать — ` +
-        `положите заявку, стенограмму, переписку, RFP, и запускайте снова.`,
+      `${INPUTS_DIR} holds no input documents. This pipeline has nothing to extract from — ` +
+        `put in the request, the transcript, the correspondence or the RFP, and launch again.`,
     )
   }
   // Office documents become markdown before anyone reads them: the extracting agent reads with
@@ -1456,7 +1456,7 @@ if (RUN_REQUIREMENTS) {
     const report = (converted && converted.report) || { ok: false, problems: ['the conversion did not report'] }
     for (const pr of report.problems || []) {
       log(`[extract/word] ${pr}`)
-      warnings.push(`входной документ не переведён в текст: ${pr}`)
+      warnings.push(`an input document was not converted to text: ${pr}`)
     }
     // A problem that names a file fails that file; any other (pandoc missing, no report) fails all,
     // so no agent is ever handed a .md that was never written.
@@ -1473,8 +1473,8 @@ if (RUN_REQUIREMENTS) {
       return `${s}.md`
     })
   }
-  log(`[extract] входных документов: ${sources.length}`)
-  for (const s of sources) log(`[extract/вход] ${s}`)
+  log(`[extract] input documents: ${sources.length}`)
+  for (const s of sources) log(`[extract/input] ${s}`)
 
   // Warnings, not a stop: a person decides whether a nested call folder belongs to the order.
   const inventory = await call(
@@ -1484,14 +1484,14 @@ if (RUN_REQUIREMENTS) {
   const listedNames = new Set(sources.map((s) => s.replace(/\\/g, '/').split('/').pop()))
   for (const f of (inventory && inventory.files) || []) {
     const nested = f.path.includes('/')
-    if (f.duplicate_of) log(`[extract/опись] дубль: ${f.path} = ${f.duplicate_of}`)
+    if (f.duplicate_of) log(`[extract/inventory] duplicate: ${f.path} = ${f.duplicate_of}`)
     else if (nested && f.kind !== 'media' && !listedNames.has(f.path.split('/').pop()))
-      log(`[extract/опись] во вложенной папке и не обрабатывается: ${f.path} — переложите в ${INPUTS_DIR}, если это часть заказа`)
+      log(`[extract/inventory] in a subfolder and not processed: ${f.path} — move it to ${INPUTS_DIR} if it is part of the order`)
     if (f.kind === 'ours') {
       ourNotes.push(`${INPUTS_DIR}/${f.path}`)
-      log(`[extract/опись] наша заметка, не слова клиента: ${f.path}`)
+      log(`[extract/inventory] our own note, not the client's words: ${f.path}`)
     }
-    if (f.kind === 'unknown') log(`[extract/опись] не ясно, чей это документ: ${f.path}`)
+    if (f.kind === 'unknown') log(`[extract/inventory] unclear whose document this is: ${f.path}`)
   }
 
   // Matched by index, never by a path the agent chose how to spell.
@@ -1518,10 +1518,10 @@ if (RUN_REQUIREMENTS) {
     if (found.length === extractPaths.length) {
       todo = sources.filter((s, i) => !found[i].ok)
       const kept = sources.length - todo.length
-      if (kept) log(`[extract] на диске уже ${kept} извлечений из ${sources.length}, переделываются только недостающие`)
+      if (kept) log(`[extract] ${kept} of ${sources.length} extracts are already on disk, only the missing ones are redone`)
       for (const [i, s] of sources.entries()) if (found[i].ok) touched.add(extractPaths[i])
     } else {
-      log(`[extract] проверок ${found.length} на ${extractPaths.length} путей — сопоставить нельзя, извлекаем всё`)
+      log(`[extract] ${found.length} checks for ${extractPaths.length} paths — they cannot be matched, extracting everything`)
     }
   }
 
@@ -1551,8 +1551,8 @@ if (RUN_REQUIREMENTS) {
   })
   const results = (checks && checks.checks) || []
   if (results.length !== extractPaths.length) {
-    log(`[extract] проверок ${results.length} на ${extractPaths.length} путей — сопоставить нельзя`)
-    warnings.push('извлечения не сверены с диском: число проверок не совпало с числом путей')
+    log(`[extract] ${results.length} checks for ${extractPaths.length} paths — they cannot be matched`)
+    warnings.push('extracts not checked against the disk: the number of checks did not match the number of paths')
     extractPorts = extractPaths.map((p, i) => ({ port: `extract:${stemOf(sources[i])}`, path: p }))
   } else {
     extractPorts = []
@@ -1564,16 +1564,16 @@ if (RUN_REQUIREMENTS) {
         // requirements, and that has to be visible while the run is watched rather than
         // discovered in the result. The run continues: one lost extract out of five is worth
         // less than throwing away the four that worked.
-        log(`[extract] НЕТ ИЗВЛЕЧЕНИЯ для ${sources[i]}: ${results[i].problems.join('; ')}`)
-        warnings.push(`документ ${sources[i]} не дал извлечения — его содержимое в требования не попало`)
+        log(`[extract] NO EXTRACT for ${sources[i]}: ${results[i].problems.join('; ')}`)
+        warnings.push(`document ${sources[i]} produced no extract — its content did not reach the requirements`)
       }
     })
   }
   for (const e of extracted) {
     if (!e || !e.res) continue
-    log(`[extract/${e.stem}] факты=${(e.res.facts || []).length} вопросы=${(e.res.open_questions || []).length}`)
+    log(`[extract/${e.stem}] facts=${(e.res.facts || []).length} questions=${(e.res.open_questions || []).length}`)
   }
-  log(`[extract] извлечений на диске: ${extractPorts.length} из ${sources.length}`)
+  log(`[extract] extracts on disk: ${extractPorts.length} of ${sources.length}`)
 
   // One extract lost out of five is worth less than throwing away the four that worked. All of
   // them lost is a different thing: the writer would be handed no material at all, and it would
@@ -1586,10 +1586,10 @@ if (RUN_REQUIREMENTS) {
   if (!extractPorts.length) {
     const died = extracted.filter((e) => !e || !e.res).length
     throw new Error(
-      `ни одного извлечения из ${sources.length} входных документов — писателю требований ` +
-        `нечего читать, дальше идти незачем. Агентов не ответило: ${died}. ` +
-        `Если агенты собраны в этом же ходе, они станут видны реестру только со следующего ` +
-        `сообщения человека: соберите, дождитесь следующего сообщения, запускайте.`,
+      `not one extract from ${sources.length} input documents — the requirements writer ` +
+        `has nothing to read, there is no point going on. Agents that did not answer: ${died}. ` +
+        `If the agents were built in this same turn, the registry sees them only from the next ` +
+        `human message: build, wait for the next message, launch.`,
     )
   }
 
@@ -1613,8 +1613,8 @@ if (RUN_REQUIREMENTS) {
   )
   let voicePort = []
   if (!voiced || !voiced.written) {
-    warnings.push('сводка «Голос клиента» не написана: вес требований берётся только из извлечений')
-    log('[voice] сводка не написана — требования пишутся без неё')
+    warnings.push('the client voice sheet was not written: requirement weights come from the extracts only')
+    log('[voice] the sheet was not written — the requirements are written without it')
   } else {
     const vgate = await call(
       commands([
@@ -1625,9 +1625,9 @@ if (RUN_REQUIREMENTS) {
     )
     const vchecks = (vgate && vgate.checks) || []
     const vproblems = vchecks.flatMap((c) => c.problems || [])
-    if (vchecks.length !== 2) vproblems.push('проверка сводки «Голос клиента» вернула не два отчёта')
+    if (vchecks.length !== 2) vproblems.push('the check of the client voice sheet did not return two reports')
     log(`[voice/gate] ok=${!vproblems.length}${vproblems.length ? ' | ' + vproblems.join('; ') : ''}`)
-    for (const pr of vproblems) warnings.push(`сводка «Голос клиента»: ${pr}`)
+    for (const pr of vproblems) warnings.push(`client voice sheet: ${pr}`)
     voicePort = [{ port: 'client_voice', path: VOICE_PATH }]
     present.add(VOICE_PATH)
   }
@@ -1675,14 +1675,14 @@ if (RUN_REQUIREMENTS) {
   if (!RUN_DESIGN && !RUN_DISCOVERY) {
     // Before the handoff record, so the record carries the warning if the file was not written.
     await recordUnresolved(
-      requirements.open.map((o) => `Требования: ${o}`),
+      requirements.open.map((o) => `Requirements: ${o}`),
       requirements.accepted,
     )
   }
   await recordHandoff()
   const { orphans: reqOrphans, foreign: reqForeign } = await auditRun()
   if (!RUN_DESIGN && !RUN_DISCOVERY) {
-    log(`[итог/requirements] дальше: тот же каталог с config.stages=["design"] или ["discovery"]`)
+    log(`[summary/requirements] next: the same directory with config.stages=["design"] or ["discovery"]`)
     return {
       stages: STAGES,
       inputs: sources,
@@ -1711,8 +1711,8 @@ if (RUN_CLIENT) {
   const needed = [REQ_PATH, DESIGN_PATH].filter((p) => !present.has(p))
   if (needed.length) {
     throw new Error(
-      `для клиентской редакции нужны принятые ${needed.join(' и ')}, а их нет. Сначала ` +
-        `config.stages=["requirements","design"] в этом же каталоге, потом прочитать результат, потом client.`,
+      `the client edition needs accepted ${needed.join(' and ')}, and they are missing. First ` +
+        `config.stages=["requirements","design"] in this same directory, then read the result, then client.`,
     )
   }
   const EDITION = {
@@ -1745,8 +1745,8 @@ if (RUN_CLIENT) {
   touched.add(ID_MAP_PATH)
   if (!reqEdition || !reqEdition.written) {
     throw new Error(
-      `клиентская редакция требований не написана — редакцию дизайна без карты номеров делать нельзя: ` +
-        `ссылки на требования разойдутся. Запустите этап client ещё раз.`,
+      `the client edition of the requirements was not written — the design edition cannot be made without the id map: ` +
+        `its references to requirements would drift apart. Launch the client stage again.`,
     )
   }
   const designEdition = await call(
@@ -1768,7 +1768,7 @@ if (RUN_CLIENT) {
     { path: DESIGN_CLIENT_PATH, what: 'design', result: designEdition, ids: [] },
   ]
   for (const e of editions) {
-    for (const id of (e.result && e.result.unplaced) || []) warnings.push(`клиентская редакция (${e.what}): ${id} потерян`)
+    for (const id of (e.result && e.result.unplaced) || []) warnings.push(`client edition (${e.what}): ${id} lost`)
   }
   // One slop check per edition and, where it says revise, one correction pass by the same editor.
   // No loop: the traceable versions already went through rounds; what is left is wording.
@@ -1788,10 +1788,10 @@ if (RUN_CLIENT) {
     for (const [i, e] of editions.entries()) {
       const v = judged[i]
       if (!v) {
-        warnings.push(`клиентская редакция (${e.what}): проверка на нейрослоп не вернулась`)
+        warnings.push(`client edition (${e.what}): the generated-text (slop) check did not come back`)
         continue
       }
-      log(`[client/slop] ${e.what}: verdict=${v.verdict} замечаний=${(v.remarks || []).length}`)
+      log(`[client/slop] ${e.what}: verdict=${v.verdict} remarks=${(v.remarks || []).length}`)
       if (v.verdict !== 'revise' || !(v.remarks || []).length) continue
       const fixed = await call(
         task({
@@ -1804,7 +1804,7 @@ if (RUN_CLIENT) {
         }),
         { agentType: 'client-editor', model: MODELS.client, label: `client:slop-fix:${e.what}`, phase: 'Client', schema: EDITION },
       )
-      if (!fixed) warnings.push(`клиентская редакция (${e.what}): замечания по нейрослопу не исправлены`)
+      if (!fixed) warnings.push(`client edition (${e.what}): the slop remarks were not fixed`)
     }
   }
   // Two commands per edition, matched by index: the gate, then the quotes against the extracts.
@@ -1821,16 +1821,16 @@ if (RUN_CLIENT) {
   editions.forEach((e, i) => {
     const pair = [checks[2 * i], checks[2 * i + 1]]
     if (pair.some((c) => !c)) {
-      warnings.push(`клиентская редакция (${e.what}): проверка не вернулась`)
+      warnings.push(`client edition (${e.what}): the check did not come back`)
       return
     }
     const problems = pair.flatMap((c) => c.problems || [])
     log(`[client/gate] ${e.what}: ok=${pair.every((c) => c.ok)}${problems.length ? ' | ' + problems.join('; ') : ''}`)
-    for (const pr of problems) warnings.push(`клиентская редакция (${e.what}): ${pr}`)
+    for (const pr of problems) warnings.push(`client edition (${e.what}): ${pr}`)
   })
   await recordHandoff()
   const { onDisk: cOnDisk, orphans: cOrphans, foreign: cForeign } = await auditRun()
-  log(`[итог/client] ${REQ_CLIENT_PATH}, ${DESIGN_CLIENT_PATH}; предупреждений: ${warnings.length}`)
+  log(`[summary/client] ${REQ_CLIENT_PATH}, ${DESIGN_CLIENT_PATH}; warnings: ${warnings.length}`)
   return {
     stages: STAGES,
     requirements_client: REQ_CLIENT_PATH,
@@ -1859,12 +1859,12 @@ if (!RUN_REQUIREMENTS) {
   const ok = checks && checks.checks && checks.checks[0] && checks.checks[0].ok
   if (!ok) {
     throw new Error(
-      `для этапа design нужен ${REQ_PATH}, а его нет. Сначала config.stages=["requirements"] ` +
-        `в этом же каталоге.`,
+      `the design stage needs ${REQ_PATH}, and it is missing. First config.stages=["requirements"] ` +
+        `in this same directory.`,
     )
   }
   touched.add(REQ_PATH)
-  log('[design] требования на диске найдены')
+  log('[design] requirements found on disk')
 }
 
 // --- Discovery: the questions the requirements leave open --------------------------------------
@@ -1881,11 +1881,11 @@ async function runDiscovery() {
     { agentType: 'arch-probe', model: MODELS.probe, label: 'discovery:probe', phase: 'Discovery', schema: PROBE },
   )
   if (!probed) {
-    log('[discovery] пробник не отработал — вопросов к заказчику не будет')
-    warnings.push('стадия discovery не дала вопросов: пробник не отработал')
+    log('[discovery] the probe did not run — there will be no questions for the client')
+    warnings.push('the discovery stage produced no questions: the probe did not run')
     return null
   }
-  log(`[discovery] вопросов-кандидатов: ${(probed.questions || []).length}`)
+  log(`[discovery] candidate questions: ${(probed.questions || []).length}`)
   const curated = await call(
     task({
       inputs: [
@@ -1898,11 +1898,11 @@ async function runDiscovery() {
   )
   log(
     curated
-      ? `[discovery] вопросов после отбора: ${(curated.questions || []).length} → ${DISCOVERY_PATH}`
-      : `[discovery] отбор не отработал — остались только кандидаты`,
+      ? `[discovery] questions after curation: ${(curated.questions || []).length} → ${DISCOVERY_PATH}`
+      : `[discovery] curation did not run — only the candidates remain`,
   )
   if (!curated) {
-    warnings.push('вопросы к заказчику не отобраны: курирующий агент не отработал')
+    warnings.push('questions for the client were not curated: the curating agent did not run')
     return null
   }
 
@@ -1915,7 +1915,7 @@ async function runDiscovery() {
   )
   const report = (gated && gated.report) || { ok: false, problems: ['the gate returned nothing'], measures: {} }
   log(`[discovery/gate] ok=${report.ok}${report.problems.length ? ' | ' + report.problems.join('; ') : ''}`)
-  for (const pr of report.problems) warnings.push(`вопросы к заказчику: ${pr}`)
+  for (const pr of report.problems) warnings.push(`questions for the client: ${pr}`)
   return curated
 }
 
@@ -1925,7 +1925,7 @@ if (!RUN_DESIGN) {
   await recordUnresolved([], true)
   await recordHandoff()
   const { onDisk: dOnDisk, orphans: dOrphans, foreign: dForeign } = await auditRun()
-  log(`[итог/discovery] вопросов к заказчику: ${found ? (found.questions || []).length : 0}`)
+  log(`[summary/discovery] questions for the client: ${found ? (found.questions || []).length : 0}`)
   return {
     stages: STAGES,
     requirements: REQ_PATH,
@@ -1965,29 +1965,29 @@ const candidateChecks = await call(
 const candidateResults = (candidateChecks && candidateChecks.checks) || []
 const alive = []
 if (candidateResults.length !== candidatePaths.length) {
-  log(`[contest] проверок ${candidateResults.length} на ${candidatePaths.length} — сопоставить нельзя`)
-  warnings.push('кандидаты не сверены с диском: число проверок не совпало с числом путей')
+  log(`[contest] ${candidateResults.length} checks for ${candidatePaths.length} paths — they cannot be matched`)
+  warnings.push('candidates not checked against the disk: the number of checks did not match the number of paths')
   candidatePaths.forEach((p, i) => alive.push({ n: i + 1, path: p, model: CONTEST_MODELS[i] }))
 } else {
   candidatePaths.forEach((p, i) => {
     if (candidateResults[i].ok) {
       alive.push({ n: i + 1, path: p, model: CONTEST_MODELS[i] })
     } else {
-      log(`[contest] кандидат ${i + 1} (${CONTEST_MODELS[i]}) не записан: ${candidateResults[i].problems.join('; ')}`)
-      warnings.push(`кандидат ${i + 1} от модели ${CONTEST_MODELS[i]} не дошёл до диска`)
+      log(`[contest] candidate ${i + 1} (${CONTEST_MODELS[i]}) not written: ${candidateResults[i].problems.join('; ')}`)
+      warnings.push(`candidate ${i + 1} from model ${CONTEST_MODELS[i]} did not reach the disk`)
     }
   })
 }
-log(`[contest] кандидатов на диске: ${alive.length} из ${CONTEST_MODELS.length}`)
+log(`[contest] candidates on disk: ${alive.length} of ${CONTEST_MODELS.length}`)
 if (!alive.length) {
-  throw new Error('ни один кандидат не записан — выбирать нечего, дизайн этого прогона не состоялся')
+  throw new Error('no candidate was written — there is nothing to choose from, this run produced no design')
 }
 
 // --- Choose: by number, never by path --------------------------------------------------------
 let winner = alive[0]
 let borrow = []
 if (alive.length === 1) {
-  log(`[choose] кандидат один (${winner.model}) — выбор не нужен`)
+  log(`[choose] only one candidate (${winner.model}) — no choice needed`)
 } else {
   const choice = await call(
     task({
@@ -2011,13 +2011,13 @@ if (alive.length === 1) {
     // The fallback the template asks for. A selector that returns a number nobody offered has not
     // chosen, and taking the first candidate is the honest default — with a warning, because
     // "nobody chose" and "the first one won" must not read the same afterwards.
-    log(`[choose] выбор не получен или номер вне списка — берём первого (${winner.model})`)
-    warnings.push('победитель не выбран агентом: взят первый кандидат по правилу fallback')
+    log(`[choose] no choice returned or the number is out of range — taking the first (${winner.model})`)
+    warnings.push('the agent chose no winner: the first candidate was taken by the fallback rule')
   } else {
     winner = picked
     borrow = choice.borrow || []
-    log(`[choose] победил кандидат ${winner.n} (${winner.model}): ${choice.reason}`)
-    for (const b of borrow) log(`[choose/взять-у-проигравших] ${b}`)
+    log(`[choose] candidate ${winner.n} (${winner.model}) won: ${choice.reason}`)
+    for (const b of borrow) log(`[choose/borrow-from-losers] ${b}`)
   }
 }
 
@@ -2030,13 +2030,13 @@ const copiedWinner = await call(
 )
 if (!(copiedWinner && copiedWinner.report && copiedWinner.report.ok)) {
   throw new Error(
-    `не удалось скопировать победителя ${winner.path} в ${DESIGN_PATH}: ` +
-      `${copiedWinner && copiedWinner.report ? copiedWinner.report.problems.join('; ') : 'инструмент не ответил'}`,
+    `could not copy the winner ${winner.path} to ${DESIGN_PATH}: ` +
+      `${copiedWinner && copiedWinner.report ? copiedWinner.report.problems.join('; ') : 'the tool did not answer'}`,
   )
 }
 touched.add(DESIGN_PATH)
 present.add(DESIGN_PATH)
-log(`[design] черновик дизайна готов из кандидата ${winner.n}`)
+log(`[design] the design draft is ready from candidate ${winner.n}`)
 
 // --- Design: the second revision loop, same machinery ----------------------------------------
 const borrowBlock = borrow.length
@@ -2088,7 +2088,7 @@ const design = await reviseLoop({
   ],
 })
 
-if (borrowBlock) log(`[design] у проигравших взято пунктов: ${borrow.length}`)
+if (borrowBlock) log(`[design] items borrowed from the losing candidates: ${borrow.length}`)
 
 // --- Discovery: what the design could not answer ----------------------------------------------
 //
@@ -2102,8 +2102,8 @@ if (RUN_DISCOVERY) discovery = await runDiscovery()
 // --- Gate: the record of what stayed open -----------------------------------------------------
 phase('Gate')
 const openItems = [
-  ...(requirements ? requirements.open.map((o) => `Требования: ${o}`) : []),
-  ...design.open.map((o) => `Дизайн: ${o}`),
+  ...(requirements ? requirements.open.map((o) => `Requirements: ${o}`) : []),
+  ...design.open.map((o) => `Design: ${o}`),
 ]
 await recordUnresolved(openItems, design.accepted)
 
@@ -2111,8 +2111,8 @@ await recordHandoff()
 const { onDisk, orphans, foreign } = await auditRun()
 
 log(
-  `[итог] требований=${Boolean(requirements || present.has(REQ_PATH))} дизайн=${design.accepted ? 'принят' : 'с замечаниями'} ` +
-    `кругов дизайна=${design.rounds} открыто=${openItems.length} предупреждений=${warnings.length}`,
+  `[summary] requirements=${Boolean(requirements || present.has(REQ_PATH))} design=${design.accepted ? 'accepted' : 'with remarks'} ` +
+    `design rounds=${design.rounds} open=${openItems.length} warnings=${warnings.length}`,
 )
 
 return {

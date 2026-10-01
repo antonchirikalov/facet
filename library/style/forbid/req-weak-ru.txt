@@ -1,5 +1,5 @@
-# Слабые слова и клаузы-лазейки в ячейке требования (INCOSE R7–R9, QuARS). Применяется гейтом
-# только к колонке «Требование/Правило», не к цитатам источника. По регулярке на строку.
+# Weak words and escape clauses in a requirement cell (INCOSE R7-R9, QuARS). Applied by the gate
+# to the Requirement/Rule column only, never to source quotes. One regex per line.
 по возможности
 при необходимости
 при желании

@@ -16,7 +16,7 @@ straight quote inside `print("привет")` is python.
 ## Layer 1 — mechanics (counted, not estimated)
 
 Use the search tool to count. A number you guessed cannot become a gate later, and
-"несколько мест" is not a finding.
+"several places" is not a finding.
 
 1. **Dashes**: ` - ` standing in for ` — `. Count exactly. Do not touch list bullets at
    the start of a line (`- пункт`), ranges inside code, or minus signs.
@@ -57,9 +57,9 @@ Each criterion is one yes/no question about one sentence:
 
 ## Calibration — what a good edit looks like
 
-Было: «Кейсы, где агент провалился, разбираются и пополняют датасет; трассы с плохими
+Before: «Кейсы, где агент провалился, разбираются и пополняют датасет; трассы с плохими
 отзывами - туда же.»
-Стало: «Разбирайте кейсы, где агент ошибся, и добавляйте их в датасет — вместе с
+After: «Разбирайте кейсы, где агент ошибся, и добавляйте их в датасет — вместе с
 трассами, на которые пожаловались пользователи.»
 (one actor, active voice, one dash)
 

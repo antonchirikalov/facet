@@ -1,193 +1,197 @@
-# Конвейеры документов на Dynamic Workflows: проработка
+# Document pipelines on Dynamic Workflows: a detailed study
 
-Дата: 2026-08-13. Уточнение владельца: проект — **личный инструмент** для подготовки
-документов (дизайны решений, требования и прочее) с хорошими иллюстрациями через
-figgybanana. Резюме после сбоя не критично. Вопрос: можно ли иметь такие же конвейеры на
-Dynamic Workflows, генерируя скрипты из наших пайплайнов, и умеют ли скрипты сохранять
-промежуточные артефакты.
+Date: 2026-08-13. The owner's clarification: the project is a **personal tool** for preparing
+documents (solution designs, requirements and so on) with good illustrations through
+figgybanana. Resuming after a failure is not critical. The question: can we have the same
+pipelines on Dynamic Workflows, generating scripts from our pipelines, and can scripts save
+intermediate artifacts.
 
-Короткие ответы: **ключ API не нужен**, **артефакты сохранять можно и это штатный способ**,
-**конвейеры переносятся почти один в один**. Ниже — как именно, с оговорками.
-
----
-
-## 1. Про ключ API: нужен или нет
-
-Здесь важно не перепутать два разных сценария, потому что документация Anthropic разводит
-их прямо.
-
-**Dynamic Workflows — ключ не нужен.** Воркфлоу исполняется внутри Claude Code, который уже
-авторизован корпоративной подпиской. Агенты воркфлоу «используют модель сессии», а прогоны
-«идут в счёт лимитов вашего плана, как любая другая сессия». Никакой отдельной
-авторизации, биллинга и ключа не появляется. То же касается скиллов, подагентов, хуков и
-сохранённых команд `/имя`.
-
-**Agent SDK — вот здесь ключ появляется, и это не техническая деталь, а лицензионная.**
-Страница SDK: «Если не согласовано заранее, Anthropic не разрешает сторонним разработчикам
-предлагать вход через claude.ai или свои лимиты для их продуктов, включая агентов на Claude
-Agent SDK. Используйте авторизацию по ключу API». Страница про юридические вопросы:
-авторизация OAuth «предназначена исключительно для покупателей планов Free, Pro, Max, Team и
-Enterprise и рассчитана на обычное использование Claude Code и других родных приложений
-Anthropic», а «разработчикам, строящим продукты или сервисы, включая тех, кто использует
-Agent SDK, следует использовать авторизацию по ключу API через Claude Console или
-поддерживаемого облачного провайдера».
-
-Тонкость в пользу личного инструмента: в разделе про политику использования сказано, что
-«заявленные лимиты планов Pro и Max предполагают обычное индивидуальное использование
-Claude Code **и Agent SDK**», а токен `CLAUDE_CODE_OAUTH_TOKEN` штатно существует и
-авторизуется подпиской (Pro, Max, Team, Enterprise), умея только запросы к модели. То есть
-личный инструмент для себя в эту рамку укладывается; продукт для коллег или клиентов —
-уже нет, там нужен ключ.
-
-**Вывод для нас.** Путь через воркфлоу лицензионно и технически чист: ничего, кроме уже
-имеющейся подписки. Путь через SDK втягивает нас в разговор о ключах и о том, где кончается
-«обычное индивидуальное использование» — при том, что переписывать рантайм пришлось бы
-ради возможностей, которые воркфлоу и так даёт. **Это снимает пункт про SDK из
-рекомендации**: если проект личный, менять рантайм refract на SDK незачем.
+Short answers: **no API key is needed**, **artifacts can be saved and this is the standard
+way**, **the pipelines carry over almost one to one**. Below is exactly how, with caveats.
 
 ---
 
-## 2. Артефакты: сохранять можно, но контракт переезжает в промпт
+## 1. About the API key: needed or not
 
-Ограничение «у скрипта нет доступа к файловой системе» звучит убийственно, а на деле
-означает другое распределение труда, чем в refract:
+It is important here not to confuse two different scenarios, because the Anthropic documentation
+separates them explicitly.
 
-| | refract | Воркфлоу |
+**Dynamic Workflows — no key is needed.** A workflow runs inside Claude Code, which is already
+authorised by the corporate subscription. Workflow agents "use the session's model", and runs
+"count against your plan's limits, like any other session". No separate authorisation, billing
+or key appears. The same goes for skills, subagents, hooks and saved `/name` commands.
+
+**Agent SDK — this is where a key appears, and it is not a technical detail but a licensing
+one.** The SDK page: "Unless previously approved, Anthropic does not allow third-party developers
+to offer claude.ai login or their rate limits for their products, including agents built on the
+Claude Agent SDK. Use API key authentication." The legal page: OAuth authentication "is intended
+exclusively for purchasers of the Free, Pro, Max, Team and Enterprise plans and is designed for
+ordinary use of Claude Code and other native Anthropic applications", and "developers building
+products or services, including those using the Agent SDK, should use API key authentication
+through the Claude Console or a supported cloud provider".
+
+A subtlety in favour of a personal tool: the usage policy section says that "the advertised
+limits of the Pro and Max plans assume ordinary individual use of Claude Code **and the Agent
+SDK**", and the `CLAUDE_CODE_OAUTH_TOKEN` token exists as a standard feature and is authorised by
+the subscription (Pro, Max, Team, Enterprise), able to make only model requests. That is, a
+personal tool for oneself fits within this frame; a product for colleagues or clients no longer
+does, and there a key is needed.
+
+**The conclusion for us.** The workflow path is clean both in licensing and technically: nothing
+beyond the subscription we already have. The SDK path drags us into a conversation about keys and
+about where "ordinary individual use" ends — while the runtime would have to be rewritten for
+capabilities that workflows already provide. **This removes the SDK item from the
+recommendation**: if the project is personal, there is no reason to switch refract's runtime to
+the SDK.
+
+---
+
+## 2. Artifacts: they can be saved, but the contract moves into the prompt
+
+The restriction "a script has no access to the filesystem" sounds fatal, but in practice it
+means a different division of labour than in refract:
+
+| | refract | Workflows |
 |---|---|---|
-| Кто пишет файлы | агент в свой `output/`, движок раскладывает входы | агент, обычными Write/Edit/Bash |
-| Кто задаёт схему каталогов | движок, механически | промпт и конвенция, проверяемая гейтом |
-| Кто передаёт данные между шагами | движок через `input/` | скрипт: передаёт **пути** и структурированный JSON |
-| Кто гарантирует изоляцию | workdir + хук | `isolation: 'worktree'` у агента, где нужен параллельный правки |
+| Who writes files | the agent into its `output/`, the engine lays out the inputs | the agent, with ordinary Write/Edit/Bash |
+| Who sets the directory layout | the engine, mechanically | the prompt and a convention checked by the gate |
+| Who passes data between steps | the engine via `input/` | the script: it passes **paths** and structured JSON |
+| Who guarantees isolation | workdir + hook | `isolation: 'worktree'` on the agent, where parallel edits are needed |
 
-Скрипт не читает файлы — он их **адресует**. Схема у `agent()` — тот самый механизм: агент
-обязан вернуть структурированный ответ, и в него кладём путь и измерения. Дальше скрипт
-ветвится по этим числам, ни разу не открыв файл сам.
+A script does not read files — it **addresses** them. The schema on `agent()` is exactly that
+mechanism: the agent must return a structured answer, and we put the path and the measurements
+into it. The script then branches on those numbers without ever opening the file itself.
 
-Рабочая конвенция для нашего случая:
+The working convention for our case:
 
 ```
 docs-runs/<YYYYMMDD-HHMM>-<slug>/
   01-brief/brief.md
-  02-sources/<slug>.md              ← фан-аут, один файл на источник
+  02-sources/<slug>.md              ← fan-out, one file per source
   03-analysis/analysis.json
-  04-draft/article.r1.md            ← версия на круг, а не перезапись
+  04-draft/article.r1.md            ← a version per round, not an overwrite
   04-draft/verdict.r1.json
   04-draft/article.r2.md
   05-style/findings.json
   06-final/article.md
   07-figures/<slug>.png
   07-figures/manifest.json
-  run.md                            ← что и чем сделано, пишет последний агент
+  run.md                            ← what was done and with what, written by the last agent
 ```
 
-Версия на круг вместо перезаписи заменяет наш `attempts/<n>/`: история кругов остаётся на
-диске, и `git diff` показывает, что именно поправил критик. Каталог прогона получает
-временную метку — её передаём как `args`, потому что `Date.now()` в скрипте недоступен.
+A version per round instead of overwriting replaces our `attempts/<n>/`: the history of rounds
+stays on disk, and `git diff` shows exactly what the critic corrected. The run directory gets a
+timestamp — we pass it as `args`, because `Date.now()` is unavailable in a script.
 
 ---
 
-## 3. Гейты: детерминированно, без ЛЛМ-судьи
+## 3. Gates: deterministic, without an LLM judge
 
-Наши гейты (`max_length`, `forbid_regex`, `min_entries`) — арифметика и регулярки, отдавать
-их модели незачем. Скрипт файлы не читает, но агент может запустить наш же скрипт:
+Our gates (`max_length`, `forbid_regex`, `min_entries`) are arithmetic and regular expressions;
+there is no reason to hand them to a model. A script does not read files, but an agent can run
+our own script:
 
 ```bash
 python tools/gate.py --file 06-final/article.md \
   --max-length 14000 \
-  --forbid "стоит отметить|важно понимать|давайте разберём" \
-  --forbid "погрузимся в|ключевой вывод|в заключение" \
+  --forbid "it is worth noting|it is important to understand|let us break it down" \
+  --forbid "let us dive into|the key takeaway|in conclusion" \
   --min-prose 8000
 ```
 
-`tools/gate.py` печатает тот же JSON, что сейчас пишет движок: `{ok, problems, measures}`.
-Стадия проверки — самый дешёвый агент с единственной задачей «запусти команду и верни её
-вывод по схеме». В скрипте это обычный цикл с обратной связью:
+(The forbidden phrases stand for Russian AI-text clichés, written here in English.)
+
+`tools/gate.py` prints the same JSON the engine writes now: `{ok, problems, measures}`. The check
+stage is the cheapest agent with a single task, "run the command and return its output by the
+schema". In the script it is an ordinary loop with feedback:
 
 ```javascript
 let article = await agent(writePrompt(brief), {agentType: 'writer', schema: DOC})
 for (let round = 1; round <= 3; round++) {
   const gate = await agent(gateCmd(article.path), {model: 'haiku', schema: GATE})
   if (gate.ok) break
-  log(`гейт не пройден: ${gate.problems.join('; ')}`)
+  log(`gate failed: ${gate.problems.join('; ')}`)
   article = await agent(fixPrompt(article.path, gate.problems), {agentType: 'writer', schema: DOC})
 }
 ```
 
-Это ровно наш гейт-ретрай с инжекцией замечаний, только политика видна как код. И здесь же
-чинится дефект, который мы нашли в живом прогоне: refract при исчерпании кругов «проходил
-молча», а в скрипте молчаливый проход надо написать явно — иначе цикл заканчивается, и
-неисполненные замечания остаются в переменной, которую скрипт обязан куда-то деть.
+This is exactly our gate retry with remark injection, only the policy is visible as code. And
+this is also where a defect we found in a live run gets fixed: when it ran out of rounds, refract
+"passed silently", whereas in a script a silent pass has to be written explicitly — otherwise the
+loop ends, and the unaddressed remarks stay in a variable that the script is obliged to put
+somewhere.
 
-Заодно: проверку **прозы без разметки** (`--min-prose`) наш YAML-гейт сейчас не умеет, а
-брифовые «8–12 тысяч знаков» имеют в виду именно её.
-
----
-
-## 4. Чекпойнты: границы стадий вместо остановки посреди
-
-Ввода от человека посреди прогона нет — документация советует разбивать на стадии, и для
-документов это скорее плюс: точки, где ты действительно хочешь смотреть глазами, у нас и
-так две.
-
-```
-/doc-research  <тема>     → 01-brief, 02-sources, 03-analysis
-   ← ты читаешь analysis.json, правишь руками, решаешь: дальше или переформулировать бриф
-/doc-write     <каталог>  → 04-draft (петля с критиком), 05-style, 06-final
-   ← ты читаешь findings.json стилиста и решаешь, какие правки принять
-/doc-figures   <каталог>  → 07-figures + манифест
-```
-
-Три сохранённые команды в `.claude/workflows/`, каждая принимает `args` с каталогом
-прогона. Между ними ты в обычной сессии: смотришь артефакты, правишь файлы, запускаешь
-следующую. Это честнее нашего `waiting_human`: там прогон висел процессом и умирал вместе с
-ним — у нас это уже случалось.
+Also: our YAML gate cannot currently check **prose without markup** (`--min-prose`), and the
+brief's "8–12 thousand characters" means exactly that.
 
 ---
 
-## 5. Как переносятся наши сущности
+## 4. Checkpoints: stage boundaries instead of a stop in the middle
 
-Отображение почти механическое, и это главный аргумент, что тема рабочая:
+There is no human input in the middle of a run — the documentation advises splitting into
+stages, and for documents this is rather a plus: there are only two points where you actually
+want to look with your own eyes anyway.
 
-| refract | Куда переезжает |
+```
+/doc-research  <topic>      → 01-brief, 02-sources, 03-analysis
+   ← you read analysis.json, edit by hand, decide: go on or reformulate the brief
+/doc-write     <directory>  → 04-draft (loop with a critic), 05-style, 06-final
+   ← you read the stylist's findings.json and decide which edits to accept
+/doc-figures   <directory>  → 07-figures + manifest
+```
+
+Three saved commands in `.claude/workflows/`, each taking `args` with the run directory. Between
+them you are in an ordinary session: you look at the artifacts, edit files, launch the next one.
+This is more honest than our `waiting_human`: there the run hung as a process and died together
+with it — this has already happened to us.
+
+---
+
+## 5. How our entities carry over
+
+The mapping is almost mechanical, and this is the main argument that the approach is workable:
+
+| refract | Where it moves |
 |---|---|
-| `library/agents/<имя>/prompt.md` + `agent.yaml` | `.claude/agents/<имя>.md`: фронтматтер с `tools` и `model`, тело — промпт |
-| Узел `type: agent` | вызов `agent(prompt, {agentType: '<имя>', schema})` |
-| Инструкции ввода-вывода, генерируемые из контракта (I5) | тот же генератор, но текстом в промпт стадии; схему отдаём как `schema` |
-| `map` по коллекции, `workers`, `on_item_failure: skip`, `min_ok` | `pipeline(items, stage1, stage2)` + `.filter(Boolean)` + проверка длины |
-| `loop` с `verdict@v1`, `max_rounds` | `for`/`while` в скрипте, вердикт — через `schema` |
-| `select` с `selection@v1` | `parallel()` кандидатов + агент-судья со схемой |
-| `gate_rules` | `tools/gate.py` + дешёвая стадия проверки (раздел 3) |
-| `checkpoints` | границы между сохранёнными воркфлоу (раздел 4) |
-| Типы артефактов `artifact_types.yaml` | JSON Schema для управляющих артефактов + конвенция путей для документов |
-| Хук `PreToolUse` (I1) | остаётся хуком Claude Code, без изменений |
-| Секреты по шагу (I8, у нас в долгах) | `env` в `.claude/settings.json`, один раз на проект |
-| Модель на узел | `{model: 'opus'}` у стадии |
-| Леджер и `refract explain` | `/workflows` во время прогона + `run.md`, который пишет последний агент |
-| REST/WS API, React SPA, каталог блоков | **не переезжает: для личного инструмента не нужно** |
+| `library/agents/<name>/prompt.md` + `agent.yaml` | `.claude/agents/<name>.md`: frontmatter with `tools` and `model`, the body is the prompt |
+| A `type: agent` node | a call `agent(prompt, {agentType: '<name>', schema})` |
+| Input/output instructions generated from the contract (I5) | the same generator, but as text in the stage prompt; the schema is passed as `schema` |
+| `map` over a collection, `workers`, `on_item_failure: skip`, `min_ok` | `pipeline(items, stage1, stage2)` + `.filter(Boolean)` + a length check |
+| `loop` with `verdict@v1`, `max_rounds` | `for`/`while` in the script, the verdict via `schema` |
+| `select` with `selection@v1` | `parallel()` of candidates + a judge agent with a schema |
+| `gate_rules` | `tools/gate.py` + a cheap check stage (section 3) |
+| `checkpoints` | boundaries between saved workflows (section 4) |
+| Artifact types `artifact_types.yaml` | JSON Schema for control artifacts + a path convention for documents |
+| The `PreToolUse` hook (I1) | stays a Claude Code hook, unchanged |
+| Per-step secrets (I8, in our backlog) | `env` in `.claude/settings.json`, once per project |
+| Model per node | `{model: 'opus'}` on the stage |
+| The ledger and `refract explain` | `/workflows` during the run + `run.md`, written by the last agent |
+| REST/WS API, React SPA, block catalogue | **does not move: not needed for a personal tool** |
 
-Отдельно про наш вечный источник боли: `PAPERBANANA_BIN` и три `SS_GATEWAY_*` объявляются
-один раз в `env` в `.claude/settings.json` — и больше не зависят от того, из какого шелла
-запущено. Пять из двенадцати провалов прошлого прогона были именно про это, и нативно это
-лечится лучше, чем у нас.
+Separately, about our perennial source of pain: `PAPERBANANA_BIN` and the three `SS_GATEWAY_*`
+are declared once in `env` in `.claude/settings.json` — and no longer depend on which shell the
+launch came from. Five of the twelve failures of the last run were about exactly this, and
+natively it is cured better than in our setup.
 
 ---
 
-## 6. Скелет скрипта под наш случай
+## 6. A script skeleton for our case
 
-Стадия письма как пример формы. Это не готовый файл, а форма, которую надо признать:
+The writing stage as an example of the shape. This is not a finished file, but a shape to be
+agreed on:
 
 ```javascript
 export const meta = {
   name: 'doc-write',
-  description: 'Черновик документа с петлёй критика, стилист, финал',
+  description: 'Document draft with a critic loop, stylist, final',
   phases: [
-    { title: 'Draft',  detail: 'писатель + критик по кругам' },
-    { title: 'Gate',   detail: 'детерминированные проверки' },
-    { title: 'Style',  detail: 'стилист в режиме отчёта', model: 'opus' },
+    { title: 'Draft',  detail: 'writer + critic in rounds' },
+    { title: 'Gate',   detail: 'deterministic checks' },
+    { title: 'Style',  detail: 'stylist in report mode', model: 'opus' },
   ],
 }
 
-const run = args.runDir                    // каталог прогона приходит извне
+const run = args.runDir                    // the run directory comes from outside
 const DOC = { type: 'object', required: ['path', 'chars'], properties: {
   path: { type: 'string' }, chars: { type: 'integer' } } }
 const VERDICT = { type: 'object', required: ['verdict', 'issues'], properties: {
@@ -197,132 +201,134 @@ const VERDICT = { type: 'object', required: ['verdict', 'issues'], properties: {
 
 phase('Draft')
 let doc = await agent(
-  `Собери черновик по ${run}/03-analysis/analysis.json и ${run}/01-brief/brief.md. ` +
-  `Запиши в ${run}/04-draft/article.r1.md и верни путь и число знаков.`,
+  `Build a draft from ${run}/03-analysis/analysis.json and ${run}/01-brief/brief.md. ` +
+  `Write it to ${run}/04-draft/article.r1.md and return the path and the number of characters.`,
   { agentType: 'writer', schema: DOC })
 
 let unresolved = []
 for (let r = 1; r <= 3; r++) {
   const v = await agent(
-    `Проверь ${doc.path} против ${run}/01-brief/brief.md. Замечания записывай ` +
-    `в ${run}/04-draft/verdict.r${r}.json.`,
+    `Check ${doc.path} against ${run}/01-brief/brief.md. Write the remarks ` +
+    `to ${run}/04-draft/verdict.r${r}.json.`,
     { agentType: 'critic', model: 'opus', schema: VERDICT })
   if (v.verdict === 'approve') { unresolved = []; break }
   unresolved = v.issues
-  log(`круг ${r}: ${v.issues.length} замечаний`)
+  log(`round ${r}: ${v.issues.length} remarks`)
   doc = await agent(
-    `Исправь ${doc.path} по ${run}/04-draft/verdict.r${r}.json. ` +
-    `Результат — ${run}/04-draft/article.r${r + 1}.md.`,
+    `Fix ${doc.path} according to ${run}/04-draft/verdict.r${r}.json. ` +
+    `The result is ${run}/04-draft/article.r${r + 1}.md.`,
     { agentType: 'writer', schema: DOC })
 }
 
-// то, что refract делал молча: неисполненные замечания обязаны быть видны
+// what refract did silently: unaddressed remarks must be visible
 if (unresolved.length) {
   await agent(
-    `Запиши в ${run}/04-draft/UNRESOLVED.md замечания, которые остались после трёх ` +
-    `кругов: ${JSON.stringify(unresolved)}. Ничего не исправляй.`,
+    `Write to ${run}/04-draft/UNRESOLVED.md the remarks that remained after three ` +
+    `rounds: ${JSON.stringify(unresolved)}. Fix nothing.`,
     { model: 'haiku' })
-  log(`ВНИМАНИЕ: ${unresolved.length} замечаний не закрыто, см. UNRESOLVED.md`)
+  log(`WARNING: ${unresolved.length} remarks not closed, see UNRESOLVED.md`)
 }
 
 phase('Gate')
 for (let attempt = 1; attempt <= 3; attempt++) {
   const g = await agent(
-    `Выполни: python tools/gate.py --file ${doc.path} --max-length 14000 ` +
-    `--forbid "стоит отметить|важно понимать" --min-prose 8000 . Верни его JSON.`,
+    `Run: python tools/gate.py --file ${doc.path} --max-length 14000 ` +
+    `--forbid "it is worth noting|it is important to understand" --min-prose 8000 . Return its JSON.`,
     { model: 'haiku', schema: GATE })
   if (g.ok) break
-  doc = await agent(`Исправь ${doc.path}: ${g.problems.join('; ')}`,
+  doc = await agent(`Fix ${doc.path}: ${g.problems.join('; ')}`,
     { agentType: 'writer', schema: DOC })
 }
 
 phase('Style')
 const findings = await agent(
-  `Разбери ${doc.path} как критик русского текста, отчётом. Запиши ` +
-  `${run}/05-style/findings.json, каждое замечание с decision: pending.`,
+  `Review ${doc.path} as a critic of Russian text, as a report. Write ` +
+  `${run}/05-style/findings.json, each remark with decision: pending.`,
   { agentType: 'article-critic', model: 'opus', schema: FINDINGS })
 
 return { draft: doc.path, findings: findings.path, unresolved: unresolved.length }
 ```
 
-Что здесь важно заметить:
+What is important to notice here:
 
-- каталог прогона приходит через `args` — в скрипте нет `Date.now()`, он запрещён, чтобы не
-  ломать возобновление;
-- `meta` обязан быть **чистым литералом**: ни переменных, ни вызовов, ни шаблонных строк;
-- `import()` запрещён — вся работа с библиотеками живёт внутри задач агентов;
-- фан-аут по источникам делается `pipeline(sources, читать, конспектировать)`, до 16
-  одновременно, и это ровно наш `map` с `workers`;
-- где агенты правят файлы параллельно, у стадии ставится `isolation: 'worktree'`.
+- the run directory comes in through `args` — there is no `Date.now()` in a script, it is
+  forbidden so as not to break resuming;
+- `meta` must be a **pure literal**: no variables, no calls, no template strings;
+- `import()` is forbidden — all work with libraries lives inside the agents' tasks;
+- fan-out over sources is done with `pipeline(sources, read, takeNotes)`, up to 16 at once, and this is exactly our `map` with `workers`;
+- where agents edit files in parallel, the stage gets `isolation: 'worktree'`.
 
 ---
 
-## 7. Что мы теряем и чем это закрывается
+## 7. What we lose and what covers it
 
-| Потеря | Насколько больно | Чем закрывается |
+| Loss | How painful | What covers it |
 |---|---|---|
-| Резюме прогона после выхода из сессии | принято как допустимое | стадии короткие; артефакты на диске, следующую стадию можно перезапустить с того же каталога |
-| Возобновление обрывает кэш на первом незавершённом агенте, и всё, что стартовало после, считается заново | ощутимо на фан-ауте | много мелких агентов вместо одного длинного — документация прямо это советует |
-| Предзапусковая валидация графа (40+ кодов ошибок) | средне | у сохранённого скрипта форма стабильна; ошибка в схеме всплывает на первой стадии, а не на седьмой |
-| Леджер с деньгами по шагам и `refract explain` | средне | `/workflows` показывает токены по агентам живьём; `run.md` пишет итог |
-| `waiting_human` посреди прогона | не больно | границы стадий, и это надёжнее: наш процесс с чекпойнтом уже умирал |
-| Реестр типов и проверка совместимости портов | средне | JSON Schema на управляющих артефактах + гейт на конвенции путей |
-| UI, REST, WS, каталог блоков | не больно | личному инструменту не нужно |
+| Resuming a run after leaving the session | accepted as tolerable | the stages are short; artifacts are on disk, the next stage can be relaunched from the same directory |
+| Resuming cuts the cache off at the first unfinished agent, and everything that started after it is recomputed | noticeable on fan-out | many small agents instead of one long one — the documentation advises exactly this |
+| Pre-launch validation of the graph (40+ error codes) | moderate | a saved script has a stable shape; an error in the schema surfaces at the first stage, not the seventh |
+| A ledger with money per step and `refract explain` | moderate | `/workflows` shows tokens per agent live; `run.md` writes the summary |
+| `waiting_human` in the middle of a run | not painful | stage boundaries, and they are more reliable: our process with a checkpoint has already died |
+| The type registry and port compatibility checking | moderate | JSON Schema on control artifacts + a gate on the path convention |
+| UI, REST, WS, block catalogue | not painful | a personal tool does not need them |
 
-Ограничение, о котором стоит помнить заранее: ориентир размера воркфлоу по умолчанию
-`medium`, то есть менее 15 агентов, а предупреждение «большой воркфлоу» срабатывает на 25
-агентах или 1,5 млн токенов. Наш прогон статьи — 23 шага, и в один воркфлоу целиком он
-упирается в этот ориентир. Разбиение на три стадии решает и это.
-
----
-
-## 8. План переноса
-
-Порядок такой, чтобы на каждом шаге было чем пользоваться.
-
-1. **`tools/gate.py`** — вынести проверки из движка в самостоятельный скрипт с тем же JSON
-   на выходе. Полдня, и он полезен независимо от исхода: его можно звать и из refract.
-2. **Агенты в `.claude/agents/`** — перенести `writer`, `critic`, `article-critic`,
-   `style-editor`, `illustrator`, `source-finder` из `library/agents/` в определения
-   подагентов. Промпты уже написаны, меняется обёртка. День.
-3. **`env` в `.claude/settings.json`** — объявить `PAPERBANANA_BIN` и три `SS_GATEWAY_*`.
-   Полчаса, закрывает самый частый источник провалов.
-4. **`/doc-figures`** — начать с самой изолированной стадии: вход есть готовый документ,
-   выход — PNG и манифест. Это то, что я в этой сессии уже сделал руками параллельными
-   вызовами; в воркфлоу это `pipeline` по четырём фигурам. День.
-5. **`/doc-write`** — петля с критиком и гейтами по скелету выше. Два-три дня, тут вся
-   содержательная логика.
-6. **`/doc-research`** — фан-аут по источникам, аналог `discover` + `study`. Два дня.
-7. **Сверка на той же статье.** Прогнать `attn-article` целиком через три команды и
-   сравнить с тем, что дал refract: длина, замечания критика, число фигур, деньги.
-
-Итого около недели работы. После сверки — решение по refract: консервировать репозиторий
-или оставить как справочник промптов и спеки.
+A limit worth remembering in advance: the default workflow size guideline is `medium`, that is,
+fewer than 15 agents, and the "large workflow" warning fires at 25 agents or 1.5 million tokens.
+Our article run is 23 steps, and as a single workflow it runs into this guideline. Splitting into
+three stages solves this too.
 
 ---
 
-## 9. Что стоит забрать из refract в любом случае
+## 8. Migration plan
 
-Движок можно законсервировать, но в нём есть вещи, которые дороже кода:
+The order is such that at every step there is something usable.
 
-- **промпты агентов** — они выверены живыми прогонами, это главный актив;
-- **спека типов артефактов** — как документация контрактов остаётся полезной;
-- **формулировки гейтов** с порогами, выученными на реальных прогонах (`max_length: 14000`
-  и почему именно столько, три `forbid_regex`, `min_entries: 5`);
-- **разбор прогона** из `docs/PROGRESS.md`: почему `attempts` архивируются, почему хартбиты
-  переводят `running` в `pending`, почему read-only каталоги ломают Windows. На новом стеке
-  часть этих грабель лежит там же.
+1. **`tools/gate.py`** — move the checks out of the engine into a standalone script with the same
+   JSON output. Half a day, and it is useful regardless of the outcome: it can be called from
+   refract too.
+2. **Agents in `.claude/agents/`** — move `writer`, `critic`, `article-critic`, `style-editor`,
+   `illustrator`, `source-finder` from `library/agents/` into subagent definitions. The prompts
+   are already written; the wrapper changes. A day.
+3. **`env` in `.claude/settings.json`** — declare `PAPERBANANA_BIN` and the three
+   `SS_GATEWAY_*`. Half an hour, and it closes the most frequent source of failures.
+4. **`/doc-figures`** — start with the most isolated stage: the input is a finished document, the
+   output is PNGs and a manifest. This is what I already did by hand in this session with
+   parallel calls; in a workflow it is a `pipeline` over four figures. A day.
+5. **`/doc-write`** — the loop with the critic and gates following the skeleton above. Two to
+   three days; all the substantive logic is here.
+6. **`/doc-research`** — fan-out over sources, the analogue of `discover` + `study`. Two days.
+7. **Comparison on the same article.** Run `attn-article` in full through the three commands and
+   compare with what refract produced: length, the critic's remarks, the number of figures,
+   money.
+
+About a week of work in total. After the comparison — a decision on refract: mothball the
+repository or keep it as a reference for prompts and the spec.
 
 ---
 
-## 10. Вердикт по этой теме
+## 9. What is worth taking from refract in any case
 
-Тема рабочая, и для личного инструмента она лучше нашего движка по трём причинам, которые
-не про вкус: **ключ API не нужен**, **артефакты сохраняются штатно**, **отображение наших
-пайплайнов на скрипт почти механическое**. Плата — потеря резюме между сессиями, которую ты
-согласился считать допустимой, и потеря UI, который личному инструменту не нужен.
+The engine can be mothballed, but it contains things that are worth more than the code:
 
-Единственное, от чего я бы предостерёг: не переносить всё сразу. Начать с `/doc-figures` —
-самая изолированная стадия с проверяемым результатом, и на ней сразу станет видно, как
-воркфлоу ведёт себя с внешним CLI, окружением и параллельным фан-аутом. Если эта стадия
-садится чисто, остальное — та же схема в большем масштабе.
+- **the agents' prompts** — they were refined by live runs; this is the main asset;
+- **the artifact type spec** — it stays useful as documentation of the contracts;
+- **the wording of the gates** with thresholds learned on real runs (`max_length: 14000` and why
+  exactly that much, the three `forbid_regex`, `min_entries: 5`);
+- **the run post-mortem** from `docs/PROGRESS.md`: why `attempts` are archived, why heartbeats
+  move `running` to `pending`, why read-only directories break Windows. On the new stack some of
+  these rakes lie in the same place.
+
+---
+
+## 10. The verdict on this approach
+
+The approach is workable, and for a personal tool it is better than our engine for three reasons
+that are not a matter of taste: **no API key is needed**, **artifacts are saved in the standard
+way**, **the mapping of our pipelines onto a script is almost mechanical**. The price is losing
+resume between sessions, which you agreed to consider tolerable, and losing the UI, which a
+personal tool does not need.
+
+The only thing I would warn against: do not move everything at once. Start with `/doc-figures` —
+the most isolated stage with a checkable result, and on it it will immediately be visible how a
+workflow behaves with an external CLI, the environment and parallel fan-out. If this stage lands
+cleanly, the rest is the same scheme at a larger scale.

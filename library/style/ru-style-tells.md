@@ -1,43 +1,48 @@
-# Русский материал стилевого критика
+# Russian material for the style critic
 
-Данные, не промпт. Критик `style_critic_ru` читает этот файл в начале работы: здесь всё, что
-он ищет в русском тексте и не может назвать по-английски. Промпт критика целиком английский и
-ссылается сюда. Правится руками, как и профиль голоса.
+Data, not a prompt. The critic `style_critic_ru` reads this file at the start of its work: it
+holds everything the critic looks for in Russian text and cannot name in English. The critic's
+prompt is entirely in English and points here. Edited by hand, like the voice profile.
 
-## Формы обращения (смешение «вы»/«ты» — дефект)
+The Russian words and phrases below are examples to match in Russian text; they are kept
+verbatim on purpose.
+
+## Forms of address (mixing formal "вы" and informal "ты" is a defect)
 
 тебе, тебя, твой, твоя, твои, твоё, ты
 
-## Штампы
+## Clichés
 
-Основной список — `library/style/forbid/ru-slop.txt`, по регулярке на строку; он же стоит в
-гейте. Здесь — то, что регуляркой не поймать.
+The main list is `library/style/forbid/ru-slop.txt`, one regex per line; the gate uses it too.
+This section holds what a regex cannot catch.
 
-Глагольные англицизмы с точным русским глаголом:
+Anglicism verbs that have an exact Russian verb:
 «валидирует» → «проверяет», «имплементирует» → «реализует», «хендлит» → «обрабатывает»,
-«репортит» → «сообщает». Существительные-термины не трогать («валидация», «имплементация»
-как имя механизма), особенно закреплённые на рисунке.
+«репортит» → «сообщает». Leave the nouns that are terms alone («валидация», «имплементация»
+as the name of a mechanism), especially when a figure fixes them.
 
-Авторские переходы, которые остаются: «Давайте разбираться», «А давайте пример».
-Дефект — «давайте разберём каждый пункт подробнее», где слово стоит вместо мысли.
+Authorial transitions that stay: «Давайте разбираться», «А давайте пример».
+The defect is «давайте разберём каждый пункт подробнее», where the word stands in for a
+thought.
 
-## Машинные приметы — примеры
+## Tells of generated text, with examples
 
-- Заголовок, который называет, а не обещает: «Формула целиком» называет тему; «Что на что
-  умножается» обещает работу.
-- Жирный как оглавление внутри абзаца: `**QKᵀ.** Скалярное произведение…`
-- Связующие наречия в начале абзацев подряд: «Однако», «Кроме того», «При этом», «Более того».
-- Безличный пассив с неживым деятелем: «кейсы разбираются», «валидация выполняется» —
-  переписать с живым деятелем, обычно «вы» или императив.
-- Цепочки «не X, а Y» дважды подряд и форма «это не просто X — это Y».
-- Усилительные триады: «быстро, надёжно и масштабируемо».
-- Кавычки: `"…"` вокруг русской прозы → «…»; вложенные → „…“.
-- Маркер списка `- пункт` в начале строки — не дефис вместо тире.
+- A heading that names instead of promising: «Формула целиком» names the topic; «Что на что
+  умножается» promises work.
+- Bold used as a table of contents inside a paragraph: `**QKᵀ.** Скалярное произведение…`
+- Connective adverbs opening consecutive paragraphs: «Однако», «Кроме того», «При этом»,
+  «Более того».
+- Impersonal passive with an inanimate agent: «кейсы разбираются», «валидация выполняется».
+  Rewrite with a living agent, usually "вы" or the imperative.
+- The chain "не X, а Y" twice in a row, and the form «это не просто X — это Y».
+- Intensifying triads: «быстро, надёжно и масштабируемо».
+- Quotes: `"…"` around Russian prose → «…»; nested quotes → „…“.
+- A list marker `- пункт` at the start of a line is not a hyphen standing in for a dash.
 
-## Калибровка — как выглядит хорошая правка
+## Calibration: what a good edit looks like
 
-Было: «Кейсы, где агент провалился, разбираются и пополняют датасет; трассы с плохими
+Before: «Кейсы, где агент провалился, разбираются и пополняют датасет; трассы с плохими
 отзывами - туда же.»
-Стало: «Разбирайте кейсы, где агент ошибся, и добавляйте их в датасет — вместе с
+After: «Разбирайте кейсы, где агент ошибся, и добавляйте их в датасет — вместе с
 трассами, на которые пожаловались пользователи.»
-(один деятель, активный залог, одно тире, примерно та же длина)
+(one agent, active voice, one dash, about the same length)

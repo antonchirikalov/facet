@@ -220,14 +220,14 @@ const run = new AsyncFunction(...Object.keys(stubs), source)
 
 try {
   const result = await run(...Object.values(stubs))
-  console.log(`MODE ${mode}: скрипт дошёл до конца, агентов ${calls.length}`)
-  console.log(`агенты: ${calls.join(', ')}`)
+  console.log(`MODE ${mode}: script ran to the end, agents ${calls.length}`)
+  console.log(`agents: ${calls.join(', ')}`)
   console.log('--- log() ---')
   for (const line of logs) console.log(line)
   console.log('--- return ---')
   console.log(JSON.stringify(result, null, 2))
 } catch (error) {
-  console.error(`MODE ${mode}: ПАДЕНИЕ — ${error.message}`)
+  console.error(`MODE ${mode}: FAILED - ${error.message}`)
   console.error(error.stack)
   process.exitCode = 1
 } finally {

@@ -1,4 +1,4 @@
-"""Формат данных библиотеки агентов: один файл, одна модель."""
+"""Data format of the agent library: one file, one model."""
 
 from __future__ import annotations
 

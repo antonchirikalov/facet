@@ -135,7 +135,7 @@ const STAGES = (cfg.stages && cfg.stages.length ? cfg.stages : ALL_STAGES).map((
 )
 const unknownStages = STAGES.filter((s) => !ALL_STAGES.includes(s))
 if (unknownStages.length) {
-  throw new Error(`неизвестные этапы: ${unknownStages.join(', ')}; есть только ${ALL_STAGES.join(', ')}`)
+  throw new Error(`unknown stages: ${unknownStages.join(', ')}; the only stages are ${ALL_STAGES.join(', ')}`)
 }
 const RUN_RESEARCH = STAGES.includes('research')
 const RUN_DRAFT = STAGES.includes('draft')
@@ -165,8 +165,8 @@ const MIN_ARTIFACT_CHARS = cfg.minArtifactChars || 200
 // The shape of this pipeline does not depend on what language the article is in. Two things
 // do: the style critic, which hunts the machine tells of a particular language, and the gate
 // presets, which hunt its dead phrases. Both were hardcoded to Russian, which is invisible
-// until someone orders an English article and gets a critic looking for «стоит отметить» and
-// «ёлочки» in it — reporting nothing, approving everything, and costing a stage.
+// until someone orders an English article and gets a critic looking for Russian stock phrases and
+// Russian guillemets in it — reporting nothing, approving everything, and costing a stage.
 //
 // So the language chooses them, and the language comes from the brief, which got it from the
 // order. A language with no entry here gets `no_bold` (formatting, not vocabulary) and NO style
@@ -319,7 +319,7 @@ const unnumbered = (text) => String(text).replace(/^\s*\d{1,2}[.)]\s+/, '')
 async function call(taskText, opts) {
   handoff.push({
     label: opts.label,
-    agent: opts.agentType || '(встроенный)',
+    agent: opts.agentType || '(built-in)',
     model: opts.model,
     inputs: (lastPorts && lastPorts.inputs) || [],
     output: (lastPorts && lastPorts.output) || null,
@@ -783,20 +783,20 @@ function existenceCommands(paths, purpose = 'file is where it should be') {
 // recollection of events.
 async function recordHandoff() {
   const lines = handoff.map((h) => {
-    const ins = h.inputs.length ? h.inputs.join(' | ') : '(нет входов)'
-    const out = h.output || '(файла нет, только схема)'
-    return `${h.label} [${h.agent}, ${h.model}] ВХОД: ${ins} ВЫХОД: ${out}`
+    const ins = h.inputs.length ? h.inputs.join(' | ') : '(no inputs)'
+    const out = h.output || '(no file, schema only)'
+    return `${h.label} [${h.agent}, ${h.model}] IN: ${ins} OUT: ${out}`
   })
-  for (const w of warnings) lines.push(`ПРЕДУПРЕЖДЕНИЕ: ${w}`)
+  for (const w of warnings) lines.push(`WARNING: ${w}`)
   touched.add(HANDOFF_PATH)
   const wrote = await call(
-    record(HANDOFF_PATH, `Передачи между агентами, вызовов: ${lines.length}`, lines),
+    record(HANDOFF_PATH, `Handoffs between agents, calls: ${lines.length}`, lines),
     { agentType: 'verbatim-writer', model: MODELS.record, label: 'handoff', phase: 'Gate', schema: WROTE },
   )
   log(
     wrote && wrote.written
-      ? `[handoff] записано передач: ${lines.length} → ${HANDOFF_PATH}`
-      : `[handoff] НЕ ЗАПИСАНО — что кому передавалось, останется только в логе прогона`,
+      ? `[handoff] handoffs written: ${lines.length} → ${HANDOFF_PATH}`
+      : `[handoff] NOT WRITTEN — what was handed to whom remains only in the run log`,
   )
 }
 
@@ -810,8 +810,8 @@ async function auditRun() {
   })
   const onDisk = (audit && audit.files) || []
   if (!onDisk.length) {
-    log('[audit] перечислить каталог прогона не удалось — ревизия не проведена')
-    warnings.push('ревизия каталога не проведена: перечисление не вернулось')
+    log('[audit] could not list the run directory — the audit was not carried out')
+    warnings.push('directory audit not carried out: the listing did not come back')
     return { onDisk, orphans: [] }
   }
   // The carrier checked against itself. Subtraction only means anything on the whole list: paths
@@ -819,22 +819,22 @@ async function auditRun() {
   const counted = audit && typeof audit.count === 'number' ? audit.count : null
   if (counted !== null && counted !== onDisk.length) {
     log(
-      `[audit] инструмент насчитал ${counted} файлов, доехало ${onDisk.length} — ` +
-        `ревизия НЕ проведена: на неполном списке вычитание врёт в обе стороны`,
+      `[audit] the tool counted ${counted} files, ${onDisk.length} arrived — ` +
+        `audit NOT carried out: on an incomplete list the subtraction is wrong in both directions`,
     )
     warnings.push(
-      `ревизия не проведена: перечисление насчитало ${counted} файлов, ` +
-        `а через агента доехало ${onDisk.length}`,
+      `audit not carried out: the listing counted ${counted} files, ` +
+        `but only ${onDisk.length} arrived through the agent`,
     )
     return { onDisk, orphans: [] }
   }
   const orphans = onDisk.filter((f) => !touched.has(f))
   log(
-    `[audit] файлов в каталоге ${onDisk.length}, прочитано агентами ${touched.size}, ` +
-      `никем не прочитано ${orphans.length}`,
+    `[audit] files in the directory ${onDisk.length}, read by agents ${touched.size}, ` +
+      `read by nobody ${orphans.length}`,
   )
-  for (const f of orphans) log(`[audit/сирота] ${f}`)
-  if (!orphans.length) log('[audit] потерь нет: всё, что произведено, кем-то прочитано')
+  for (const f of orphans) log(`[audit/orphan] ${f}`)
+  if (!orphans.length) log('[audit] nothing lost: everything produced was read by someone')
   return { onDisk, orphans }
 }
 
@@ -848,7 +848,7 @@ function record(path, heading, items) {
 
 // --- Brief -------------------------------------------------------------------------------
 
-log(`[start] dir=${run} этапы=${STAGES.join(' + ')}`)
+log(`[start] dir=${run} stages=${STAGES.join(' + ')}`)
 log(`[start] order: ${order.replace(/\s+/g, ' ').slice(0, 200)}`)
 
 phase('Brief')
@@ -879,9 +879,9 @@ const brief = must(
 // continued — it is being replaced, deliberately, and there is nothing to mismatch.
 if (brief.order_matches_existing_brief === false && !cfg.fresh) {
   throw new Error(
-    `заказ не совпадает с брифом, который уже лежит в ${run}. Это другая работа, а не ` +
-      `продолжение: возьмите новый каталог (tools/newrun.py) или пересоберите этот с нуля ` +
-      `через config.fresh=true.`,
+    `the order does not match the brief already in ${run}. This is different work, not a ` +
+      `continuation: take a new directory (tools/newrun.py) or rebuild this one from scratch ` +
+      `with config.fresh=true.`,
   )
 }
 const minProse = brief.min_prose
@@ -898,13 +898,13 @@ const policy = LANGUAGE_POLICY[String(brief.language || '').toLowerCase()] || DE
 FORBID_FILES = cfg.forbidFiles || policy.forbid || []
 STYLE_CRITIC = cfg.styleCritic === undefined ? policy.styleCritic : cfg.styleCritic
 log(
-  `[brief/policy] язык=${brief.language} запреты=${FORBID_FILES.join(', ') || 'нет'} ` +
-    `стилевой_критик=${STYLE_CRITIC || 'НЕТ ДЛЯ ЭТОГО ЯЗЫКА'}`,
+  `[brief/policy] language=${brief.language} forbid=${FORBID_FILES.join(', ') || 'none'} ` +
+    `style_critic=${STYLE_CRITIC || 'NONE FOR THIS LANGUAGE'}`,
 )
 if (!STYLE_CRITIC) {
   log(
-    `[brief/policy] стиль судить некому: для языка «${brief.language}» критик не назван. ` +
-      `Это попадёт в незакрытые пункты, а не будет принято молча.`,
+    `[brief/policy] nobody can judge the style: no critic is named for the language "${brief.language}". ` +
+      `This goes to the open items instead of being accepted silently.`,
   )
 }
 
@@ -976,10 +976,10 @@ let sinceBest = 0
 // a run launched without a clock says so and carries it into the record.
 if (!now) {
   warnings.push(
-    'не проверено, идёт ли по каталогу другой прогон: args.now не передан — ' +
-      'два прогона на одном каталоге делают провенанс черновика недоказуемым',
+    'not checked whether another run is using the directory: args.now was not passed — ' +
+      'two runs on one directory make the provenance of the draft unprovable',
   )
-  log('[busy] args.now не передан — занятость каталога НЕ проверялась')
+  log('[busy] args.now was not passed — the directory was NOT checked for another run')
 } else {
   phase('Resume')
   const occupied = await call(
@@ -991,24 +991,24 @@ if (!now) {
   )
   const verdict = occupied && occupied.checks && occupied.checks[0]
   if (!verdict) {
-    log('[busy] проверка не вернулась — занятость каталога осталась невыясненной')
-    warnings.push('проверка занятости каталога не вернулась: ответ неизвестен')
+    log('[busy] the check did not come back — whether the directory is busy remains unknown')
+    warnings.push('the directory busy check did not come back: the answer is unknown')
   } else if (verdict.busy && !cfg.ignoreBusy) {
     throw new Error(
-      `по каталогу ${run} похоже идёт другой прогон: ${verdict.problems.join('; ')}. ` +
-        `Новый прогон — новый каталог: python -X utf8 tools/newrun.py --base docs-runs --label <о чём>. ` +
-        `Если тот прогон точно мёртв — config.ignoreBusy=true.`,
+      `another run appears to be using ${run}: ${verdict.problems.join('; ')}. ` +
+        `A new run gets a new directory: python -X utf8 tools/newrun.py --base docs-runs --label <what>. ` +
+        `If that run is certainly dead, use config.ignoreBusy=true.`,
     )
   } else if (verdict.busy) {
-    log(`[busy] каталог занят, но config.ignoreBusy — идём дальше: ${verdict.problems.join('; ')}`)
-    warnings.push(`каталог был занят, прогон начат поверх по config.ignoreBusy`)
+    log(`[busy] the directory is busy, but config.ignoreBusy is set — continuing: ${verdict.problems.join('; ')}`)
+    warnings.push(`the directory was busy; the run was started over it because of config.ignoreBusy`)
   } else {
-    log('[busy] каталог свободен')
+    log('[busy] the directory is free')
   }
 }
 
 if (cfg.fresh) {
-  log('[resume] config.fresh — всё пересобирается с нуля, ничего не переиспользуется')
+  log('[resume] config.fresh — everything is rebuilt from scratch, nothing is reused')
 } else {
   phase('Resume')
   const resumePaths = [...sourcePaths, MATERIAL_PATH, ARTICLE_PATH]
@@ -1024,8 +1024,8 @@ if (cfg.fresh) {
     // One result per command is the contract. A different count means the results cannot be
     // matched to paths at all, and guessing which is which would reuse the wrong file.
     log(
-      `[resume] проверок ${resumeChecks.length} на ${resumePaths.length} путей — ` +
-        `сопоставить нельзя, ничего не переиспользуем`,
+      `[resume] ${resumeChecks.length} checks for ${resumePaths.length} paths — ` +
+        `they cannot be matched, nothing is reused`,
     )
   } else {
     resumePaths.forEach((path, i) => {
@@ -1033,9 +1033,9 @@ if (cfg.fresh) {
     })
   }
   log(
-    `[resume] найдено готового: источников ${sourcePaths.filter((p) => present.has(p)).length}` +
-      `/${sourcePaths.length}, материал=${present.has(MATERIAL_PATH)} ` +
-      `черновик=${present.has(ARTICLE_PATH)}`,
+    `[resume] already done: sources ${sourcePaths.filter((p) => present.has(p)).length}` +
+      `/${sourcePaths.length}, material=${present.has(MATERIAL_PATH)} ` +
+      `draft=${present.has(ARTICLE_PATH)}`,
   )
 
   // Starting research over somebody's finished run is the one ambiguous act here, and it used to
@@ -1050,9 +1050,9 @@ if (cfg.fresh) {
   const hasPreviousOutput = present.has(MATERIAL_PATH) || present.has(ARTICLE_PATH)
   if (RUN_RESEARCH && hasPreviousOutput && !cfg.continue) {
     throw new Error(
-      `в каталоге ${run} уже лежит результат прошлого прогона. ` +
-        `Новый прогон — новый каталог: python -X utf8 tools/newrun.py --base docs-runs --label <о чём>. ` +
-        `Продолжить прерванный — config.continue=true. Пересобрать здесь же с нуля — config.fresh=true.`,
+      `${run} already holds the result of a previous run. ` +
+        `A new run gets a new directory: python -X utf8 tools/newrun.py --base docs-runs --label <what>. ` +
+        `To continue an interrupted run, use config.continue=true. To rebuild here from scratch, use config.fresh=true.`,
     )
   }
 
@@ -1077,11 +1077,11 @@ if (cfg.fresh) {
     recorded.rounds.length === recorded.report.measures.rounds
   if (recorded && recorded.report && !recorded.report.ok) {
     for (const problem of recorded.report.problems) {
-      log(`[resume/rounds] ЗАПИСЬ КРУГОВ ИСПОРЧЕНА, не доверяем: ${problem}`)
+      log(`[resume/rounds] THE ROUND RECORDS ARE CORRUPT, not trusted: ${problem}`)
     }
   } else if (recorded && !roundsShape) {
-    log(`[resume/rounds] ОТВЕТ НОСИЛЬЩИКА НЕ ПОХОЖ НА ВЫВОД rounds.py — не доверяем, считаем кругов 0`)
-    warnings.push(`носильщик вернул не отчёт rounds.py; круги начаты с первого`)
+    log(`[resume/rounds] THE CARRIER'S ANSWER DOES NOT LOOK LIKE rounds.py OUTPUT — not trusted, counting 0 rounds`)
+    warnings.push(`the carrier did not return a rounds.py report; rounds restarted from the first`)
   } else if (recorded && recorded.rounds.length) {
     priorRounds = recorded.rounds
     const last = priorRounds[priorRounds.length - 1]
@@ -1093,9 +1093,9 @@ if (cfg.fresh) {
     styleRemarks = last.style
     gateProblems = last.gate
     log(
-      `[resume/rounds] кругов уже пройдено ${priorRounds.length}, продолжаем с ${startRound}: ` +
-        `вердикт=${last.verdict} стиль=${last.style_verdict} ` +
-        `замечаний=${last.remarks.length}+${last.style.length} гейт=${last.gate.length}`,
+      `[resume/rounds] ${priorRounds.length} rounds already done, continuing from ${startRound}: ` +
+        `verdict=${last.verdict} style=${last.style_verdict} ` +
+        `remarks=${last.remarks.length}+${last.style.length} gate=${last.gate.length}`,
     )
 
     // The records and snapshots of rounds a previous launch judged. Declared as writing, the
@@ -1125,14 +1125,14 @@ if (cfg.fresh) {
     }
     if (counts.length) {
       log(
-        `[resume/rounds] лучший результат ${bestOpen} пунктов на круге ${bestRound}, ` +
-          `подряд без улучшения: ${sinceBest}`,
+        `[resume/rounds] best result ${bestOpen} items in round ${bestRound}, ` +
+          `rounds in a row without improvement: ${sinceBest}`,
       )
     } else {
-      log('[resume/rounds] счёта прошлых кругов нет — полка считается заново с этого запуска')
+      log('[resume/rounds] no score from earlier rounds — the plateau is counted afresh from this launch')
     }
   } else {
-    log('[resume/rounds] записей о кругах нет, начинаем с первого')
+    log('[resume/rounds] no round records, starting from the first')
   }
 
   // Measure the draft here as well when a previous launch left one. Otherwise the first round
@@ -1153,9 +1153,9 @@ if (cfg.fresh) {
         typeof sizedNow.report.measures.prose_chars === 'number'
           ? sizedNow.report.measures.prose_chars
           : null
-      log(`[resume/size] черновик: прозы=${measuredProse} проблем=${gateProblems.length}`)
+      log(`[resume/size] draft: prose=${measuredProse} problems=${gateProblems.length}`)
     } else {
-      log('[resume/size] ЧЕРНОВИК НЕ ИЗМЕРЕН — круг пойдёт без бюджета по объёму')
+      log('[resume/size] THE DRAFT WAS NOT MEASURED — the round runs without a length budget')
     }
   }
 }
@@ -1205,8 +1205,8 @@ for (let i = 0; i < brief.aspects.length; i++) {
     // measures the summary and says loudly if it is missing.
     found.push({ aspect, path, sources: [], reused: false, failed: true })
     log(
-      `[research/${aspect.slug}] АГЕНТ НЕ ВЕРНУЛ РЕЗУЛЬТАТ — ` +
-        `что успел записать, подберёт перечисление, а сводку проверит диск`,
+      `[research/${aspect.slug}] THE AGENT RETURNED NO RESULT — ` +
+        `the listing picks up whatever it managed to write, and the disk check verifies the summary`,
     )
     continue
   }
@@ -1216,11 +1216,11 @@ for (let i = 0; i < brief.aspects.length; i++) {
   // because "sources=0" next to a covered aspect is otherwise a mystery.
   if (result === 'reused') {
     found.push({ aspect, path, sources: [], reused: true })
-    log(`[research/${aspect.slug}] переиспользован с диска, поиск не запускался`)
+    log(`[research/${aspect.slug}] reused from disk, no search was run`)
     continue
   }
   if (result === 'absent') {
-    log(`[research/${aspect.slug}] НЕТ НА ДИСКЕ, а этап research не запрошен — аспект не закрыт`)
+    log(`[research/${aspect.slug}] NOT ON DISK, and the research stage was not requested — the aspect is not covered`)
     continue
   }
   found.push({ aspect, path, sources: result.sources, reused: false })
@@ -1234,7 +1234,7 @@ for (let i = 0; i < brief.aspects.length; i++) {
 // is whether anything at all can be read, and that is answered by at least one aspect having
 // either returned or been reused from disk.
 if (!found.some((f) => !f.failed)) {
-  throw new Error('ни один источниковед не отработал и ничего не переиспользовано')
+  throw new Error('no source finder completed and nothing was reused')
 }
 
 // A port only for the summaries a finder actually finished. A dead finder's aspect stays in
@@ -1285,12 +1285,12 @@ if (found.length) {
   const perAspect = (listed && listed.listings) || []
   if (perAspect.length !== found.length) {
     warnings.push(
-      `перечислений ${perAspect.length} на ${found.length} каталогов: ` +
-        `первичные источники до аналитика и сверяющего не дошли`,
+      `${perAspect.length} listings for ${found.length} directories: ` +
+        `the primary sources did not reach the analyst and the fact checker`,
     )
     log(
-      `[sources] перечислений ${perAspect.length} на ${found.length} каталогов — ` +
-        `сопоставить нельзя, дальше идут только сводки по аспектам`,
+      `[sources] ${perAspect.length} listings for ${found.length} directories — ` +
+        `they cannot be matched, only the per-aspect summaries go further`,
     )
   } else {
     const extra = []
@@ -1310,9 +1310,9 @@ if (found.length) {
         emptyAspects.push(f.aspect.slug)
       }
       log(
-        `[sources/${f.aspect.slug}] источников в каталоге: ${sources.length}` +
-          (indexes.length ? '' : ', указателя нет') +
-          (sources.length ? '' : ' — раздел останется на одной сводке искателя'),
+        `[sources/${f.aspect.slug}] sources in the directory: ${sources.length}` +
+          (indexes.length ? '' : ', no index') +
+          (sources.length ? '' : ' — the section will rest on the finder summary alone'),
       )
       for (const path of sources) {
         extra.push({ port: `source:${f.aspect.slug}/${path.split('/').pop().replace(/\.md$/, '')}`, path })
@@ -1323,23 +1323,23 @@ if (found.length) {
     })
     allSourcePorts = [...sourcePorts, ...extra]
     log(
-      `[sources] всего ${sourcePorts.length} сводок и ${extra.length} источников — ` +
-        `все уходят аналитику и сверяющему`,
+      `[sources] ${sourcePorts.length} summaries and ${extra.length} sources in total — ` +
+        `all go to the analyst and the fact checker`,
     )
   }
 }
 if (emptyAspects.length) {
   warnings.push(
-    `аспекты без единого источника: ${emptyAspects.join(', ')} — ` +
-      `эти разделы стоят на сводке искателя и ничем не подтверждены`,
+    `aspects without a single source: ${emptyAspects.join(', ')} — ` +
+      `these sections rest on the finder summary and nothing confirms them`,
   )
-  log(`[sources] БЕЗ ИСТОЧНИКОВ: ${emptyAspects.join(', ')} — проверить эти разделы отдельно`)
+  log(`[sources] NO SOURCES: ${emptyAspects.join(', ')} — check these sections separately`)
 }
 const totalSources = found.reduce((sum, f) => sum + f.sources.length, 0)
 const reusedCount = found.filter((f) => f.reused).length
 log(
   `[research] aspects_covered=${found.length}/${brief.aspects.length} sources=${totalSources}` +
-    (reusedCount ? ` (переиспользовано с диска: ${reusedCount})` : ''),
+    (reusedCount ? ` (reused from disk: ${reusedCount})` : ''),
 )
 
 // --- Analyse: between reading and writing, or the writer paraphrases its last source ---------
@@ -1354,9 +1354,9 @@ const analyseTask = task({
 phase('Analyse')
 let analysis = null
 if (present.has(MATERIAL_PATH)) {
-  log('[analyse] материал уже на диске, аналитик не запускается')
+  log('[analyse] the material is already on disk, the analyst is not launched')
 } else if (!RUN_RESEARCH) {
-  log('[analyse] материала нет, а этап research не запрошен — писатель пойдёт без него')
+  log('[analyse] there is no material, and the research stage was not requested — the writer goes without it')
 } else {
   analysis = await call(analyseTask, {
     agentType: 'domain-analyst',
@@ -1401,14 +1401,14 @@ let existence = nothingRan
       'verify:1 — without the disk check this stage means nothing',
     )
 if (nothingRan) {
-  log('[verify] ничего не запускалось, всё переиспользовано — проверка диска не повторяется')
+  log('[verify] nothing was launched, everything was reused — the disk check is not repeated')
 }
 // Every aspect, including the ones whose finder died: the point of this stage is to say what is
 // missing, and the aspect most likely to be missing is exactly the one nobody heard back from.
 const verifyPaths = [...found.map((f) => f.path), MATERIAL_PATH]
 existence.checks.forEach((c, i) => {
   log(
-    `[verify] ok=${c.ok} ${verifyPaths[i] || '(лишняя проверка)'}` +
+    `[verify] ok=${c.ok} ${verifyPaths[i] || '(extra check)'}` +
       `${c.problems.length ? ' | ' + c.problems.join('; ') : ''}`,
   )
 })
@@ -1421,8 +1421,8 @@ const materialCheck =
     : null
 if (!materialCheck) {
   log(
-    `[verify] проверок ${existence.checks.length} на ${verifyPaths.length} путей — ` +
-      `материал не сверен`,
+    `[verify] ${existence.checks.length} checks for ${verifyPaths.length} paths — ` +
+      `the material was not verified`,
   )
 }
 if (materialCheck && !materialCheck.ok) {
@@ -1482,10 +1482,10 @@ if (present.has(MATERIAL_PATH) || analysis) {
   )
   const hollow = structure && structure.checks && structure.checks[0]
   if (!hollow) {
-    log('[verify/структура] проверка не вернулась — наполненность разбора неизвестна')
-    warnings.push('не проверено, есть ли работа под заголовками разбора')
+    log('[verify/structure] the check did not come back — whether the analysis sections are filled is unknown')
+    warnings.push('not checked whether there is work under the headings of the analysis')
   } else if (!hollow.ok) {
-    log(`[verify/структура] РАЗБОР С ПУСТЫМИ РАЗДЕЛАМИ: ${hollow.problems.join('; ')}`)
+    log(`[verify/structure] THE ANALYSIS HAS EMPTY SECTIONS: ${hollow.problems.join('; ')}`)
     analysis = await call(
       `The analysis on disk has headings with nothing under them: ${hollow.problems.join('; ')}\n` +
         `Fill exactly those, in place, leaving everything already written as it is.\n\n` +
@@ -1512,14 +1512,14 @@ if (present.has(MATERIAL_PATH) || analysis) {
     )
     const after = refilled && refilled.checks && refilled.checks[0]
     if (!after || !after.ok) {
-      const left = after ? after.problems.join('; ') : 'проверка не вернулась'
-      log(`[verify/структура] ВСЁ ЕЩЁ ПУСТО: ${left}`)
-      warnings.push(`разбор ушёл писателю с пустыми разделами: ${left}`)
+      const left = after ? after.problems.join('; ') : 'the check did not come back'
+      log(`[verify/structure] STILL EMPTY: ${left}`)
+      warnings.push(`the analysis went to the writer with empty sections: ${left}`)
     } else {
-      log('[verify/структура] разделы наполнены')
+      log('[verify/structure] the sections are filled')
     }
   } else {
-    log('[verify/структура] под каждым заголовком есть работа')
+    log('[verify/structure] every heading has work under it')
   }
 }
 
@@ -1532,12 +1532,12 @@ if (present.has(MATERIAL_PATH) || analysis) {
 if (!RUN_DRAFT) {
   const covered = found.filter((f) => !f.reused || present.has(f.path)).length
   log(
-    `[итог/research] аспектов=${brief.aspects.length} закрыто=${covered} ` +
-      `источников=${totalSources} материал=${present.has(MATERIAL_PATH) || Boolean(analysis)}`,
+    `[summary/research] aspects=${brief.aspects.length} covered=${covered} ` +
+      `sources=${totalSources} material=${present.has(MATERIAL_PATH) || Boolean(analysis)}`,
   )
   await recordHandoff()
   const { onDisk, orphans: researchOrphans } = await auditRun()
-  log(`[итог/research] дальше: тот же прогон с config.stages=["draft"]`)
+  log(`[summary/research] next: the same run with config.stages=["draft"]`)
   return {
     stages: STAGES,
     files_on_disk: onDisk.length,
@@ -1568,8 +1568,8 @@ phase('Write')
 let rounds = startRound - 1
 if (startRound > MAX_ROUNDS) {
   log(
-    `[write] круги исчерпаны предыдущими запусками (${rounds} из ${MAX_ROUNDS}), ` +
-      `писатель не запускается — идём сразу к отчёту`,
+    `[write] the rounds were used up by earlier launches (${rounds} of ${MAX_ROUNDS}), ` +
+      `the writer is not launched — going straight to the report`,
   )
 }
 
@@ -1579,8 +1579,8 @@ if (startRound > MAX_ROUNDS) {
 const plateauAlready = startRound > 1 && sinceBest >= PLATEAU_ROUNDS
 if (plateauAlready) {
   log(
-    `[write] ПОЛКА уже достигнута прошлыми запусками: лучший результат ${bestOpen} пунктов ` +
-      `на круге ${bestRound}, после него ${sinceBest} круга без улучшения. Круги не покупаются.`,
+    `[write] PLATEAU already reached by earlier launches: best result ${bestOpen} items ` +
+      `in round ${bestRound}, followed by ${sinceBest} rounds without improvement. No more rounds are bought.`,
   )
 }
 
@@ -1637,7 +1637,7 @@ for (let round = plateauAlready ? MAX_ROUNDS + 1 : startRound; round <= MAX_ROUN
   const singleAxis = substanceApproved !== styleApproved && !isFirstPass
   if (singleAxis) {
     log(
-      `[write/${round}] круг односторонний: ${substanceApproved ? 'существо принято, правим только стиль' : 'стиль принят, правим только существо'}`,
+      `[write/${round}] one-sided round: ${substanceApproved ? 'substance approved, fixing style only' : 'style approved, fixing substance only'}`,
     )
   }
   const items = isFirstPass
@@ -1712,7 +1712,7 @@ for (let round = plateauAlready ? MAX_ROUNDS + 1 : startRound; round <= MAX_ROUN
   // runs, because by then there are remarks to act on.
   const skipWriter = round === 1 && startRound === 1 && present.has(ARTICLE_PATH)
   if (skipWriter) {
-    log('[write/1] черновик уже на диске, писатель не запускается — сразу гейт и критики')
+    log('[write/1] the draft is already on disk, the writer is not launched — straight to the gate and the critics')
   } else {
     const article = must(
       await call(task({ inputs: writeInputs, output: ARTICLE_PATH, extra: revision }), {
@@ -1747,27 +1747,27 @@ for (let round = plateauAlready ? MAX_ROUNDS + 1 : startRound; round <= MAX_ROUN
     }
     if (unanswered.length) {
       log(
-        `[write/${round}] БЕЗ ОТВЕТА ${unanswered.length} из ${items.length} замечаний — ` +
-          `они уходят в следующий круг и в отчёт`,
+        `[write/${round}] UNANSWERED: ${unanswered.length} of ${items.length} remarks — ` +
+          `they go to the next round and to the report`,
       )
-      for (const it of unanswered) log(`[write/${round}/без-ответа] [${it.source}] ${it.text}`)
+      for (const it of unanswered) log(`[write/${round}/unanswered] [${it.source}] ${it.text}`)
     }
     if (declined.length) {
-      log(`[write/${round}] отклонено с обоснованием: ${declined.length}`)
+      log(`[write/${round}] declined with a reason: ${declined.length}`)
     }
     // Kept in the writer's own wording, paired with the remark it answers, and handed to both
     // critics below.
     declinedNotes = declined.map((it) => {
       const entry = [...answered.values()].find((a) => items[a.item - 1] === it)
-      return `[${it.source}] ${it.text}\n    → отклонено: ${entry ? entry.note : '(без причины)'}`
+      return `[${it.source}] ${it.text}\n    → declined: ${entry ? entry.note : '(no reason)'}`
     })
     // Carried forward by hand, because the critics of this round judge the NEW draft and will
     // not repeat a remark they consider settled. An item the writer never answered is not
     // settled by anybody.
     //
     // The text travels alone, without a "carried" prefix. It used to get one per round, and by
-    // the sixth an item read `CARRIED (перенесено): CARRIED (перенесено): CARRIED (перенесено):
-    // STYLE (перенесено): …` — four layers of bookkeeping in front of the remark the writer was
+    // the sixth an item read `CARRIED (carried over): CARRIED (carried over): CARRIED (carried over):
+    // STYLE (carried over): …` — four layers of bookkeeping in front of the remark the writer was
     // supposed to act on. The `[CARRIED]` tag in the numbered list already says where it came
     // from, and it says it once.
     carried = [...unanswered, ...declined].map((it) => it.text)
@@ -1801,14 +1801,14 @@ for (let round = plateauAlready ? MAX_ROUNDS + 1 : startRound; round <= MAX_ROUN
     )
     if (verified) {
       log(
-        `[example/${round}] пересчитано командой: ${verified.ran} | ` +
-          `исправлено чисел: ${verified.corrections.length}`,
+        `[example/${round}] recomputed by command: ${verified.ran} | ` +
+          `numbers corrected: ${verified.corrections.length}`,
       )
       for (const c of verified.corrections) {
-        log(`[example/${round}/число] ${c.where}: было ${c.was} → стало ${c.now}`)
+        log(`[example/${round}/number] ${c.where}: was ${c.was} → now ${c.now}`)
       }
     } else {
-      log(`[example/${round}] ПРОВЕРЯЮЩИЙ АРИФМЕТИКУ НЕ ОТРАБОТАЛ — числа примера не сверены`)
+      log(`[example/${round}] THE ARITHMETIC CHECKER DID NOT COMPLETE — the example numbers were not verified`)
     }
 
     const checked = await call(
@@ -1832,12 +1832,12 @@ for (let round = plateauAlready ? MAX_ROUNDS + 1 : startRound; round <= MAX_ROUN
       },
     )
     if (checked) {
-      log(`[facts/${round}] исправлено утверждений: ${checked.corrections.length}`)
+      log(`[facts/${round}] claims corrected: ${checked.corrections.length}`)
       for (const c of checked.corrections) {
-        log(`[facts/${round}/${c.action}] «${c.claim}» | заметка: «${c.note_says}»`)
+        log(`[facts/${round}/${c.action}] "${c.claim}" | note: "${c.note_says}"`)
       }
     } else {
-      log(`[facts/${round}] СВЕРКА С ЗАМЕТКАМИ НЕ ОТРАБОТАЛА — атрибуция не проверена`)
+      log(`[facts/${round}] THE CHECK AGAINST THE NOTES DID NOT COMPLETE — attribution was not verified`)
     }
   }
 
@@ -1974,9 +1974,9 @@ for (let round = plateauAlready ? MAX_ROUNDS + 1 : startRound; round <= MAX_ROUN
     // Not judged, and said so. The item goes on the record and into the report; what it must
     // not do is block a loop that has no way to satisfy it.
     styleRemarks = [
-      `стиль не проверен: для языка «${brief.language}» стилевой критик не назначен`,
+      `style not checked: no style critic is assigned for the language "${brief.language}"`,
     ]
-    log(`[style/${round}] КРИТИКА ДЛЯ ЭТОГО ЯЗЫКА НЕТ — стиль не судился, пункт в отчёт`)
+    log(`[style/${round}] NO CRITIC FOR THIS LANGUAGE — the style was not judged, the item goes to the report`)
   } else if (styled) {
     // A finding is stored as one line the writer can act on: quote, why, and what it should
     // say instead. The critic's own wording is kept verbatim and the joiners are punctuation
@@ -2043,19 +2043,19 @@ for (let round = plateauAlready ? MAX_ROUNDS + 1 : startRound; round <= MAX_ROUN
   // is "read by an agent OR declared as a record", and this is where a record declares itself.
   touched.add(draftPathOf(round))
   if (snapped && snapped.report && snapped.report.ok) {
-    log(`[snapshot/${round}] черновик сохранён: ${draftPathOf(round)}`)
+    log(`[snapshot/${round}] draft saved: ${draftPathOf(round)}`)
   } else {
     log(
-      `[snapshot/${round}] ЧЕРНОВИК НЕ СОХРАНЁН — сравнить круги между собой будет нечем` +
+      `[snapshot/${round}] THE DRAFT WAS NOT SAVED — there will be nothing to compare the rounds with` +
         `${snapped && snapped.report ? ': ' + snapped.report.problems.join('; ') : ''}`,
     )
   }
 
   if (recordedRound && recordedRound.written) {
-    log(`[record/${round}] круг записан: ${roundPathOf(round)} пунктов=${roundItems.length}`)
+    log(`[record/${round}] round recorded: ${roundPathOf(round)} items=${roundItems.length}`)
   } else {
     // Not fatal, but loud: without the record a restart re-judges this draft from scratch.
-    log(`[record/${round}] КРУГ НЕ ЗАПИСАН — перезапуск будет судить статью заново`)
+    log(`[record/${round}] THE ROUND WAS NOT RECORDED — a restart will judge the article afresh`)
   }
 
   // Did this round beat the best any round has managed? The count is what the reader of
@@ -2072,8 +2072,8 @@ for (let round = plateauAlready ? MAX_ROUNDS + 1 : startRound; round <= MAX_ROUN
   } else {
     sinceBest += 1
     log(
-      `[write/${round}] не лучше достигнутого: ${roundItems.length} пунктов против ` +
-        `${bestOpen} на круге ${bestRound} (подряд без улучшения: ${sinceBest})`,
+      `[write/${round}] no better than the best so far: ${roundItems.length} items against ` +
+        `${bestOpen} in round ${bestRound} (rounds in a row without improvement: ${sinceBest})`,
     )
   }
 
@@ -2089,8 +2089,8 @@ for (let round = plateauAlready ? MAX_ROUNDS + 1 : startRound; round <= MAX_ROUN
   // declining to pay for a third identical answer.
   if (sinceBest >= PLATEAU_ROUNDS) {
     log(
-      `[write/${round}] ПОЛКА: ${sinceBest} круга подряд не улучшили результат. Петля своё ` +
-        `отработала — остальное решает автор, и оно в отчёте.`,
+      `[write/${round}] PLATEAU: ${sinceBest} rounds in a row did not improve the result. The loop has ` +
+        `done its work — the author decides the rest, and it is in the report.`,
     )
     break
   }
@@ -2098,8 +2098,8 @@ for (let round = plateauAlready ? MAX_ROUNDS + 1 : startRound; round <= MAX_ROUN
   const signature = JSON.stringify(roundItems.slice().sort())
   if (previousItems === signature) {
     log(
-      `[write/${round}] ПЕТЛЯ НЕ ДВИЖЕТСЯ: набор замечаний совпал с предыдущим кругом ` +
-        `(${roundItems.length} пунктов). Дальше круги не помогут — останавливаемся и всё в отчёт.`,
+      `[write/${round}] THE LOOP IS STUCK: the set of remarks is the same as in the previous round ` +
+        `(${roundItems.length} items). More rounds will not help — stopping, and everything goes to the report.`,
     )
     break
   }
@@ -2109,7 +2109,7 @@ for (let round = plateauAlready ? MAX_ROUNDS + 1 : startRound; round <= MAX_ROUN
 // The loop may not have run at all — every round spent by earlier launches. The verdict then
 // comes from the record, and if even that is missing there is nothing to report on.
 if (!verdict) {
-  throw new Error('нет ни одного круга правки и нет записей о прошлых — статью никто не судил')
+  throw new Error('no revision round ran and there are no records of earlier ones — nobody judged the article')
 }
 
 // A silent pass is forbidden. Remarks are recorded whether or not the verdict is `ok`: a critic

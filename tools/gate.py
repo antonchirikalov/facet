@@ -55,7 +55,7 @@ MSYS_DRIVE = re.compile(r"^/([A-Za-z])(?=/|$)")
 #
 # One regex per line. `#` starts a comment, blank lines are ignored. Matched OUTSIDE code:
 # fenced blocks and inline code are removed first, because `d_k ** 0.5` is a power and
-# `**важно**` is bold, and only the caller knows which was meant.
+# `**important**` is bold, and only the caller knows which was meant.
 COMMENT = re.compile(r"^\s*#")
 HEADING = re.compile(r"^(#{1,6})[ \t]+(.*\S)")
 
@@ -214,7 +214,7 @@ def missing_headings(text: str, patterns: list[str]) -> list[str]:
 def rows_without_source(text: str) -> list[str]:
     """First cell of every body row whose source cell is empty, in tables that have one.
 
-    Tables without a Source/Источник header are not judged: the document index has no source
+    Tables without a Source header (English or Russian) are not judged: the document index has no source
     of its own. A body row is named by its first cell — the ID — so the writer can find it.
     """
     empty: list[str] = []
@@ -446,7 +446,7 @@ def figure_caption_problems(text: str) -> list[str]:
 
     A client reads "see the figure above" as a guess; a number and a line that says what the
     figure shows is what makes it citable. The caption is the first non-empty line after the
-    image, in italics, "Figure N." (or "Рисунок N." in a Russian document), numbered 1, 2, 3
+    image, in italics, "Figure N." (or its Russian equivalent in a Russian document), numbered 1, 2, 3
     through the whole document. Images inside fenced code are not figures.
     """
     lines = outside_code(text).splitlines()

@@ -1,629 +1,648 @@
-# Правила скриптов и инструментов, перенесённые из CLAUDE.md collimator
+# Script and tool rules carried over from collimator's CLAUDE.md
 
-Это справочник для человека и для правок скриптов: грабли, оплаченные живыми прогонами, и
-правила, из которых они выросли. Из CLAUDE.md вынесен 2026-09-20, потому что CLAUDE.md читает
-каждый подагент при старте: 70 КБ этого текста стоили около 16 тысяч токенов на каждого из
-27 агентов прогона. Правила остаются в силе; расхождение со SPEC.md решается в пользу SPEC.md.
+This is a reference for a human and for edits to scripts: the rakes paid for by live runs, and the
+rules they grew out of. It was moved out of CLAUDE.md on 2026-09-20 because every subagent reads
+CLAUDE.md at startup: 70 KB of this text cost about 16 thousand tokens for each of the 27 agents
+of a run. The rules remain in force; a disagreement with SPEC.md is resolved in favour of SPEC.md.
 
-# collimator — компилятор конвейеров документов в Dynamic Workflows
+# collimator — a compiler of document pipelines into Dynamic Workflows
 
-Коллиматор сводит рассеянные лучи в один параллельный пучок. На входе — декларация
-конвейера (`pipeline.yaml`), на выходе — скрипт Dynamic Workflow и определения подагентов
-для Claude Code. Линия названий: spectra → refract → collimator.
+A collimator turns scattered rays into one parallel beam. The input is a pipeline declaration
+(`pipeline.yaml`), the output is a Dynamic Workflow script and subagent definitions for
+Claude Code. The line of names: spectra → refract → collimator.
 
-**Главное правило проекта: мы генерируем, мы не исполняем.** Агентов запускает Claude Code
-своим рантаймом. Здесь нет планировщика, леджера, восстановления после сбоя и адаптера
-рантайма — всё это было в refract и умерло намеренно, потому что платформа делает это лучше
-и меняется быстрее, чем мы успевали бы за ней.
+**The main rule of the project: we generate, we do not execute.** Claude Code runs the agents with
+its own runtime. There is no scheduler, no ledger, no crash recovery and no runtime adapter here —
+all of that existed in refract and died on purpose, because the platform does it better and
+changes faster than we could keep up with it.
 
-Разбор, из которого выросло это решение, лежит в `docs/decisions/2026-08-13-analysis-native-claude-vs-refract.md`
-и `docs/decisions/2026-08-13-collimator-plan.md` (перенесены из refract).
+The analysis this decision grew out of is in `docs/decisions/2026-08-13-analysis-native-claude-vs-refract.md`
+and `docs/decisions/2026-08-13-collimator-plan.md` (moved over from refract).
 
-## Команды
+## Commands
 
 ```bash
-uv run python -c "from pathlib import Path; from collimator.emit_agents import emit_all; print([p.name for p in emit_all(Path('library/agents'), Path('.claude/agents'), Path('.claude/skills'))])"   # агенты из библиотеки; падает, если названный профиль не лежит в .claude/skills
-uv run pytest                                          # тесты, без сети и без LLM
+uv run python -c "from pathlib import Path; from collimator.emit_agents import emit_all; print([p.name for p in emit_all(Path('library/agents'), Path('.claude/agents'), Path('.claude/skills'))])"   # agents from the library; fails if a named profile is missing from .claude/skills
+uv run pytest                                          # tests, no network and no LLM
 uv run ruff check --fix . && uv run ruff format .
 uv run mypy collimator                                 # strict
-python -X utf8 tools/gate.py --file <файл> --max-length 14000   # гейт вручную
-python -X utf8 tools/gate.py --file <файл> --forbid-file library/style/forbid/ru-slop.txt
-node tools/dry_run.mjs .claude/workflows/<скрипт>.js ok        # прогон на заглушках
-node tools/dry_run.mjs .claude/workflows/<скрипт>.js bad       # то же, все ветви провалов
+python -X utf8 tools/gate.py --file <file> --max-length 14000   # gate by hand
+python -X utf8 tools/gate.py --file <file> --forbid-file library/style/forbid/ru-slop.txt
+node tools/dry_run.mjs .claude/workflows/<script>.js ok        # run on stubs
+node tools/dry_run.mjs .claude/workflows/<script>.js bad       # the same, every failure branch
 node tools/dry_run.mjs .claude/workflows/explainer-article.js ok '{"runDir":"d/r","brief":"t","config":{"fresh":true}}'
 node tools/dry_run.mjs .claude/workflows/explainer-article.js ok '{"runDir":"d/r","brief":"t","config":{"stages":["research"]}}'
 DRY_ORDER_MISMATCH=1 node tools/dry_run.mjs .claude/workflows/explainer-article.js ok '{"runDir":"d/r","brief":"t","config":{"continue":true}}'
-python -X utf8 tools/rounds.py --dir <прогон>/rounds --last-only  # чем продолжать петлю
-python -X utf8 tools/listing.py --dir <прогон>/sources            # что искатели реально нашли
-python -X utf8 tools/newrun.py --base docs-runs --label <о чём>  # имя каталога под НОВЫЙ прогон
-python -X utf8 tools/snapshot.py --file <файл> --to <куда>       # снимок, отказ при расхождении
-python -X utf8 tools/busy.py --file <прогон>/tools.jsonl --now "<ISO>"  # занят ли каталог
-python -X utf8 tools/gate.py --file <файл> --no-empty-sections   # заголовки без работы под ними
-python -X utf8 tools/rounds.py --dir <прогон>/rounds            # какие круги уже пройдены
-python -X utf8 tools/sweep_junk.py --dry-run                   # что за мусор в корне
-python -X utf8 tools/confluence_publish.py --draft <файл> --dry-run <куда.xml>  # только конвертация
-python -X utf8 tools/confluence_publish.py --draft <файл> --parent-id <id> --json <куда.json>  # публикация
+python -X utf8 tools/rounds.py --dir <run>/rounds --last-only  # what to continue the loop with
+python -X utf8 tools/listing.py --dir <run>/sources            # what the finders actually found
+python -X utf8 tools/newrun.py --base docs-runs --label <what>  # directory name for a NEW run
+python -X utf8 tools/snapshot.py --file <file> --to <dest>       # snapshot, refuses on mismatch
+python -X utf8 tools/busy.py --file <run>/tools.jsonl --now "<ISO>"  # whether the directory is busy
+python -X utf8 tools/gate.py --file <file> --no-empty-sections   # headings with no work under them
+python -X utf8 tools/rounds.py --dir <run>/rounds            # which rounds are already done
+python -X utf8 tools/sweep_junk.py --dry-run                   # what junk is in the root
+python -X utf8 tools/confluence_publish.py --draft <file> --dry-run <dest.xml>  # conversion only
+python -X utf8 tools/confluence_publish.py --draft <file> --parent-id <id> --json <dest.json>  # publishing
 ```
 
-Скрипт воркфлоу прогоняется `dry_run.mjs` **до** живого запуска, и не в двух режимах, а во всех,
-какие у него есть ветки. У `explainer-article` их девять: `ok` со `config.fresh`, `ok` без него
-(продолжение с диска), только `research`, `config.correctors:false`, `bad`, плюс переключатели
-`DRY_BUSY` (каталог занят), `DRY_ORDER_MISMATCH` (заказ не тот), `DRY_CARRIER_DROPS` (носильщик
-урезал список) и `DRY_PLATEAU` (петля уже на полке). У `solution-design` — свои, включая
-`DRY_EXISTS_OK` (диск на месте, падает всё остальное). Он подменяет `agent()` заглушкой, отвечающей по схеме вызова, и исполняет настоящий
-поток управления. Иначе ошибка в последней строке `return` обходится в полный прогон:
-`SOURCE_PATHS is not defined` стоил 468 тысяч токенов и двадцать минут. `node --check` здесь
-бесполезен — `.js` с `export` он разбирает как CommonJS и молчит.
+A workflow script is run through `dry_run.mjs` **before** a live launch, and not in two modes but in
+every branch it has. `explainer-article` has nine: `ok` with `config.fresh`, `ok` without it
+(continuation from disk), only `research`, `config.correctors:false`, `bad`, plus the switches
+`DRY_BUSY` (directory busy), `DRY_ORDER_MISMATCH` (wrong order), `DRY_CARRIER_DROPS` (a carrier
+truncated the list) and `DRY_PLATEAU` (the loop is already on a plateau). `solution-design` has its
+own, including `DRY_EXISTS_OK` (the disk is in place, everything else fails). It replaces `agent()` with a stub that answers according to the call's schema, and executes the real
+control flow. Otherwise an error in the last `return` line costs a full run:
+`SOURCE_PATHS is not defined` cost 468 thousand tokens and twenty minutes. `node --check` is
+useless here — it parses a `.js` with `export` as CommonJS and stays silent.
 
-Определение сделанного для любой правки: pytest зелёный + mypy зелёный + ruff чисто +
-сгенерированное пересобрано и закоммичено.
+The definition of done for any edit: pytest green + mypy green + ruff clean +
+generated files rebuilt and committed.
 
-`tests/test_workflows.py` держит инварианты запуска, и каждый оплачен прогоном: в скрипте нет
-управляющих символов (CR и NUL — отказ рантайма), каждый `agentType` имеет файл в
-`.claude/agents/`, имя во фронтматтере совпадает с именем файла, каталог прогона и путь к
-статье приходят из `args`, а не живут в коде, и промпты десяти агентов конвейера не упоминают
-предметную область. Последние два теста нашли по настоящему дефекту в тот же день, когда были
-написаны.
+`tests/test_workflows.py` holds the launch invariants, and each one was paid for by a run: the
+script has no control characters (CR and NUL — the runtime refuses), every `agentType` has a file in
+`.claude/agents/`, the name in the frontmatter matches the file name, the run directory and the
+path to the article come from `args` rather than living in the code, and the prompts of the ten
+pipeline agents do not mention the subject domain. The last two tests each found a real defect on
+the same day they were written.
 
-## Раскладка
+## Layout
 
-**Чего в пакете НЕТ, хотя раньше здесь было написано, что есть.** Ни `graph.py`, ни
-`registry.py`, ни `prompt.py`, ни `emit_workflow.py`, ни команды `collimate build`. Питона в
-пакете 144 строки: генератор определений агентов и модель агента. Скрипты конвейеров написаны
-руками, и это состояние, а не этап — решение о компиляторе принимается по замеру во втором
-архетипе (см. `docs/decisions/2026-08-17-dynamic-workflows-retrospective.md`).
+**What the package does NOT contain, although this file used to say it did.** No `graph.py`, no
+`registry.py`, no `prompt.py`, no `emit_workflow.py`, no `collimate build` command. The package has
+144 lines of Python: the agent definition generator and the agent model. The pipeline scripts are
+written by hand, and that is the state of things, not a phase — the decision on the compiler is
+made by measurement in the second archetype (see `docs/decisions/2026-08-17-dynamic-workflows-retrospective.md`).
 
 - `collimator/emit_agents.py` — `agent.yaml` + `prompt.md` → `.claude/agents/<slug>.md`.
-  Единственная работающая половина компилятора. Хвост ввода-вывода, который в refract строил
-  `prompt.py` из контракта портов, сейчас живёт функцией `task()` внутри каждого скрипта
-  конвейера — один текст на всех агентов вместо девяти расходящихся вариантов;
-- `library/` — данные, не код: 28 агентов (21 собран), типы артефактов, семь шаблонов конвейеров;
-- `library/style/author-voice.md` — профиль манеры автора. Данные, правятся руками.
-  Ходит портом `voice` и писателю, и стилевому критику: одно описание голоса, а не два;
-- `tools/gate.py` — детерминированные гейты по содержимому, вызываются стадией воркфлоу.
-  Шаблоны запретов приходят файлами (`--forbid-file`), а не в argv: кириллица через
-  командную строку на Windows зависит от кодовой страницы и от того, какой шелл выбрал
-  агент-носитель. Файл ищет **вне кода**, обычный `--forbid` — по всему файлу, потому что
-  `d_k ** 0.5` это степень, а `**важно**` это жирный, и что имелось в виду, знает только
-  вызывающий. `--no-empty-sections` называет заголовки, под которыми ничего нет;
-- `.claude/agents/`, `.claude/workflows/` — **генерируются**, но коммитятся: тогда diff
-  показывает, что именно поменялось в оркестрации после правки YAML;
-- `.claude/skills/<тип>-profile/SKILL.md` — профили типов документов (SPEC §6). Данные,
-  правятся руками; в агента приезжают полем `skills:` из `agent.yaml`. **Контракт документа
-  живёт в профиле, а не в промптах**: писатель, корректор и критик читают один текст, промпт
-  описывает роль. Профиль `requirements` заполнен (`docs/decisions/2026-09-19-requirements-profile.md`),
-  его правила гейта скрипт передаёт петле через `gateFlags`. Несуществующий
-  профиль рантайм пропускает **молча**, поэтому `emit_all` с третьим аргументом проверяет
-  каждый на диске и падает. Читает профиль агент — значит, он по-английски.
+  The only working half of the compiler. The input/output tail that refract's `prompt.py` built
+  from the port contract now lives as the `task()` function inside each pipeline script — one text
+  for all agents instead of nine diverging variants;
+- `library/` — data, not code: 28 agents (21 built), artifact types, seven pipeline templates;
+- `library/style/author-voice.md` — the author's style profile. Data, edited by hand.
+  It goes through the `voice` port to both the writer and the style critic: one description of the
+  voice, not two;
+- `tools/gate.py` — deterministic content gates, called by a workflow stage.
+  Forbidden patterns arrive as files (`--forbid-file`), not in argv: Cyrillic on the command line
+  on Windows depends on the code page and on which shell the carrier agent picked. The file searches
+  **outside code**, the plain `--forbid` searches the whole file, because `d_k ** 0.5` is a power
+  and `**important**` is bold, and only the caller knows which was
+  meant. `--no-empty-sections` names the headings with nothing under them;
+- `.claude/agents/`, `.claude/workflows/` — **generated**, but committed: then the diff shows
+  exactly what changed in the orchestration after a YAML edit;
+- `.claude/skills/<type>-profile/SKILL.md` — document-type profiles (SPEC §6). Data, edited by
+  hand; they reach an agent through the `skills:` field of `agent.yaml`. **The document contract
+  lives in the profile, not in prompts**: the writer, the corrector and the critic read one text,
+  a prompt describes a role. The `requirements` profile is filled in (`docs/decisions/2026-09-19-requirements-profile.md`);
+  the script passes its gate rules to the loop through `gateFlags`. The runtime skips a non-existent
+  profile **silently**, so `emit_all` with a third argument checks each one on disk and fails.
+  An agent reads the profile — so it is in English.
 
-## Что переехало из инвариантов refract
+## What carried over from refract's invariants
 
-Из десяти инвариантов движка переживают два, остальные относились к рантайму:
+Of the engine's ten invariants two survive; the rest belonged to the runtime:
 
-- **контракт вместо ручных инструкций**: раздел ввода-вывода в промпте агента генерируется
-  из `agent.yaml`, никогда не пишется руками в `prompt.md`;
-- **агент не производит коллекций**: фан-аут живёт в скрипте (`pipeline()`), агент
-  потребляет коллекцию, но не создаёт её.
+- **a contract instead of hand-written instructions**: the input/output section of an agent's
+  prompt is generated from `agent.yaml`, never written by hand in `prompt.md`;
+- **an agent does not produce collections**: fan-out lives in the script (`pipeline()`); an agent
+  consumes a collection but does not create one.
 
-Изоляцию рабочего каталога (бывший I1) обеспечивает сам Claude Code своим хуком
-`PreToolUse`; секреты в окружении — `env` в `.claude/settings.json`.
+Isolation of the working directory (formerly I1) is provided by Claude Code itself through its
+`PreToolUse` hook; secrets in the environment — `env` in `.claude/settings.json`.
 
-## Ограничения рантайма воркфлоу, которые обязан уважать генератор
+## Workflow runtime constraints the generator must respect
 
-Нарушение любого — прогон не стартует или падает не по делу:
+Breaking any of them — the run does not start, or fails for the wrong reason:
 
-- **всё, что читает агент, — по-английски.** Это правило проекта, а не только рантайма, и оно
-  шире, чем кажется: промпт агента целиком, включая комментарии в сгенерированном файле; тексты
-  задач из скрипта; `description` в JSON-схемах; аргументы командной строки; `meta`. Файл агента
-  **целиком** является его системным промптом, поэтому маркер «сгенерировано» в нём — тоже промпт.
-  Именно так правило и нарушилось тише всего: маркер вставлялся по-русски, и двадцать один агент
-  читал русскую строку, а увидеть это было неоткуда. Держит `test_generated_agent_prompts_are_english`.
+- **everything an agent reads is in English.** This is a project rule, not only a runtime one, and
+  it is broader than it seems: the agent's prompt in full, including comments in the generated file;
+  task texts from the script; `description` in JSON schemas; command-line arguments; `meta`. The
+  agent file **in its entirety** is its system prompt, so a "generated" marker in it is also prompt.
+  That is exactly how the rule was broken most quietly: the marker was inserted in Russian, and
+  twenty-one agents read a Russian line, with no way to see it. Held by
+  `test_generated_agent_prompts_are_english`.
 
-  Единственное исключение — **цитируемый материал целевого языка**: словарь штампов, которые
-  критик ищет в русском тексте, формы обращения, по которым он их узнаёт, образец подписи на
-  рисунке. Такой агент не может делать свою работу, не называя искомое на языке статьи. Список
-  таких агентов закрыт и назван в тесте: попадание в него нового — решение, а не побочный эффект.
+  The only exception is **quoted material in the target language**: the dictionary of clichés a
+  critic looks for in a Russian text, the forms of address by which it recognises them, a sample
+  figure caption. Such an agent cannot do its job without naming what it looks for in the language
+  of the article. The list of such agents is closed and named in the test: adding a new one is a
+  decision, not a side effect.
 
-  По-русски остаётся только то, что читает человек: `log()`, сообщения об ошибках, содержимое
-  `handoff.md`. Проверка перед коммитом: `grep -c "[а-яА-ЯёЁ]" .claude/workflows/*.js`
-  и `grep -l "[а-яА-ЯёЁ]" .claude/agents/*.md`;
-- **язык результата — из материала, а не из промпта.** Писатель требований пишет на языке
-  источников: документ, который читают те, чьи слова он сводит, на другом языке нечем сверить.
-  Значит английский прогон — это английские входные документы, а не флаг в конфиге;
-- `meta` в скрипте — **чистый литерал**: ни переменных, ни вызовов, ни шаблонных строк;
-- `import()` запрещён: работа с библиотеками живёт внутри задач агентов;
-- `Date.now()`, `new Date()` и `Math.random()` недоступны — метки времени приходят через
-  `args`, разнообразие достигается индексом в промпте;
-- у самого скрипта нет доступа к файловой системе и шеллу: файлы читают и пишут агенты,
-  скрипт только передаёт пути. **Обратно пути не запрашиваются**: путь придумал скрипт, и поле
-  `path` в схеме создаёт канал, где «сообщить путь» выглядит как «записать файл». Схема несёт
-  только то, чего скрипт знать не может;
-- ввода от человека посреди прогона нет — точка решения человека это **граница сегментов**,
-  то есть отдельная команда;
-- 16 агентов одновременно, 1000 на прогон; ориентир размера по умолчанию `medium` — менее
-  15 агентов, дальше в интерфейсе появляется предупреждение.
+  Logs, error messages, `handoff.md`, comments and docs are English too: the one Russian
+  document is README.md (plus the `summary` field of each `agent.yaml`, which feeds its agent
+  table). Held by `tests/test_language.py`;
+- **the output language comes from the material, not from the prompt.** The requirements writer
+  writes in the language of the sources: a document read by the people whose words it brings
+  together cannot be checked against them in another language. So an English run means English
+  input documents, not a flag in the config;
+- `meta` in a script is a **pure literal**: no variables, no calls, no template strings;
+- `import()` is forbidden: work with libraries lives inside agent tasks;
+- `Date.now()`, `new Date()` and `Math.random()` are unavailable — timestamps arrive through
+  `args`, variety is achieved by an index in the prompt;
+- the script itself has no access to the filesystem or the shell: agents read and write files,
+  the script only passes paths. **Paths are not asked for back**: the script invented the path,
+  and a `path` field in the schema creates a channel where "report the path" looks like "write the
+  file". The schema carries only what the script cannot know;
+- there is no human input in the middle of a run — a human decision point is a **segment
+  boundary**, that is, a separate command;
+- 16 agents at once, 1000 per run; the default size guideline `medium` is fewer than
+  15 agents, beyond that a warning appears in the interface.
 
-## Что в конвейере зависит от темы и языка
+## What in the pipeline depends on the topic and the language
 
-Ничего — по построению, и это проверяется, а не подразумевается.
+Nothing — by construction, and this is checked, not assumed.
 
-- **тема**: `grep -ciE "attention|softmax|d_k|трансформер" library/agents/*/prompt.md` по всем
-  десяти агентам конвейера обязан давать ноль. Пример в промпте, привязанный к предметной
-  области, делает агента непригодным для следующей статьи, а заметно это не сразу;
-- **язык**: из брифа. `LANGUAGE_POLICY` в скрипте сопоставляет языку стилевого критика и наборы
-  гейта. Язык без записи получает `no_bold` и **никакого** стилевого критика, а отсутствие
-  проверки идёт в незакрытые пункты — «никто не смотрел» и «смотрели, всё хорошо» совпадают
-  только для отчёта, который не читают. `cfg.styleCritic` и `cfg.gatePresets` перекрывают
-  таблицу;
-- **голос автора**: файл данных по пути `cfg.voicePath`; `null` — законный ответ, тогда
-  действуют общие правила против нейрослопа;
-- **тема, объём, аспекты, что войдёт и что нет**: только из заказа, через `brief_writer`.
-  Скрипт не подставляет умолчаний по объёму: заказ молчит — гейт меряет и не судит.
+- **topic**: `grep -ciE "attention|softmax|d_k|transformer" library/agents/*/prompt.md` (plus the Russian
+  word for "transformer") across all ten pipeline agents must give zero. An example in a prompt tied to the subject domain makes the
+  agent unfit for the next article, and this is not noticeable right away;
+- **language**: from the brief. `LANGUAGE_POLICY` in the script maps a language to a style critic
+  and to gate presets. A language without an entry gets `no_bold` and **no** style critic, and the
+  missing check goes into the unresolved items — "nobody looked" and "looked, all fine" coincide
+  only for a report nobody reads. `cfg.styleCritic` and `cfg.gatePresets` override the table;
+- **the author's voice**: a data file at `cfg.voicePath`; `null` is a legitimate answer, and then
+  the general rules against AI slop apply;
+- **topic, length, aspects, what goes in and what does not**: only from the order, through
+  `brief_writer`. The script does not substitute length defaults: if the order is silent, the gate
+  measures and does not judge.
 
-## Трассировка: каждое требование называет источник
+## Traceability: every requirement names its source
 
-Требование без ссылки на источник неотличимо от вывода, который сделал агент, — а это разные
-вещи с разной ценой ошибки. Поэтому каждое требование, ограничение и предположение заканчивается
-ссылкой в квадратных скобках: имя извлечения плюс указатель внутри него — заголовок, дата,
-говорящий, цитата.
-
-```
-FR-7. При повторном поступлении файла за тот же день система хранит оба и помечает, по какому
-считались показатели.
-[discussion-chat: 5 марта 14:45–14:50, админ инфраструктуры и тимлид]
-```
-
-Три правила делают ссылку полезной, а не декоративной: два источника — две ссылки (требование,
-которое подтверждают оба документа, сильнее упомянутого мимоходом, и видно это только по ссылкам);
-указатель, а не только имя файла (иначе читатель ищет предложение сам и обычно не находит); и
-**нет источника — нет требования**: то, что агент вывел, идёт в раздел предположений с пометкой,
-что не проверено.
-
-Проверяет это не критик, а корректор — сверяющий с источниками открывает каждую ссылку и правит
-её на месте. Неверная ссылка хуже отсутствующей: она делает неподтверждённое требование
-похожим на подтверждённое. И это правка, а не замечание: критик умеет только сообщить, а
-сообщение стоит круга.
-
-## Сегменты: один запуск — один этап
-
-Воркфлоу живёт внутри процесса CLI, а процесс не переживает ни перезапуск, ни переезд сессии в
-фоновую задачу, ни упор в лимит. Прогон, который делает всё, рискует всем: сорок минут поиска
-однажды умерли вместе с процессом посреди письма.
-
-Поэтому запуск — это этап, и выбирается он `config.stages`:
-
-- `research` — бриф, источники, разбор. Кончается материалом на диске. Пять агентов;
-- `draft` — писатель, корректоры, гейт, критики, круги. Кончается статьёй и записями. Тринадцать;
-- иллюстрации — отдельный воркфлоу `attn-figures`.
-
-Без `stages` идут оба. Между этапами не передаётся ничего, кроме файлов: бриф несёт слаги
-аспектов, слаги называют файлы источников, разбор — материал писателя. В процессе не остаётся
-ничего ценного.
-
-**Один файл, а не два.** Этапы делят конфигурацию, хвост ввода-вывода, схемы и команды гейта —
-около ста двадцати строк. Без `import()` разрезание по файлам превращает их в две расходящиеся
-копии, а это ровно та беда, за которую проект платит чаще всего.
-
-## Веер исследования: два уровня имён и каталог на искателя
-
-Скрипт не умеет читать каталог, поэтому размерность веера обязана быть известна заранее. Заранее
-известны только **аспекты из брифа**: их слаги становятся именами файлов, и по одному
-источниковеду запускается на аспект. Спрашивать у агента, куда он положил, запрещено — путь
-придумал скрипт.
-
-Но искатель по своему контракту пишет ещё и **по файлу на каждый оставленный источник**, и этих
-имён скрипт знать не может. Замеренный прогон: 4 файла по аспектам на 79 КБ доезжали до
-аналитика, а на диске лежало 28 файлов на 260 КБ. Семьдесят процентов найденного — сироты, и это
-самое правдоподобное объяснение того, почему ошибки атрибуции пережили одиннадцать кругов:
-писатель цитировал сводку по аспекту, пока заметка по конкретной работе лежала рядом закрытой.
-
-Лечится перечислением: `tools/listing.py` через того же носильщика возвращает список файлов, и
-дальше **аналитик и сверяющий с заметками получают все**, а писатель — по-прежнему сводки по
-аспектам плюс материал, чтобы не платить за 260 КБ на каждом круге. Перечисление — не то же
-самое, что спросить путь: скрипт по-прежнему сам называет всё, что пишет, а это только отчёт о
-том, что есть.
-
-**У каждого искателя свой каталог** `sources/<slug>/`. В общей куче два искателя, работающие
-разные аспекты одной темы, неизбежно доходят до одной известной работы и сохраняют её дважды под
-разными именами — `annotated-transformer-maskirovanie-kod.md` и
-`annotated-transformer-scaling-masking-code.md` это один источник, сохранённый двумя агентами.
-Каталог на каждого делает столкновение невозможным, показывает, какой аспект что нашёл, и
-позволяет перечислять по аспектам, а не разбирать одну кучу.
-
-Аспектов по умолчанию **шесть**, не четыре: аспект — это целый исследователь, а у технического
-дизайна больше четырёх областей, стоящих исследователя. Потолок задаёт не машинерия (платформа
-держит шестнадцать агентов разом), а то, действительно ли аспекты — разные вопросы.
-
-## Каталог прогона: новый на каждый эксперимент
-
-`Date.now()` в скрипте недоступен — рантайм его убирает, иначе ломается возобновление. Значит
-скрипт **не может** назвать каталог по моменту старта, и имя приходит снаружи, в `args.runDir`.
-
-Это грабли, и они сработали: семь запусков одной статьи ушли в `probe-runs/attn4`, где
-переиспользование с диска честно подхватывало предыдущий прогон. Для продолжения прерванного это
-ровно то, что нужно; для сравнения двух — сравнивать нечего, второй наследует материал и черновик
-первого. Два прогона, нацеленные в один каталог одновременно, сделали хуже: один переписал
-статью другого посреди круга, и чей текст выжил, установить не удалось.
-
-Поэтому имя каталога чеканится снаружи, там где часы есть:
+A requirement without a source reference is indistinguishable from a conclusion the agent drew —
+and these are different things with a different cost of error. So every requirement, constraint
+and assumption ends with a reference in square brackets: the extract name plus a locator inside
+it — a heading, a date, a speaker, a quote.
 
 ```
-python -X utf8 tools/newrun.py --base docs-runs --label "Внимание в трансформерах"
+FR-7. When a file for the same day arrives again, the system keeps both and marks which one
+the metrics were computed from.
+[discussion-chat: 5 March 14:45–14:50, infrastructure admin and team lead]
+```
+
+(A sample requirement, translated from a Russian document.)
+
+Three rules make a reference useful rather than decorative: two sources — two references (a
+requirement both documents confirm is stronger than one mentioned in passing, and that is visible
+only through the references); a locator, not only a file name (otherwise the reader searches for
+the sentence themselves and usually does not find it); and **no source — no requirement**: what
+the agent inferred goes into the assumptions section, marked as unverified.
+
+This is checked not by the critic but by the corrector — the one checking against sources opens
+every reference and fixes it in place. A wrong reference is worse than a missing one: it makes an
+unconfirmed requirement look confirmed. And it is an edit, not a remark: a critic can only report,
+and a report costs a round.
+
+## Segments: one launch is one stage
+
+A workflow lives inside the CLI process, and the process survives neither a restart, nor the
+session moving into a background task, nor hitting a limit. A run that does everything risks
+everything: forty minutes of search once died together with the process in the middle of writing.
+
+So a launch is a stage, and it is chosen by `config.stages`:
+
+- `research` — brief, sources, analysis. Ends with material on disk. Five agents;
+- `draft` — writer, correctors, gate, critics, rounds. Ends with the article and the records. Thirteen;
+- illustrations — a separate workflow, `attn-figures`.
+
+Without `stages` both run. Nothing passes between stages except files: the brief carries the aspect
+slugs, the slugs name the source files, the analysis is the writer's material. Nothing of value
+remains in the process.
+
+**One file, not two.** The stages share the configuration, the input/output tail, the schemas and
+the gate commands — about a hundred and twenty lines. Without `import()`, splitting into files turns
+them into two diverging copies, and that is exactly the trouble the project pays for most often.
+
+## The research fan-out: two levels of names and a directory per finder
+
+The script cannot read a directory, so the width of the fan-out must be known in advance. Only
+**the aspects from the brief** are known in advance: their slugs become file names, and one source
+finder is launched per aspect. Asking an agent where it put things is forbidden — the script
+invented the path.
+
+But the finder, by its contract, also writes **a file per source it keeps**, and those names the
+script cannot know. A measured run: 4 per-aspect files of 79 KB reached the analyst, while 28 files
+of 260 KB lay on disk. Seventy percent of what was found were orphans, and this is the most
+plausible explanation of why attribution errors survived eleven rounds: the writer quoted the
+per-aspect summary while the note on the specific work lay next to it unopened.
+
+The cure is listing: `tools/listing.py`, through the same carrier, returns the list of files, and
+from there **the analyst and the note checker get all of them**, while the writer still gets the
+per-aspect summaries plus the material, so as not to pay for 260 KB every round. Listing is not
+the same as asking for a path: the script still names everything it writes itself, and this is only
+a report of what exists.
+
+**Each finder has its own directory** `sources/<slug>/`. In a common heap, two finders working
+different aspects of one topic inevitably reach the same well-known work and save it twice under
+different names — `annotated-transformer-maskirovanie-kod.md` and
+`annotated-transformer-scaling-masking-code.md` are one source saved by two agents. A directory
+per finder makes the collision impossible, shows which aspect found what, and allows listing by
+aspect rather than sorting one heap.
+
+There are **six** aspects by default, not four: an aspect is a whole researcher, and a technical
+design has more than four areas worth a researcher. The ceiling is set not by the machinery (the
+platform holds sixteen agents at once) but by whether the aspects really are different questions.
+
+## Run directory: a new one for every experiment
+
+`Date.now()` is unavailable in a script — the runtime removes it, otherwise resumption breaks. So
+the script **cannot** name a directory by its start time, and the name comes from outside, in
+`args.runDir`.
+
+This is a rake, and it went off: seven launches of one article went into `probe-runs/attn4`, where
+reuse from disk honestly picked up the previous run. For continuing an interrupted run this is
+exactly what is needed; for comparing two there is nothing to compare, the second inherits the
+material and the draft of the first. Two runs aimed at one directory at the same time did worse:
+one rewrote the other's article in the middle of a round, and whose text survived could not be
+established.
+
+So the directory name is minted outside, where there is a clock:
+
+```
+python -X utf8 tools/newrun.py --base docs-runs --label "<a Cyrillic label>"
 docs-runs/vnimanie-v-transformerah-20260816-135918
 ```
 
-Кириллица транслитерируется, а не выбрасывается: без этого каждый прогон назывался бы
-`run-<время>` — имя, не отличающее ничего.
+(The label is Cyrillic, Russian for "Attention in transformers"; the example shows its
+transliteration.)
 
-И это **правило, а не соглашение**. Скрипт отказывается начинать исследование в каталоге, где
-уже лежит `material.md` или `article.md`, пока ему явно не сказали, что имелось в виду:
+Cyrillic is transliterated, not thrown away: without that every run would be called
+`run-<time>` — a name that distinguishes nothing.
 
-```
-в каталоге docs-runs/… уже лежит результат прошлого прогона.
-Новый прогон — новый каталог: python -X utf8 tools/newrun.py --base docs-runs --label <о чём>.
-Продолжить прерванный — config.continue=true. Пересобрать здесь же с нуля — config.fresh=true.
-```
-
-Три намерения — три разных действия, и ни одно не угадывается за вызывающего: неверная догадка
-дорога в одну сторону и незаметна в другую. Этап `draft` под правило не попадает — запуск только
-его и есть продолжение по смыслу.
-
-**`continue` был лазейкой, и её закрыл второй замок.** Опасен не повторный каталог сам по себе, а
-повторный каталог **под другой заказ**: тогда статья строится наполовину по одному брифу и
-наполовину по другому, и в результате нет ничего, что об этом скажет. Заметить это может ровно
-один агент — `brief_writer`, единственный, кто видит и заказ, и бриф, написанный прошлым прогоном
-с другого заказа. Он отвечает полем `order_matches_existing_brief`, и `false` останавливает
-прогон. Под `config.fresh` замок снят: там старый бриф не продолжают, а заменяют.
-
-## Как проверяется, что ничего не потерялось
-
-Не обещанием, а вычитанием. Все четыре потери, найденные за день, имели одну форму: **файл
-произвели, и никто его не прочитал.** Ни одна не выглядела сбоем в момент, когда происходила.
-
-- двадцать пять заметок по источникам, написанных искателями, — не переданы никому;
-- каталог павшего искателя целиком — аспект выпал из списка, и каталог никто не перечислил;
-- `_index.json` с URL и статусом каждого источника — писался с самого начала, прочитан впервые;
-- черновик агента `rounds_output.json` — лежал в каталоге прогона.
-
-Поэтому `touched` копит каждый путь, доехавший до агента, и копит его **тем единственным
-действием, которым путь и может быть потреблён** — попаданием в задачу. Обойти учёт, передав файл
-агенту, невозможно: это одна и та же строчка кода.
-
-В конце каждого этапа `tools/listing.py --recursive` перечисляет каталог прогона целиком, и
-скрипт вычитает одно из другого:
+And this is **a rule, not a convention**. The script refuses to start research in a directory that
+already holds `material.md` or `article.md` until it is told explicitly what was meant:
 
 ```
-[audit] файлов в каталоге 34, прочитано агентами 34, никем не прочитано 0
-[audit] потерь нет: всё, что произведено, кем-то прочитано
+the directory docs-runs/… already holds the result of a previous run.
+A new run is a new directory: python -X utf8 tools/newrun.py --base docs-runs --label <what>.
+To continue an interrupted one — config.continue=true. To rebuild from scratch right here — config.fresh=true.
 ```
 
-Сироты называются **поимённо**, а не считаются: число говорит, что что-то пропало, имя говорит
-что. Ревизия идёт на обоих этапах — исследовательский заканчивается раньше, а сироты заводились
-именно там.
+Three intentions — three different actions, and none of them is guessed for the caller: a wrong
+guess is expensive one way and invisible the other. The `draft` stage is not covered by the rule —
+launching it alone is, by its meaning, a continuation.
 
-Правило ревизии — «прочитано агентом **или** объявлено записью». Снимок черновика читает человек,
-а не агент, поэтому он объявляется явно, одной строкой `touched.add(...)`. Это единственное
-исключение, и оно названо в коде: иначе запись, существующая для человека, каждый прогон
-считалась бы потерей.
+**`continue` was a loophole, and a second lock closed it.** What is dangerous is not a reused
+directory in itself, but a reused directory **under a different order**: then the article is built
+half from one brief and half from another, and nothing in the result says so. Exactly one agent can
+notice it — `brief_writer`, the only one that sees both the order and the brief written by the
+previous run from a different order. It answers with the field `order_matches_existing_brief`, and
+`false` stops the run. Under `config.fresh` the lock is off: there the old brief is not continued
+but replaced.
 
-## Черновик каждого круга сохраняется
+## How it is checked that nothing was lost
 
-`article.md` перезаписывается каждым кругом. Записи кругов хранят вердикты — но не текст, о
-котором они вынесены, и вопрос «что именно изменилось между восьмым кругом и девятым» оставался
-без ответа ровно тогда, когда он важнее всего: когда петля перестала сходиться.
+Not by a promise but by subtraction. All four losses found in a day had one shape: **a file was
+produced, and nobody read it.** None of them looked like a failure at the moment it happened.
 
-Теперь рядом с записью круга кладётся `rounds/draft-<n>.md`. Копирует `file_copier` — отдельный
-агент с одной работой, потому что `gate_runner`-у создавать файлы прямо запрещено, и этот запрет
-стоило сохранить: нарушив его однажды, он засорил каталог прогона. Снимок **отказывается**
-переписывать существующий файл с другим содержимым: молча переписанный снимок уничтожает улику,
-а отказ её всего лишь не добавляет.
+- twenty-five source notes written by the finders — handed to nobody;
+- the whole directory of a fallen finder — the aspect dropped out of the list, and nobody listed
+  the directory;
+- `_index.json` with the URL and status of every source — written from the very start, read for the
+  first time;
+- the agent's draft `rounds_output.json` — lying in the run directory.
 
-## Запреты — данные, а не код
+So `touched` accumulates every path that reached an agent, and accumulates it **through the only
+action by which a path can be consumed** — getting into a task. Bypassing the accounting while
+handing a file to an agent is impossible: it is one and the same line of code.
 
-Список штампов лежит в `library/style/forbid/*.txt`, по регулярке на строку, рядом с профилем
-голоса. Это редакторская политика одного языка — такие же данные, как и голос, и правит их
-человек, не открывая парсер. Раньше список был словарём внутри `gate.py`, и это было просто
-неверно.
+At the end of each stage `tools/listing.py --recursive` lists the whole run directory, and the
+script subtracts one from the other:
 
-Не в argv по прежней причине: кириллица через командную строку на Windows зависит от кодовой
-страницы и от того, какой шелл выбрал агент-носитель. Файл обходит это целиком — путь ASCII,
-содержимое UTF-8, читает питон.
+```
+[audit] files in the directory 34, read by agents 34, read by nobody 0
+[audit] no losses: everything produced was read by someone
+```
 
-Пропавший файл — **проблема**, а не пустая проверка: гейт, не нашедший нарушений, потому что у
-него не было шаблонов, читается ровно как гейт, который прошёл.
+Orphans are named **one by one**, not counted: a number says that something went missing, a name
+says what. The audit runs on both stages — the research stage ends earlier, and that is exactly
+where orphans used to appear.
 
-## Четыре записи, и три из них переживают падение процесса
+The audit rule is "read by an agent **or** declared as a record". A draft snapshot is read by a
+human, not an agent, so it is declared explicitly, with one line `touched.add(...)`. This is the
+only exception, and it is named in the code: otherwise a record that exists for a human would be
+counted as a loss in every run.
 
-Полный ответ на «всё ли правильно передалось и ничего ли не потерялось» собирается из четырёх
-независимых источников. Ни один не является воспоминанием модели, и три пишутся **по ходу**, а не
-в конце:
+## The draft of every round is kept
 
-| запись | что говорит | кто пишет | переживает падение |
+`article.md` is overwritten by every round. The round records keep the verdicts — but not the text
+they were passed on, and the question "what exactly changed between round eight and round nine"
+stayed unanswered exactly when it mattered most: when the loop stopped converging.
+
+Now `rounds/draft-<n>.md` is placed next to the round record. It is copied by `file_copier` — a
+separate agent with one job, because `gate_runner` is explicitly forbidden to create files, and
+that prohibition was worth keeping: having broken it once, it littered the run directory. The
+snapshot **refuses** to overwrite an existing file with different content: a silently overwritten
+snapshot destroys evidence, while a refusal merely fails to add it.
+
+## Prohibitions are data, not code
+
+The list of clichés lives in `library/style/forbid/*.txt`, one regex per line, next to the voice
+profile. It is the editorial policy of one language — the same kind of data as the voice, and a
+human edits it without opening the parser. The list used to be a dictionary inside `gate.py`, and
+that was simply wrong.
+
+Not in argv, for the earlier reason: Cyrillic on the command line on Windows depends on the code
+page and on which shell the carrier agent picked. A file avoids this entirely — the path is ASCII,
+the content is UTF-8, Python reads it.
+
+A missing file is **a problem**, not an empty check: a gate that found no violations because it had
+no patterns reads exactly like a gate that passed.
+
+## Four records, and three of them survive a process crash
+
+The full answer to "was everything passed correctly and was nothing lost" is assembled from four
+independent sources. None of them is a model's recollection, and three are written **as the run
+goes**, not at the end:
+
+| record | what it says | who writes it | survives a crash |
 |---|---|---|---|
-| `logs/stop-audit.jsonl` | что агент **реально записал** и лежит ли оно на диске | хук платформы | да |
-| `<прогон>/tools.jsonl` | что нашла каждая детерминированная проверка | инструмент, который мерил | да |
-| ревизия каталога | не осталось ли непрочитанного | скрипт вычитанием | да, файлы на диске |
-| `<прогон>/handoff.md` | что кому **собирались** передать | скрипт составил, агент записал | **нет** |
+| `logs/stop-audit.jsonl` | what an agent **actually wrote** and whether it is on disk | the platform hook | yes |
+| `<run>/tools.jsonl` | what each deterministic check found | the tool that measured | yes |
+| directory audit | whether anything was left unread | the script, by subtraction | yes, files on disk |
+| `<run>/handoff.md` | what was **intended** to be handed to whom | composed by the script, written by an agent | **no** |
 
-Последняя — единственная, что копится в памяти и пишется в конце этапа. Это её честное
-ограничение, и оно терпимо ровно потому, что первая перекрывает её по сути: `handoff.md` говорит
-о намерении, а хук — о состоявшемся факте, и факт важнее.
+The last is the only one that accumulates in memory and is written at the end of a stage. This is
+its honest limitation, and it is tolerable precisely because the first covers it in substance:
+`handoff.md` speaks of intent, the hook of an accomplished fact, and the fact matters more.
 
-**`SubagentStop`-хук — самая крепкая из четырёх.** Он выполняется в собственном процессе Claude
-Code после каждого подагента, бесплатно по токенам, и агент не может его пропустить. Смотрит он
-на то, что подделать нельзя: собственные вызовы `Write` и `Edit` из транскрипта агента, — и
-проверяет, лежат ли эти файлы на диске **сейчас**. Агент, вызвавший `Write` и ничего не
-оставивший, попадает в журнал, ни у кого ничего не спрашивая.
+**The `SubagentStop` hook is the sturdiest of the four.** It runs in Claude Code's own process after
+every subagent, free in tokens, and an agent cannot skip it. It looks at what cannot be faked: the
+agent's own `Write` and `Edit` calls from its transcript — and checks whether those files are on
+disk **now**. An agent that called `Write` and left nothing gets into the log without anyone being
+asked anything.
 
-За один рабочий день он собрал 261 запись и, в частности, зафиксировал `source-finder`, писавший
-по семь-восемь файлов на вызов, — те самые сироты, задолго до того, как кто-то заметил, что их
-никто не читает.
+In one working day it collected 261 entries and, in particular, recorded `source-finder` writing
+seven or eight files per call — those very orphans, long before anyone noticed that nobody read
+them.
 
-## Журнал инструментов
+## Tool log
 
-Всё, что измерил детерминированный инструмент, иначе живёт только в `log()` воркфлоу: читаемо,
-пока за прогоном смотрят, и недоступно, когда он кончился. Восстанавливать законченный прогон
-приходилось из транскриптов по отдельным агентам, сопоставляя руками, — и один раз улика уцелела
-лишь потому, что инструмент можно было запустить заново по тому же каталогу.
+Everything a deterministic tool measured otherwise lives only in the workflow's `log()`: readable
+while someone watches the run, and unavailable once it has ended. A finished run had to be
+reconstructed from the transcripts of individual agents, matched up by hand — and once the evidence
+survived only because the tool could be run again on the same directory.
 
-Поэтому каждый инструмент пишет свою расписку: `--log <прогон>/tools.jsonl`, одна строка на
-вызов.
+So every tool writes its own receipt: `--log <run>/tools.jsonl`, one line per call.
 
 ```
 14:28:38  gate      ok=False {"chars": 27572, "prose_chars": 24387, …}
-                    проблемы: max_prose 100 exceeded (got 24387)
+                    problems: max_prose 100 exceeded (got 24387)
 14:28:38  listing   ok=True  {"files": 8}
 14:28:39  rounds    ok=True  {"rounds": 13, "last_round": 13}
 14:28:39  snapshot  ok=True  {"copied": true, "bytes": 46026}
 ```
 
-Пишет **инструмент, а не агент**: носильщику создавать файлы запрещено, и запрет уже дважды себя
-оправдал. Это измерение оставляет расписку, и пишет её тот, кто мерил.
+**The tool writes it, not the agent**: a carrier is forbidden to create files, and the prohibition
+has already justified itself twice. It is the measurement that leaves the receipt, and the one who
+measured writes it.
 
-Строка ограничена намеренно: аргументы, вердикт, измерения, проблемы — и никогда содержимое.
-Перечисление двухсот файлов место в ответе вызывающему, а не в журнале, который должен остаться
-читаемым после пятидесяти таких же. И нерабочий журнал не роняет проверку: потерять прогон из-за
-расписки хуже, чем потерять расписку.
+The line is limited on purpose: arguments, verdict, measurements, problems — and never content.
+A listing of two hundred files belongs in the answer to the caller, not in a log that must stay
+readable after fifty of them. And a broken log does not bring down the check: losing a run because
+of a receipt is worse than losing the receipt.
 
-## Форма круга правки
+## The shape of the revision round
 
-Круг — цепочка, а потом веер: писатель → два корректора → гейт → два критика параллельно.
+A round is a chain and then a fan-out: writer → two correctors → gate → two critics in parallel.
 
-Корректоры (`example_verifier`, `article_fact_checker`) правят то, что **решаемо**: арифметику
-примера они пересчитывают питоном, утверждения сверяют с заметками. Критики судят то, что
-решаемо только суждением. Форма выстрадана: с писателем и двумя общими критиками живой прогон
-съел шесть кругов и пять миллионов токенов, и одни и те же пять замечаний возвращались дословно.
-Критик умеет только сообщить о неверной атрибуции, а сообщение стоит круга на исправление.
-**Всё, что может закрыть корректор, не должно становиться замечанием.**
+The correctors (`example_verifier`, `article_fact_checker`) fix what is **decidable**: they
+recompute the example's arithmetic in Python and check claims against the notes. The critics judge
+what is decidable only by judgement. The shape was hard-won: with a writer and two general critics a
+live run ate six rounds and five million tokens, and the same five remarks came back verbatim.
+A critic can only report a wrong attribution, and a report costs a round to fix.
+**Anything a corrector can close must not become a remark.**
 
-**Условие приёмки не может быть «оба критика молчат».** Требовать, чтобы два независимых судьи
-одновременно не нашли ничего в тексте на сорок тысяч знаков, — условие, которое не выполняется:
-за одиннадцать живых кругов критики принимали по очереди, ни разу вместе, а общее число
-замечаний стояло на полке 8–10. Подсказка писателю о том, какая ось уже принята, этого не
-изменила, потому что дело было не в писателе. Поэтому петля останавливается ещё и по **полке**:
-два круга подряд не улучшили лучший достигнутый счёт — работа окончена, остальное решает автор
-по `UNRESOLVED.md`. Круги 9–11 одного прогона стоили двух с половиной миллионов токенов и не
-побили результат восьмого.
+**The acceptance condition cannot be "both critics are silent".** Requiring two independent judges
+to simultaneously find nothing in a forty-thousand-character text is a condition that is not met:
+over eleven live rounds the critics accepted in turn, never together, and the total number of
+remarks sat on a plateau of 8–10. A hint to the writer about which axis had already been accepted
+did not change this, because the problem was not the writer. So the loop also stops on a
+**plateau**: two rounds in a row did not improve the best score reached — the work is over, the
+author decides the rest from `UNRESOLVED.md`. Rounds 9–11 of one run cost two and a half million
+tokens and did not beat the result of round eight.
 
-Четыре вещи держат петлю от холостого хода:
+Four things keep the loop from idling:
 
-- **ведомость**: замечания идут одним нумерованным списком, писатель отвечает построчно
-  `fixed`/`declined`, скрипт сверяет номера и переносит непокрытое;
-- **отклонённое доезжает до критиков** вместе с причиной: критик, который не знает, почему
-  замечание отклонили, поднимает его снова, и пара сжигает круг на согласие не соглашаться;
-- **детектор застоя**: круг, чей набор замечаний совпал с предыдущим, завершает петлю. Следующий
-  даст то же самое, а пункты попадут в отчёт в любом случае;
-- **детектор полки**: круг, не побивший лучший счёт, считается впустую; `plateauRounds` таких
-  подряд — и петля останавливается. Отчёт называет лучший круг и его счёт.
+- **the remark sheet**: remarks go in one numbered list, the writer answers line by line
+  `fixed`/`declined`, the script checks the numbers and carries over what was not covered;
+- **what was declined reaches the critics** together with the reason: a critic that does not know
+  why a remark was declined raises it again, and the pair burns a round agreeing to disagree;
+- **the stagnation detector**: a round whose remark set matches the previous one ends the loop. The
+  next would give the same, and the items will reach the report anyway;
+- **the plateau detector**: a round that did not beat the best score counts as wasted;
+  `plateauRounds` of these in a row — and the loop stops. The report names the best round and its
+  score.
 
-## Что дали корректоры на первом живом круге
+## What the correctors gave in the first live round
 
-Цифры, ради которых форма круга и менялась. `example_verifier` запустил питон и нашёл то, чего
-шесть кругов двух опусов не увидели: `exp(2.887)` записан как 17.940 против 17.939,
-`exp(1.732)` как 5.651 против 5.652 вместе с суммой, «8.34% при 12 головах» вместо 8.33%.
-Читая глазами, это не ловится в принципе. `article_fact_checker` за круг сделал восемь правок,
-включая пробелы в цитате кода и повреждённую строку матрицы.
+The numbers the round shape was changed for. `example_verifier` ran Python and found what six
+rounds of two Opus models had not seen: `exp(2.887)` written as 17.940 against 17.939,
+`exp(1.732)` as 5.651 against 5.652 together with the sum, "8.34% for 12 heads" instead of 8.33%.
+Reading by eye cannot catch this in principle. `article_fact_checker` made eight edits in a round,
+including spaces in a code quote and a damaged matrix row.
 
-И тут же вылез побочный эффект: критик по существу принял, а стилевой откатился с `ok` на
-`revise` на том же черновике. Пять ослабленных переусилений приехали в одной и той же
-оговорке — сверяющий чинил факт и наживал стилевой дефект. Поэтому ему подан порт `voice` и
-сказано разнообразить способ ослабления. **Корректор правит текст, у которого есть голос.**
+And a side effect showed up right away: the substance critic accepted, while the style critic slid
+back from `ok` to `revise` on the same draft. Five softened overstatements arrived in one and the
+same hedge — the checker was fixing a fact and acquiring a style defect. So it was given the
+`voice` port and told to vary the way it softens. **A corrector edits a text that has a voice.**
 
-## Грабли, оплаченные живыми прогонами
+## Rakes paid for by live runs
 
-- **`$PAPERBANANA_BIN` раньше PATH.** Агент, которому сказано «инструмент в переменной»,
-  дважды из трёх останавливался с «нет на PATH», не посмотрев в переменную. В промптах
-  порядок разрешения задаётся нумерованным списком с явным запретом останавливаться.
-- **Длинная форма пути для временного каталога.** Путь с сегментом `~1` (короткое имя 8.3)
-  vision-критик paperbanana отвергает как подозрительный и объявляет себя удовлетворённым,
-  не увидев картинку. Цикл внешне прошёл, фактически не проверил ничего.
-- **PowerShell 5.1 читает `.ps1` без BOM как ANSI.** Кириллица в launcher-скрипте ломает
-  парсер, и отсоединённый процесс выглядит запущенным. Launcher держать в чистом ASCII,
-  нерусские строки — в Python или в файле данных.
-- **Гейт на файл ≠ гейт на прозу.** Бриф просит 8–12 тысяч знаков читаемого текста, а файл
-  несёт ещё разметку, таблицы и подписи: 13 662 знака файла против 11 111 без пробелов.
-  `tools/gate.py` считает и то и другое, `--min-prose` меряет именно прозу.
-- **POSIX-путь в `TEMP` выглядит как протухшие учётки.** `$PWD` в Git Bash — это
-  `/c/Users/…`; Windows такой путь не разрешает, PowerShell не стартует, мост шлюза читает
-  токены **через** PowerShell и получает пустоту по всем аккаунтам, шлюз отвечает 401
-  `missing bearer token`. Диагноз «нужно перевыпустить токены» неверен, лечится `pwd -W`.
-- **Каждый вызов Bash у агента — новая оболочка.** Экспорты из предыдущего вызова мертвы.
-  Окружение и команда обязаны быть в одном вызове, иначе провал мигает: один круг работает,
-  следующий падает на том же коде.
-- **Имя файла может быть запрещено платформой.** Подагенту нельзя писать `.md`, в имени
-  которого есть `analysis`, `report`, `findings` или `summary`: `Write` отвечает
-  «Subagents should return findings as text». Каталог не спасает, расширение спасает. Провал
-  молчаливый — агент отдаёт результат схемой, конвейер идёт дальше. Генератор обязан ловить
-  это на сборке.
-- **Пустой веер обязан останавливать конвейер, а не только предупреждать.** Потеря одного
-  извлечения из пяти дешевле, чем выброшенные четыре, — поэтому веер терпит частичный отказ. Ноль
-  из пяти это другое: писателю нечего читать, и он либо выдумает документ, либо умрёт. В живом
-  прогоне умер тремя стадиями позже, когда прогон уже заплатил за возобновление, перечисление и
-  подготовку кругов, — 111 тысяч токенов на путь, который был обречён с первого веера.
-- **Новый агент недоступен в том же ходе, в котором создан.** Рантайм снимает список
-  `agentType` один раз и держит до следующего сообщения человека. Файл в `.claude/agents/`
-  лежит, `emit_agents` отработал, `dry_run` зелёный — а прогон падает мгновенно:
-  `agent type 'brief-writer' not found. Available agents: ...`, и в этом списке видно
-  агента, собранного ходом раньше, но не сегодняшнего. Повтор в том же ходе не помогает.
-  Порядок работы: собрать агентов, дождаться следующего сообщения, запускать.
-- **CRLF в скрипте воркфлоу — отказ запуска.** `script contains control characters that
-  would be hidden in the approval dialog`. На Windows `autocrlf` возвращает CRLF при каждом
-  checkout, поэтому конец строки объявлен в `.gitattributes`, а не оставлен глобальной
-  настройке git.
-- **Вердикт штампуется, улика — нет.** Проверяющий агент выдал `ok` с пустым списком дефектов
-  трём картинкам, две из которых несли английские подписи в русской статье. Помогло не
-  усиление формулировок, а поле схемы, которое нельзя заполнить, не выполнив работу: «выпиши
-  каждую надпись дословно». После этого нашлись и подписи, и подмена знака умножения.
-- **Вердикт — литерал, а не синоним.** Промпт критика статьи требовал вернуть `approved`,
-  схема в скрипте разрешала только `ok` и `revise`. Агент сидел между двумя описаниями
-  собственного вывода; в лучшем случае это стоит повторного вызова, в худшем — модель
-  выбирает `revise`, и круг уходит впустую. Значение вердикта задаётся в одном месте и
-  цитируется в промпте дословно, вместе с запретом на синонимы.
-- **«Файла нет» и «файл — твой результат» в одном промпте.** Хвост ввода-вывода
-  приписывался ко всем задачам одинаково, и критик получал `OUTPUT (no file)`, а следом
-  «запиши файл инструментом Write». Та же самая ошибка, что уронила аналитика, — только
-  ниже по скрипту. У задачи без файла свой хвост.
-- **Прогон живёт внутри процесса CLI.** Перезапуск процесса или переезд сессии в фоновую
-  задачу убивает воркфлоу на полпути (`adopt scriptPath rejected`), а `resumeFromRunId`
-  спасает только внутри одной сессии — в новой кэш пуст. Живой прогон потерял так сорок
-  минут: возобновление пошло с брифа, бриф выдумал новые слаги аспектов, и одиннадцать
-  файлов источников стали сиротами. Поэтому чекпойнт — не кэш, а **диск**: перед тратой
-  скрипт спрашивает, что уже готово, и пропускает такие стадии с явной записью в `log()`.
-  Условие устойчивости: бриф записывает слаги аспектов В ФАЙЛ, иначе после перезапуска их
-  неоткуда взять и research уходит заново. Вердикты критиков тоже не переживают процесс сами
-  по себе — каждый круг пишется в `<прогон>/rounds/round-<n>.md`, а `tools/rounds.py` читает
-  их обратно. Без этого `max_rounds` — лимит на запуск, а не на статью: три падения дают шесть
-  кругов правок там, где бриф разрешал два.
-- **Лимит сессии выглядит как поломка агента.** `You've hit your session limit · resets 17:20`
-  приходит от трёх агентов подряд, и скрипт видит только `null`. Умерший на лимите писатель
-  успел записать файл, но не успел ответить — то есть артефакт есть, а результата нет. Отсюда
-  правило: приёмка смотрит на файл, а не на то, вернулся ли агент.
-- **Два прогона на одном каталоге портят состояние.** Убитый по отчёту прогон продолжал
-  работать: дописал в `sources/` пятнадцать файлов под своими слагами, перезаписал
-  `material.md` и `article.md`. Провенанс черновика после такого недоказуем — что именно
-  правил второй круг и по чьим замечаниям, не установить. Повторилось второй раз, уже по моей
-  вине: журнал каталога молчал шесть минут, я прочёл молчание как конец прогона — а молчали
-  искатели, которые инструментов не зовут вовсе. Записанные грабли не помогли, потому что «идёт
-  ли прогон» ничем не наблюдалось. Теперь наблюдается: `tools/busy.py` смотрит на возраст
-  последней строки `tools.jsonl`, скрипт спрашивает до первой траты, время приходит в `args.now`.
-  Без `args.now` проверка пропускается и говорит об этом вслух.
-- **Путь, возвращённый агентом, не равен пути, который передал скрипт.** Проверка диска
-  вернула абсолютные пути с обратными слешами, скрипт сравнивал с относительными POSIX —
-  ничего не совпало, `present` оказался пуст, и четыре искателя с аналитиком отработали по
-  готовому. Прошлый прогон того же кода вернул относительные пути и сработал: баг, который
-  срабатывает через раз, ждёт дорогого прогона. Инвариант «пути обратно не запрашиваются»
-  существует именно для этого — результат сопоставляется **по индексу**, потому что порядок
-  команд задал скрипт, а поле `path` из схемы убрано совсем.
-- **Ревизия обязана отличать потерю от чужого этапа.** Прогон только дизайна отчитался шестью
-  сиротами: входные документы, извлечения и записи кругов требований. Все шесть верны — этот
-  запуск их не читал и читать не должен, его вход это `requirements.md`. Ревизия, которая шесть
-  раз ошибается подряд, учит читателя пропускать строку про ревизию, а она затем и существует,
-  чтобы её читали. Каталоги приписаны этапам, и файлы этапа, который в этом запуске не шёл,
-  считаются и называются отдельно от потерь.
-- **Петля правки без потолка — это петля роста.** Обратная сторона предыдущих грабель, и
-  замерена тем же прогоном на английском: потолка нет, и дизайн вырос по кругам 37 595 → 50 633 →
-  73 978 знаков прозы, то есть удвоился, пока счёт замечаний шёл 11 → 12 → 8. Круг 2 купил
-  тринадцать тысяч знаков и одно лишнее замечание. Причина простая: каждое замечание критика
-  закрывается уточнением, уточнение это текст, и без потолка ничему не противостоит.
-  Оба вывода верны вместе: выдуманный потолок делает приёмку недостижимой, а отсутствие всякого
-  даёт монотонный рост. Скрипт не судит — он **меряет и говорит**: прирост прозы за круг стоит в
-  логе и в заголовке записи круга, рядом с числом пунктов. Вопрос «что купил прошлый круг»
-  требует обеих половин ответа в одной строке.
-- **Потолок объёма, которого не просил заказ, делает приёмку недостижимой.** Я поставил дизайну
-  умолчанием 40 000 знаков прозы. Круг 2 закрыл четыре блокирующих дефекта дописыванием
-  спецификации и вырос до 42 126; круг 3 получил «снять 2 126 и не добавлять» — и вырос до 44 590.
-  Ни один агент не ошибся: критик требует уточнить, гейт требует сократить, и вместе это
-  невыполнимо. В статейном конвейере тот же блок бюджета сработал с первого раза, потому что там
-  потолок назвал заказ. Скрипт **не подставляет своего потолка** — только пол; молчит заказ,
-  значит гейт меряет и не судит.
-- **Перебор по объёму, поданный пунктом в списке, лечится дописыванием.** Круг получил
-  `max_prose 30000 exceeded (got 30616)` шестнадцатым пунктом из шестнадцати и ответил на него
-  девятью тысячами знаков хорошо обоснованного материала: каждая правка добавляла осмысленную
-  фразу, и черновик вырос вместо того, чтобы сжаться. Потолок — это арифметика, которую знает
-  скрипт, поэтому он и говорит, сколько снять, и запрещает добавлять на этом круге.
-- **Вердикт `ok` с замечаниями — не наряд на работу.** Критик принял черновик и приложил шесть
-  заметок; они попали в запись круга и на следующем круге были поданы как обязательные. Именно
-  они и наполнили круг, который должен был сокращать. Замечания принявшего критика подаются
-  помеченными как необязательные.
-- **Писатель молча теряет замечания.** Пять пунктов вернулись дословно в двух кругах подряд:
-  тот же корпус назван неверно, те же значения поля конфига без источника, та же выброшенная
-  строка в «полной» цитате кода. Требование в заказе не помогло — в контракте писателя не было
-  места, куда писать, чего он НЕ сделал: схема просила `changes`, то есть только сделанное.
-  Лечится ведомостью: замечания нумеруются **одним списком** на круг (три раздела, каждый со
-  своей нумерацией с единицы, делают номер бессмысленным), писатель обязан вернуть строку на
-  каждый номер со статусом `fixed` или `declined`, а скрипт сверяет номера с теми, что выдал.
-  Непокрытое и отклонённое переносится в следующий круг и в `UNRESOLVED.md`.
-- **Агенты оставляют черновые файлы в корне репозитория.** За день там нашлись `temp_data.py`,
-  `rounds_output.json`, `final_structured_output.json`, `rounds_structured.json` — и три из них
-  попали в коммит, потому что `git add -A`. `sweep_junk.py` их не видел, потому что смотрел
-  **только каталоги**; теперь смотрит и файлы, но удаляет лишь по `--files` и никогда те, что
-  отслеживает git. Механизм у файлов другой, чем у каталогов-иероглифов: агент перенаправляет
-  вывод команды в файл, чтобы прочитать обратно, вместо того чтобы вернуть его. Запрет на это
-  стоит в промпте `gate_runner`.
-- **Канал через агента имеет бюджет.** `tools/rounds.py` печатал все замечания всех кругов
-  дословно — пять кругов это около сотни килобайт JSON. Носильщик вернул через схему два круга
-  вместо пяти, скрипт прочитал это как «пройдено два», начал петлю с третьего и прогнал четыре
-  круга вместо одного: 1.4 миллиона токенов. Ограничивать объём надо там, где он производится
-  (`--last-only`), а не надеяться на носильщика. Признак болезни — стадия, которая читает
-  через агента что-то, растущее с числом кругов или файлов.
-- **Молчаливый проход петли.** Старый движок при исчерпании кругов пропускал узел с
-  неисполненным вердиктом `revise`, и статья уехала с тремя незакрытыми замечаниями.
-  Генератор такого не эмитит: незакрытые замечания обязаны попасть в файл и в `log()`.
-- **Пол по длине не отличает работу от формы работы.** Аналитик пишет каркас артефакта — все
-  заголовки контракта, в правильном порядке — и наполняет их проход за проходом. Пойманы обе
-  стадии: 1748 байт одних заголовков и 68 КБ с тремя пустыми аспектами из шести. Любая прошла
-  бы `--min-length`, и писатель строил бы эти разделы статьи на пустоте. `--no-empty-sections`
-  называет пустые заголовки поимённо, приёмка отдаёт список обратно аналитику, а не заказывает
-  разбор заново: у него есть `Edit`, и наполненное переписывать незачем.
-- **Порт по расширению, которое перечисление не искало.** Скрипт выдавал аналитику порт на
-  `_index.json` всегда, а перечисление шло с `--ext .md` и указателя видеть не могло. У двух
-  аспектов искатель сложил всё в одну сводку и указателя не написал — агент получил путь к
-  ненаписанному файлу, то есть вопрос, на который нельзя ответить. Порт создаётся только на
-  то, что перечисление действительно увидело; фильтр перечисления и набор портов обязаны
-  спрашивать об одном и том же.
-- **Предупреждение только в `log()` — это предупреждение в никуда.** Аспект без единого
-  источника значит, что раздел статьи стоит на одной неподтверждённой сводке. Строка в
-  `log()` живёт в транскрипте прогона, а транскрипт — ровно то, чего уже нет к моменту, когда
-  спрашивают, почему раздел тоньше прочих. Всё, что меняет чтение результата, уходит на диск
-  рядом с ним.
-- **Замок занятости запирался от предыдущего этапа.** Этапы запускаются встык: человек читает
-  результат `research` и через две минуты запускает `draft`, а замок видит расписку ревизии
-  предыдущего этапа возрастом 72 секунды и объявляет каталог занятым. Прогон остановлен по
-  ложной тревоге, флаг `ignoreBusy` снимает замок целиком, то есть и настоящий. Теперь
-  закрывающая ревизия этапа пишет расписку с `release: true` (`--log-release`), и `busy.py`
-  читает её как «свободно», сколько бы ей ни было секунд. Упавший прогон до ревизии не доходит
-  и по-прежнему выдерживается окном. Собственные расписки `busy` за работу не считаются:
-  иначе запуск, упавший сразу после вопроса, запирал перезапуск своим же вопросом.
-- **Число, которого нет в брифе рисунка, генератор придумывает.** Бриф панели «без
-  масштабирования» назвал только пик 0.9013, остальные веса генератор скопировал с
-  соседней панели, и критик Kimi K3 это пропустил. Рисунок с неверными числами прошёл как
-  готовый. Теперь бриф обязан перечислять все числа, которые должны появиться на картинке,
-  для сравнительной панели — оба набора; смотрящий агент сверяет каждое число на рисунке с
-  текстом раздела и называет расхождение обоими значениями.
-- **Хук слеп к файлам, созданным перенаправлением из Bash.** Корректор примера оставил в
-  корне репозитория пять `scratchpad_check*.py`, а `stop_audit` записал ему `no_writes`: хук
-  видит только `Write` и `Edit`. Промпт корректора теперь требует питона из stdin или
-  системного временного каталога; `sweep_junk.py --files` убирает то, что всё же просочилось.
-- **Лимит в два круга — это один круг правки.** Первый круг всегда `revise`: критики видят
-  текст впервые. Петля кончилась по лимиту с обоими критиками на `revise` и 14 пунктами,
-  перезапуск руками до четырёх кругов закрыл её. Умолчание `maxRounds` теперь 4; от холостого
-  хода держит полка, а не лимит.
-- **Рисунки рисуются рядом со статьёй, а не в копии.** Иллюстратор копировал статью в свой
-  каталог и рисовал там, исходная статья ссылалась на несуществующий `figures/`, и картинки
-  «не отображались». Когда каталог прогона и есть каталог статьи, скрипт ничего не копирует
-  и в текст не пишет. Рендер 4K остаётся в каталоге инструмента, в `figures/` уходит копия
-  шириной 2000 через `tools/shrink_png.py`.
-- **Кириллица в argv возвращается через чёрный ход.** Запреты уехали в файлы именно из-за
-  кодовой страницы, а следом я поставил пометки вызовов (`--log-note`) по-русски — тот же
-  argv, тот же Bash агента-носителя, та же зависимость от шелла. Всё, что уходит инструменту
-  аргументом, — ASCII; кириллица ходит только файлом.
+- **`$PAPERBANANA_BIN` before PATH.** An agent told "the tool is in a variable" stopped twice out
+  of three times with "not on PATH" without looking at the variable. In prompts the resolution order
+  is given as a numbered list with an explicit prohibition on stopping.
+- **The long form of the path for the temporary directory.** A path with a `~1` segment (an 8.3
+  short name) is rejected as suspicious by the paperbanana vision critic, which declares itself
+  satisfied without seeing the picture. The loop passed outwardly and in fact checked nothing.
+- **PowerShell 5.1 reads a `.ps1` without a BOM as ANSI.** Cyrillic in a launcher script breaks the
+  parser, and the detached process looks launched. Keep the launcher in pure ASCII, non-ASCII strings
+  in Python or in a data file.
+- **A gate on the file ≠ a gate on the prose.** The brief asks for 8–12 thousand characters of
+  readable text, and the file also carries markup, tables and captions: 13,662 characters of file
+  against 11,111 without spaces. `tools/gate.py` counts both, `--min-prose` measures the prose
+  specifically.
+- **A POSIX path in `TEMP` looks like stale credentials.** `$PWD` in Git Bash is
+  `/c/Users/…`; Windows does not resolve such a path, PowerShell does not start, the gateway bridge
+  reads tokens **through** PowerShell and gets nothing for every account, the gateway answers 401
+  `missing bearer token`. The diagnosis "the tokens need reissuing" is wrong; the cure is `pwd -W`.
+- **Every Bash call of an agent is a new shell.** Exports from the previous call are dead.
+  The environment and the command must be in one call, otherwise the failure flickers: one round
+  works, the next fails on the same code.
+- **A file name can be forbidden by the platform.** A subagent may not write a `.md` whose name
+  contains `analysis`, `report`, `findings` or `summary`: `Write` answers
+  "Subagents should return findings as text". A directory does not save it, an extension does. The
+  failure is silent — the agent returns the result through the schema, the pipeline moves on. The
+  generator must catch this at build time.
+- **An empty fan-out must stop the pipeline, not only warn.** Losing one extract out of five is
+  cheaper than throwing away four — so the fan-out tolerates partial failure. Zero out of five is
+  something else: the writer has nothing to read, and it either invents the document or dies. In a
+  live run it died three stages later, when the run had already paid for resumption, listing and
+  round preparation — 111 thousand tokens on a path that was doomed from the first fan-out.
+- **A new agent is not available in the same turn in which it was created.** The runtime takes the
+  `agentType` list once and keeps it until the next human message. The file in `.claude/agents/`
+  is there, `emit_agents` has run, `dry_run` is green — and the run fails instantly:
+  `agent type 'brief-writer' not found. Available agents: ...`, and that list shows the agent built
+  a turn earlier but not today's. Retrying in the same turn does not help.
+  Working order: build the agents, wait for the next message, launch.
+- **CRLF in a workflow script — the launch is refused.** `script contains control characters that
+  would be hidden in the approval dialog`. On Windows `autocrlf` brings CRLF back on every
+  checkout, so the line ending is declared in `.gitattributes` rather than left to the global git
+  setting.
+- **A verdict gets rubber-stamped, evidence does not.** A checking agent gave `ok` with an empty
+  defect list to three pictures, two of which carried English captions in a Russian article. What
+  helped was not stronger wording but a schema field that cannot be filled without doing the work:
+  "write out every label verbatim". After that both the captions and a substituted multiplication
+  sign were found.
+- **A verdict is a literal, not a synonym.** The article critic's prompt demanded `approved` be
+  returned, the schema in the script allowed only `ok` and `revise`. The agent sat between two
+  descriptions of its own output; at best this costs a repeated call, at worst the model picks
+  `revise` and the round is wasted. The verdict value is set in one place and quoted in the prompt
+  verbatim, together with a prohibition on synonyms.
+- **"There is no file" and "the file is your result" in one prompt.** The input/output tail was
+  appended to all tasks the same way, and the critic got `OUTPUT (no file)` followed by
+  "write the file with the Write tool". The very same error that brought down the analyst — only
+  further down the script. A task without a file has its own tail.
+- **A run lives inside the CLI process.** Restarting the process or moving the session into a
+  background task kills the workflow halfway (`adopt scriptPath rejected`), and `resumeFromRunId`
+  rescues only within one session — in a new one the cache is empty. A live run lost forty minutes
+  this way: resumption started from the brief, the brief invented new aspect slugs, and eleven
+  source files became orphans. So the checkpoint is not the cache but **the disk**: before spending,
+  the script asks what is already done and skips such stages with an explicit entry in `log()`.
+  The condition for robustness: the brief writes the aspect slugs TO A FILE, otherwise after a
+  restart there is nowhere to get them from and research starts over. Critics' verdicts do not
+  survive the process on their own either — each round is written to `<run>/rounds/round-<n>.md`,
+  and `tools/rounds.py` reads them back. Without this `max_rounds` is a limit per launch, not per
+  article: three crashes give six revision rounds where the brief allowed two.
+- **A session limit looks like an agent breaking.** `You've hit your session limit · resets 17:20`
+  comes from three agents in a row, and the script sees only `null`. A writer that died on the limit
+  managed to write the file but not to answer — that is, the artifact exists but the result does
+  not. Hence the rule: acceptance looks at the file, not at whether the agent returned.
+- **Two runs on one directory corrupt the state.** A run killed according to the report went on
+  working: it added fifteen files to `sources/` under its own slugs, overwrote `material.md` and
+  `article.md`. The provenance of the draft after that is unprovable — what exactly the second round
+  edited and on whose remarks cannot be established. It happened a second time, this time my fault:
+  the directory log was silent for six minutes, I read the silence as the end of the run — but the
+  silent ones were the finders, which call no tools at all. The recorded rake did not help, because
+  "is the run going" was not observable in any way. Now it is: `tools/busy.py` looks at the age of
+  the last line of `tools.jsonl`, the script asks before the first spend, the time arrives in
+  `args.now`. Without `args.now` the check is skipped and says so out loud.
+- **A path returned by an agent is not equal to the path the script passed.** The disk check
+  returned absolute paths with backslashes, the script compared them with relative POSIX ones —
+  nothing matched, `present` came out empty, and four finders and the analyst worked over what was
+  already done. The previous run of the same code returned relative paths and worked: a bug that
+  fires every other time waits for an expensive run. The invariant "paths are not asked for back"
+  exists exactly for this — the result is matched **by index**, because the script set the order of
+  the commands, and the `path` field has been removed from the schema altogether.
+- **The audit must tell a loss from another stage's files.** A design-only run reported six
+  orphans: the input documents, the extracts and the requirements round records. All six are
+  correct — this launch did not read them and must not, its input is `requirements.md`. An audit
+  that is wrong six times in a row teaches the reader to skip the audit line, and it exists in order
+  to be read. Directories are assigned to stages, and files of a stage that did not run in this
+  launch are counted and named separately from losses.
+- **A revision loop without a ceiling is a growth loop.** The flip side of the previous rakes, and
+  measured by the same run in English: there is no ceiling, and over the rounds the design grew
+  37,595 → 50,633 → 73,978 characters of prose, that is, it doubled, while the remark count went
+  11 → 12 → 8. Round 2 bought thirteen thousand characters and one extra remark. The reason is
+  simple: every critic's remark is closed by a clarification, a clarification is text, and without a
+  ceiling nothing pushes back against it.
+  Both conclusions are true together: an invented ceiling makes acceptance unreachable, and the
+  absence of any gives monotonic growth. The script does not judge — it **measures and tells**: the
+  prose growth per round stands in the log and in the round record's header, next to the number of
+  items. The question "what did the last round buy" needs both halves of the answer in one line.
+- **A length ceiling the order did not ask for makes acceptance unreachable.** I gave the design a
+  default of 40,000 characters of prose. Round 2 closed four blocking defects by writing more
+  specification and grew to 42,126; round 3 got "cut 2,126 and add nothing" — and grew to 44,590.
+  No agent was wrong: the critic demands clarification, the gate demands cutting, and together this
+  is impossible. In the article pipeline the same budget block worked the first time, because there
+  the ceiling was named by the order. The script **does not substitute a ceiling of its own** — only
+  a floor; if the order is silent, the gate measures and does not judge.
+- **A length overrun served as an item in a list is cured by writing more.** A round got
+  `max_prose 30000 exceeded (got 30616)` as item sixteen of sixteen and answered it with nine
+  thousand characters of well-argued material: every edit added a meaningful sentence, and the draft
+  grew instead of shrinking. The ceiling is arithmetic the script knows, so it is the script that
+  says how much to cut and forbids adding in that round.
+- **An `ok` verdict with remarks is not a work order.** A critic accepted the draft and attached six
+  notes; they got into the round record and in the next round were served as mandatory. They are
+  exactly what filled the round that was supposed to cut. The remarks of a critic that accepted are
+  served marked as optional.
+- **The writer silently loses remarks.** Five items came back verbatim in two rounds in a row: the
+  same corpus named wrongly, the same config field values without a source, the same dropped line
+  in a "complete" code quote. A requirement in the order did not help — the writer's contract had no
+  place to write what it did NOT do: the schema asked for `changes`, that is, only what was done.
+  The cure is the remark sheet: remarks are numbered in **one list** per round (three sections, each
+  numbered from one, make the number meaningless), the writer must return a line for every number
+  with the status `fixed` or `declined`, and the script checks the numbers against those it issued.
+  What was not covered and what was declined carries over into the next round and into
+  `UNRESOLVED.md`.
+- **Agents leave scratch files in the repository root.** In one day `temp_data.py`,
+  `rounds_output.json`, `final_structured_output.json`, `rounds_structured.json` were found there —
+  and three of them got into a commit, because of `git add -A`. `sweep_junk.py` did not see them,
+  because it looked **only at directories**; now it looks at files too, but deletes only with
+  `--files` and never files git tracks. The mechanism for files is different from that of the
+  garbled-name directories: an agent redirects a command's output into a file to read it back,
+  instead of returning it. The prohibition on this stands in the `gate_runner` prompt.
+- **A channel through an agent has a budget.** `tools/rounds.py` printed all remarks of all rounds
+  verbatim — five rounds is about a hundred kilobytes of JSON. The carrier returned two rounds
+  instead of five through the schema, the script read it as "two done", started the loop from the
+  third and ran four rounds instead of one: 1.4 million tokens. The volume must be limited where it
+  is produced (`--last-only`), not by hoping for the carrier. The symptom: a stage that reads,
+  through an agent, something that grows with the number of rounds or files.
+- **A silent pass through the loop.** When rounds ran out, the old engine let through a node with
+  an unfulfilled `revise` verdict, and the article shipped with three unresolved remarks. The
+  generator does not emit this: unresolved remarks must reach a file and `log()`.
+- **A length floor cannot tell work from the form of work.** The analyst writes the artifact's
+  frame — all the contract's headings, in the right order — and fills them pass by pass. Both stages
+  were caught: 1748 bytes of headings alone, and 68 KB with three empty aspects out of six. Either
+  would have passed `--min-length`, and the writer would have built those article sections on
+  nothing. `--no-empty-sections` names the empty headings one by one; acceptance hands the list back
+  to the analyst rather than ordering the analysis anew: it has `Edit`, and there is no reason to
+  rewrite what is filled.
+- **A port for an extension the listing did not look for.** The script always gave the analyst a
+  port for `_index.json`, while the listing ran with `--ext .md` and could not see the index. For two
+  aspects the finder put everything into one summary and wrote no index — the agent got a path to an
+  unwritten file, that is, a question that cannot be answered. A port is created only for what the
+  listing actually saw; the listing filter and the set of ports must ask about the same thing.
+- **A warning only in `log()` is a warning into nowhere.** An aspect without a single source means
+  the article's section stands on one unconfirmed summary. A line in `log()` lives in the run's
+  transcript, and the transcript is exactly what is already gone by the time someone asks why a
+  section is thinner than the rest. Everything that changes how the result is read goes to disk
+  next to it.
+- **The busy lock locked itself against the previous stage.** Stages are launched back to back: a
+  human reads the result of `research` and two minutes later launches `draft`, and the lock sees the
+  previous stage's audit receipt, 72 seconds old, and declares the directory busy. The run is stopped
+  on a false alarm, and the `ignoreBusy` flag removes the lock entirely, that is, the real one too.
+  Now the closing audit of a stage writes a receipt with `release: true` (`--log-release`), and
+  `busy.py` reads it as "free", however many seconds old it is. A run that crashed does not reach
+  the audit and is still held by the window. `busy`'s own receipts do not count as work:
+  otherwise a launch that failed right after asking locked its restart with its own question.
+- **A number that is not in the figure brief is invented by the generator.** The brief for the
+  "no scaling" panel named only the peak 0.9013, the generator copied the other weights from the
+  neighbouring panel, and the Kimi K3 critic let it through. A figure with wrong numbers passed as
+  finished. Now the brief must list every number that is to appear in the picture — for a
+  comparison panel, both sets; the looking agent checks every number in the figure against the
+  section text and names a discrepancy with both values.
+- **The hook is blind to files created by a Bash redirect.** The example corrector left five
+  `scratchpad_check*.py` in the repository root, and `stop_audit` recorded `no_writes` for it: the
+  hook sees only `Write` and `Edit`. The corrector's prompt now requires Python from stdin or from
+  the system temporary directory; `sweep_junk.py --files` removes whatever still leaks through.
+- **A limit of two rounds is one revision round.** The first round is always `revise`: the critics
+  see the text for the first time. The loop ended on the limit with both critics on `revise` and
+  14 items; a manual restart up to four rounds closed it. The `maxRounds` default is now 4; idling is
+  held off by the plateau, not by the limit.
+- **Figures are drawn next to the article, not in a copy.** The illustrator copied the article into
+  its own directory and drew there, the original article referred to a non-existent `figures/`, and
+  the pictures "did not display". When the run directory is the article's directory, the script
+  copies nothing and writes nothing into the text. The 4K render stays in the tool's directory; a
+  copy 2000 wide goes into `figures/` through `tools/shrink_png.py`.
+- **Cyrillic in argv comes back through the back door.** The prohibitions moved into files precisely
+  because of the code page, and right after that I put call notes (`--log-note`) in Russian — the
+  same argv, the same carrier agent's Bash, the same dependence on the shell. Everything that goes
+  to a tool as an argument is ASCII; Cyrillic travels only in a file.
 
-- **Платформа передаёт каждому подагенту последнее сообщение человека из чата как «запрос
-  пользователя, который главнее задачи».** Носильщик на haiku прочитал «проверь, что промпты
-  на английском, потом проверь новым прогоном» как свою задачу: восемь минут гонял pytest,
-  dry-run и grep, написал `VALIDATION_REPORT.txt` в корень репозитория и вернул выдуманный
-  отчёт о трёх пройденных кругах. Скрипт поверил и пропустил петлю целиком (2026-09-20).
-  Три замка: носильщики на sonnet, промпты носильщиков и общий хвост задачи говорят, что
-  переданный запрос — контекст, а не инструкция; скрипт доверяет отчёту о кругах и отчёту
-  гейта только в форме, которую печатает инструмент (число кругов совпадает с длиной списка,
-  у гейта есть `chars`). Экономия на haiku была около 1% прогона, провал стоил прогона.
+- **The platform passes every subagent the human's last chat message as "a user request that
+  outranks the task".** A carrier on haiku read "check that the prompts are in English, then check
+  with a new run" as its own task: for eight minutes it ran pytest, dry-run and grep, wrote
+  `VALIDATION_REPORT.txt` into the repository root and returned an invented report of three
+  completed rounds. The script believed it and skipped the loop entirely (2026-09-20).
+  Three locks: carriers on sonnet; the carriers' prompts and the shared task tail say that the
+  relayed request is context, not an instruction; the script trusts the rounds report and the gate
+  report only in the form the tool prints (the number of rounds matches the length of the list, the
+  gate's report has `chars`). The saving on haiku was about 1% of a run; the failure cost a run.

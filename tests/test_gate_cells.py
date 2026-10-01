@@ -1,9 +1,11 @@
-"""Правила гейта по ячейкам таблицы и по языку файла.
+"""Gate rules on table cells and on the language of a file.
 
-Слабые слова и клаузы-лазейки (INCOSE R7–R9) ловятся регуляркой, но только в ячейке требования:
-в ячейке источника «по возможности» — законная цитата клиента. И язык извлечения обязан
-совпадать с языком документа: извлечение чата по-английски принесло английские описания ролей
-в русскую таблицу, и заметил это критик, а не гейт.
+Weak words and escape clauses (INCOSE R7-R9) are caught by a regex, but only in the requirement
+cell: in the source cell a Russian "where possible" is a legitimate client quote. And the language
+of an extract must match the language of the document: an English extract of a chat brought
+English role descriptions into a Russian table, and the critic noticed it, not the gate.
+
+The fixtures are Russian on purpose: the weak words and the language check are about Russian text.
 """
 
 from __future__ import annotations
@@ -50,7 +52,7 @@ def test_quote_in_source_cell_is_not_a_hit(tmp_path: Path) -> None:
 
 
 def test_missing_pattern_file_is_a_problem(tmp_path: Path) -> None:
-    hits, problems = gate.cell_forbidden(TABLE, [tmp_path / "нет.txt"])
+    hits, problems = gate.cell_forbidden(TABLE, [tmp_path / "absent.txt"])
     assert hits == []
     assert "pattern file missing" in problems[0]
 
@@ -90,12 +92,12 @@ def test_same_language_is_fine(tmp_path: Path) -> None:
 
 
 def test_missing_reference_file_is_named(tmp_path: Path) -> None:
-    problem = gate.language_mismatch("текст", tmp_path / "нет.md")
+    problem = gate.language_mismatch("text", tmp_path / "absent.md")
     assert problem is not None and "reference missing" in problem
 
 
 def test_backtick_is_caught_by_its_escape(tmp_path: Path) -> None:
-    """Скрипт передаёт --forbid "\\x60": ни один шелл не видит настоящего грависа."""
+    """The script passes --forbid "\\x60": no shell ever sees a real backtick."""
     import json
     import sys
 
