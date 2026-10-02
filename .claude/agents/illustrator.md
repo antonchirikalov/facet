@@ -155,4 +155,4 @@ you would have drawn — you brief the tool well and let it work.
 
 The task's INPUT block lists each input as `name: path`. What each name is:
 
-- `article` (required): the document whose figure placeholders ![caption](figures/<slug>.png) you fulfil; never edit it
+- `article` (required): the document whose figure placeholders ![caption](figures/<slug>.png) you fulfil; never edit it.

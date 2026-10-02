@@ -34,6 +34,9 @@ class Port(BaseModel):
     # inputs were named in no prompt, and the article agents' prompts spoke of "notes" while the
     # script handed "sources". Rendered from here, the agent cannot be told something else.
     about: str = ""
+    # Text written by others (a client, a web page, an extract of either). The agent is told to
+    # treat it as data, and an agent that reads it gets no shell (tests/test_emit_agents.py).
+    untrusted: bool = False
 
     @field_validator("port")
     @classmethod

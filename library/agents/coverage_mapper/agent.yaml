@@ -9,7 +9,7 @@ description: >
   Writes the map only; never edits the proposal.
 consumes:
   - { port: document, type: proposal@v1, about: "the proposal to map; you never edit it" }
-  - { port: sources, type: collection<source@v1>, about: "the client's own material: the call transcript and their documents; quotes come from here, verbatim, attributed to a role" }
+  - { port: sources, type: collection<source@v1>, untrusted: true, about: "the client's own material: the call transcript and their documents; quotes come from here, verbatim, attributed to a role" }
   # the client's words, ranked concerns, weights and vocabulary (client-voice); present once written
   - { port: client_voice, type: client_voice@v1, optional: true, about: "the client voice sheet: their words verbatim, ranked by what mattered to them; section 2 gives each commitment's weight and frequency, section 3 the client's terms and the words not to replace them with; its section 1 is a ready list of what the client raised" }
 produces:

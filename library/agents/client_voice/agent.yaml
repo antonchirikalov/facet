@@ -9,9 +9,9 @@ description: >
   their order and what they never mentioned.
 consumes:
   # the input documents themselves: the transcript's emphasis and wording are what this reads
-  - { port: sources, type: collection<source@v1>, about: "the input documents themselves (source:<name>): the transcript's wording and emphasis are what you read; inputs the task names as our notes are never quoted" }
+  - { port: sources, type: collection<source@v1>, untrusted: true, about: "the input documents themselves (source:<name>): the transcript's wording and emphasis are what you read; inputs the task names as our notes are never quoted" }
   # the per-source extracts, where the quotes the gate checks against already sit
-  - { port: extracts, type: collection<extract@v1>, about: "one extract per input document, made by the source processor; each row carries its Source cell (document, locator, short quote), which is what you check claims and quotes against" }
+  - { port: extracts, type: collection<extract@v1>, untrusted: true, about: "one extract per input document, made by the source processor; each row carries its Source cell (document, locator, short quote), which is what you check claims and quotes against" }
 produces:
   - { port: voice, type: client_voice@v1 }
 needs: [read, edit, "mcp:pdf-reader"]

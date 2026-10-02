@@ -71,5 +71,5 @@ run it instead.
 
 The task's INPUT block lists each input as `name: path`. What each name is:
 
-- `draft` (required): the article whose worked example you recompute and correct in place
-- `brief` (required): the assignment: subject, reader, language, length, what must be covered and what must stay out
+- `draft` (required): the article whose worked example you recompute and correct in place.
+- `brief` (required): the assignment: subject, reader, language, length, what must be covered and what must stay out.

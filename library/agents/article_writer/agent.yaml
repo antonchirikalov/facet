@@ -15,7 +15,7 @@ consumes:
   - { port: material, type: analysis@v1, about: "the analysis: what the sources establish together, where they disagree, the gaps; the article is written from this" }
   # the notes stay available so a specific number can be traced back to the source that
   # carries it, not just to the analysis that summarised it
-  - { port: sources, type: collection<source_summary@v1>, about: "one finder's summary per research aspect (sources:<aspect>); it tells you where to look, not what a source says; used to trace a specific number back to its source; with the other source inputs, these are the notes your instructions speak of" }
+  - { port: sources, type: collection<source_summary@v1>, untrusted: true, about: "one finder's summary per research aspect (sources:<aspect>); it tells you where to look, not what a source says; used to trace a specific number back to its source; with the other source inputs, these are the notes your instructions speak of" }
   # the author's own style profile. Optional: a pipeline writing for someone else's byline
   # supplies nothing here and the general anti-slop rules still apply. When it IS supplied
   # the same file goes to the style critic, so writer and judge share one description of

@@ -8,7 +8,7 @@ description: >
   source is fixed before the critic ever judges the draft.
 consumes:
   - { port: draft, type: requirements@v1, about: "the requirements draft you correct in place, before the critic sees it" }
-  - { port: extracts, type: collection<extract@v1>, about: "one extract per input document, made by the source processor; each row carries its Source cell (document, locator, short quote), which is what you check claims and quotes against" }
+  - { port: extracts, type: collection<extract@v1>, untrusted: true, about: "one extract per input document, made by the source processor; each row carries its Source cell (document, locator, short quote), which is what you check claims and quotes against" }
 produces:
   - { port: doc, type: requirements@v1 }
 needs: [read, edit]

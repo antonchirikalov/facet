@@ -7,7 +7,7 @@ description: >
   and returns approved or revise with actionable feedback.
 consumes:
   - { port: draft, type: requirements@v1, about: "the requirements draft to judge; you never edit it" }
-  - { port: extracts, type: collection<extract@v1>, about: "one extract per input document, made by the source processor; each row carries its Source cell (document, locator, short quote), which is what you check claims and quotes against" }
+  - { port: extracts, type: collection<extract@v1>, untrusted: true, about: "one extract per input document, made by the source processor; each row carries its Source cell (document, locator, short quote), which is what you check claims and quotes against" }
   # the client's words, ranked concerns, weights and vocabulary (client-voice); present once written
   - { port: client_voice, type: client_voice@v1, optional: true, about: "the client voice sheet: their words verbatim, ranked by what mattered to them; section 2 gives each commitment's weight and frequency, section 3 the client's terms and the words not to replace them with; a weight the sheet gives and the draft drops is a defect" }
 produces:

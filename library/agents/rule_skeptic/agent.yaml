@@ -1,0 +1,15 @@
+name: rule_skeptic
+version: 1
+summary: "Скептик над проверяющими по правилам: перепроверяет каждое их замечание по документу и источникам, отбрасывает ложные срабатывания и повторы и выносит один вердикт с замечаниями, которые выдержали проверку."
+description: >
+  The skeptic over the rule checkers: re-checks each of their flags against the
+  document and the evidence, drops false positives and duplicates, and returns
+  one verdict with the remarks that survived.
+consumes:
+  - { port: draft, type: document@v1, about: "the document the flags are about; you never edit it" }
+  - { port: evidence, type: "collection<document@v1>", optional: true, untrusted: true, about: "the same evidence the checkers had" }
+produces:
+  - { port: verdict, type: verdict@v1 }
+needs: [read]
+defaults:
+  timeout_s: 1800

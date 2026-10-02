@@ -354,3 +354,44 @@ def test_an_unchecked_figure_is_never_accepted(tmp_path: Path) -> None:
         encoding="utf-8",
     )
     assert "counted as unchecked" in done.stdout and "redraw:1" in done.stdout
+
+
+PANELS = {
+    **RUN,
+    "config": {"fresh": True, "stages": ["requirements"], "claimCheck": True, "rulePanel": True},
+}
+
+
+def test_panels_are_off_by_default(tmp_path: Path) -> None:
+    items = prompts(tmp_path, {**RUN, "config": {"fresh": True, "stages": ["requirements"]}})
+    assert not by_agent(items, "claim-lister") and not by_agent(items, "rule-checker")
+
+
+def test_claim_panel_hands_claims_to_fresh_checkers(tmp_path: Path) -> None:
+    items = prompts(tmp_path, PANELS)
+    lister = by_agent(items, "claim-lister")[0]
+    assert "draft: dry/run/requirements.md" in lister and "OUTPUT" not in lister.split("INPUT")[0]
+    checker = by_agent(items, "claim-checker")[0]
+    assert "CLAIMS TO CHECK" in checker and "evidence:" in checker
+
+
+def test_rule_panel_reads_rules_from_the_profile(tmp_path: Path) -> None:
+    items = prompts(tmp_path, PANELS)
+    rules = next(p for p in by_agent(items, "gate-runner") if "tools/rules.py" in p)
+    assert "--profile .claude/skills/requirements-profile/SKILL.md --top" in rules
+    assert "THE RULE" in by_agent(items, "rule-checker")[0]
+    assert "FLAGS" in by_agent(items, "rule-skeptic")[0]
+
+
+def test_a_dead_checker_is_an_open_remark_not_a_pass(tmp_path: Path) -> None:
+    done = subprocess.run(
+        ["node", str(DRY_RUN), str(SCRIPT), "ok", json.dumps(PANELS)],
+        cwd=ROOT,
+        check=False,
+        env={**os.environ, "DRY_NULL": "req:CLAIMS:check,req:RULES:skeptic"},
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    assert "were not checked: the checker returned nothing" in done.stdout
+    assert "RULES (rule-skeptic) returned no verdict" in done.stdout

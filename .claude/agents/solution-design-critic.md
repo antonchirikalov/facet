@@ -57,5 +57,5 @@ without the sources in front of them.
 
 The task's INPUT block lists each input as `name: path`. What each name is:
 
-- `draft` (required): the design draft to judge; you never edit it
-- `requirements` (required): the requirements document the design is built from; cite its ids (FR-012, NFR-003) for every decision
+- `draft` (required): the design draft to judge; you never edit it.
+- `requirements` (required): the requirements document the design is built from; cite its ids (FR-012, NFR-003) for every decision.

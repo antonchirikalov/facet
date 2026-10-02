@@ -1,0 +1,16 @@
+name: rule_checker
+version: 1
+summary: "Проверяет документ по одному правилу чек-листа профиля, в чистом контексте: ищет каждое нарушение именно этого правила, с местом и цитатой. Один проверяющий на правило, а не один критик на пятнадцать пунктов."
+description: >
+  Checks a document against one rule of its profile's critic checklist, in a
+  clean context: finds every violation of that rule and only that rule, with
+  the place and a quote. One checker per rule, instead of one critic holding a
+  fifteen-item list.
+consumes:
+  - { port: draft, type: document@v1, about: "the document to check; you never edit it" }
+  - { port: evidence, type: "collection<document@v1>", optional: true, untrusted: true, about: "what the rule may need to compare against: extracts, the requirements, the client's sources" }
+produces:
+  - { port: flags, type: rule_flags@v1 }
+needs: [read]
+defaults:
+  timeout_s: 1800

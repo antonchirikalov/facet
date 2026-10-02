@@ -62,6 +62,6 @@ document, do not list what is fine, do not describe your process.
 
 The task's INPUT block lists each input as `name: path`. What each name is:
 
-- `draft` (required): the client-facing document whose wording you judge; you never edit it
-- `client_voice` (optional, may be absent): the client voice sheet: their words verbatim, ranked by what mattered to them; section 2 gives each commitment's weight and frequency, section 3 the client's terms and the words not to replace them with; its section 3 is the check for our words replacing theirs
-- `voice` (optional, may be absent): the author's own style profile, taken from articles they published; it outranks general taste
+- `draft` (required): the client-facing document whose wording you judge; you never edit it.
+- `client_voice` (optional, may be absent): the client voice sheet: their words verbatim, ranked by what mattered to them; section 2 gives each commitment's weight and frequency, section 3 the client's terms and the words not to replace them with; its section 3 is the check for our words replacing theirs.
+- `voice` (optional, may be absent): the author's own style profile, taken from articles they published; it outranks general taste.

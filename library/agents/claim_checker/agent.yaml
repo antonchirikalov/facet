@@ -1,0 +1,16 @@
+name: claim_checker
+version: 1
+summary: "Проверяет пачку утверждений документа по источникам, каждое в свежем контексте: открывает указанное место, сверяет число, цитату, авторство, вес. На каждое — держится или нет, и что именно не так. Только судит."
+description: >
+  Checks a batch of a document's claims against the evidence, in a fresh context:
+  opens the place each claim cites, compares the number, the quote, who said it
+  and the weight given, and says for each claim whether it holds and, if not,
+  exactly what the evidence says instead. Judges only.
+consumes:
+  - { port: draft, type: document@v1, about: "the document the claims come from; read the claim's place in it for context, never edit it" }
+  - { port: evidence, type: "collection<document@v1>", untrusted: true, about: "what the claims are checked against: extracts, input documents or the requirements, one line per file" }
+produces:
+  - { port: results, type: claim_results@v1 }
+needs: [read]
+defaults:
+  timeout_s: 1800

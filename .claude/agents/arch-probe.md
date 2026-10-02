@@ -64,4 +64,4 @@ Write in the language of the requirements document.
 
 The task's INPUT block lists each input as `name: path`. What each name is:
 
-- `requirements` (required): the requirements document to mine for gaps, contradictions and unstated trade-offs
+- `requirements` (required): the requirements document to mine for gaps, contradictions and unstated trade-offs.

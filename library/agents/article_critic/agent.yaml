@@ -12,7 +12,7 @@ consumes:
   - { port: draft, type: article@v1, about: "the article to judge; you never edit it" }
   - { port: material, type: analysis@v1, about: "the analysis the article was written from: what the sources establish together" }
   # handed only when no fact checker ran this round; otherwise attribution is its job
-  - { port: sources, type: collection<source_summary@v1>, optional: true, about: "one finder's summary per research aspect (sources:<aspect>); it tells you where to look, not what a source says; handed only when no fact checker ran this round; with the other source inputs, these are the notes your instructions speak of" }
+  - { port: sources, type: collection<source_summary@v1>, optional: true, untrusted: true, about: "one finder's summary per research aspect (sources:<aspect>); it tells you where to look, not what a source says; handed only when no fact checker ran this round; with the other source inputs, these are the notes your instructions speak of" }
 produces:
   - { port: verdict, type: verdict@v1 }
 # `read` only. This agent produces a verdict, never a file, and the script tells it so in

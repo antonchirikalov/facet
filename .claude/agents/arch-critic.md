@@ -53,5 +53,5 @@ Write in the language of the requirements document.
 
 The task's INPUT block lists each input as `name: path`. What each name is:
 
-- `draft` (required): the probe's candidate questions: raw material to curate, not a document to polish
-- `requirements` (required): the requirements the questions were drawn from; check every cited gap or number against it before keeping a question
+- `draft` (required): the probe's candidate questions: raw material to curate, not a document to polish.
+- `requirements` (required): the requirements the questions were drawn from; check every cited gap or number against it before keeping a question.

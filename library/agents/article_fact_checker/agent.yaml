@@ -14,9 +14,9 @@ consumes:
   # what the finders brought back, as explainer-article.js hands it: one summary per aspect
   # (sources:<aspect>), one file per source read (source:<aspect>/<file>) and each finder's
   # index of where every file came from (index:<aspect>)
-  - { port: sources, type: collection<source_summary@v1>, about: "one finder's summary per research aspect (sources:<aspect>); it tells you where to look, not what a source says; with the other source inputs, these are the notes your instructions speak of" }
-  - { port: source, type: collection<source@v1>, optional: true, about: "one file per source a finder read (source:<aspect>/<file>); this is what a claim is checked against; with the other source inputs, these are the notes your instructions speak of" }
-  - { port: index, type: collection<source_index@v1>, optional: true, about: "each finder's index (index:<aspect>): which file came from which URL and whether it is primary or a retelling" }
+  - { port: sources, type: collection<source_summary@v1>, untrusted: true, about: "one finder's summary per research aspect (sources:<aspect>); it tells you where to look, not what a source says; with the other source inputs, these are the notes your instructions speak of" }
+  - { port: source, type: collection<source@v1>, optional: true, untrusted: true, about: "one file per source a finder read (source:<aspect>/<file>); this is what a claim is checked against; with the other source inputs, these are the notes your instructions speak of" }
+  - { port: index, type: collection<source_index@v1>, optional: true, untrusted: true, about: "each finder's index (index:<aspect>): which file came from which URL and whether it is primary or a retelling" }
   - { port: brief, type: brief@v1, about: "the assignment: subject, reader, language, length, what must be covered and what must stay out" }
   # optional, and the reason it is here is a live round: the checker weakened five overclaims
   # correctly and the style critic flipped from ok to revise on the same draft. Corrections

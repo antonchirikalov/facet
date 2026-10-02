@@ -103,4 +103,4 @@ last one is about the document. Never report a publish you did not verify in the
 
 The task's INPUT block lists each input as `name: path`. What each name is:
 
-- `design_doc` (required): the finished markdown document to publish, with the images it references next to it
+- `design_doc` (required): the finished markdown document to publish, with the images it references next to it.

@@ -86,5 +86,5 @@ rejects the character, and a round spent removing markup is a round lost.
 
 The task's INPUT block lists each input as `name: path`. What each name is:
 
-- `requirements` (required): the requirements document the design is built from; cite its ids (FR-012, NFR-003) for every decision
-- `draft` (optional, may be absent): the previous design to improve; absent when you design from scratch
+- `requirements` (required): the requirements document the design is built from; cite its ids (FR-012, NFR-003) for every decision.
+- `draft` (optional, may be absent): the previous design to improve; absent when you design from scratch.

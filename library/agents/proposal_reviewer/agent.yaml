@@ -10,7 +10,7 @@ description: >
 consumes:
   - { port: draft, type: proposal@v1, about: "the proposal to review; you never edit it" }
   - { port: coverage, type: coverage_map@v1, about: "the coverage map: every client ask and where the proposal answers it" }
-  - { port: sources, type: collection<source@v1>, about: "the client's own material: the call transcript and their documents; quotes come from here, verbatim, attributed to a role" }
+  - { port: sources, type: collection<source@v1>, untrusted: true, about: "the client's own material: the call transcript and their documents; quotes come from here, verbatim, attributed to a role" }
   - { port: figures, type: collection<image@v1>, about: "the figures folder; open every figure the proposal references" }
   - { port: answers, type: answers@v1, optional: true, about: "the editor's reply to your previous remarks; a remark declined with a reason is raised again only if the reason does not hold" }
   # the client's words, ranked concerns, weights and vocabulary (client-voice); present once written

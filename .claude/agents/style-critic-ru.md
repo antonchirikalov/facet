@@ -122,6 +122,6 @@ nothing for it. You hunt defects, but your KPI is precision, not count.
 
 The task's INPUT block lists each input as `name: path`. What each name is:
 
-- `draft` (required): the article whose style you judge; you never edit it
-- `brief` (required): the assignment: subject, reader, language, length, what must be covered and what must stay out; a passage written for the brief's register is not a defect
-- `voice` (optional, may be absent): the author's own style profile, taken from articles they published; it outranks general taste
+- `draft` (required): the article whose style you judge; you never edit it.
+- `brief` (required): the assignment: subject, reader, language, length, what must be covered and what must stay out; a passage written for the brief's register is not a defect.
+- `voice` (optional, may be absent): the author's own style profile, taken from articles they published; it outranks general taste.

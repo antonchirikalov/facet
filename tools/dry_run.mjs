@@ -110,7 +110,8 @@ function fill(schema, prompt) {
           continue
         }
         if (key === 'count') {
-          const files = out.files
+          // The count travels next to the list it counts: files for a listing, rules for rules.py.
+          const files = out.files ?? Object.values(out).find((v) => Array.isArray(v))
           out[key] = Array.isArray(files)
             ? files.length + (process.env.DRY_CARRIER_DROPS ? 5 : 0)
             : 0

@@ -9,7 +9,7 @@ description: >
   client documents agree.
 consumes:
   - { port: traceable, type: requirements@v1, about: "the accepted traceable document (requirements or design) the edition is written from; never edit it" }
-  - { port: extracts, type: collection<extract@v1>, about: "one extract per input document, made by the source processor; each row carries its Source cell (document, locator, short quote), which is what you check claims and quotes against" }
+  - { port: extracts, type: collection<extract@v1>, untrusted: true, about: "one extract per input document, made by the source processor; each row carries its Source cell (document, locator, short quote), which is what you check claims and quotes against" }
   # The design edition only: the requirements edition and its id map, so references agree.
   - { port: requirements_edition, type: client_edition@v1, optional: true, about: "the client edition of the requirements, already written; the design edition must agree with it" }
   - { port: id_map, type: id_map@v1, optional: true, about: "JSON object from every traceable id to its client id; apply it to every requirement reference in the design edition" }

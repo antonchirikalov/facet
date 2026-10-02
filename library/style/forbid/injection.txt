@@ -1,0 +1,15 @@
+# Signs that a text tries to instruct the agent reading it (prompt injection). One regex per line,
+# "#" starts a comment, matched outside code, case-insensitive. Run on what readers of untrusted
+# material produce (extracts, saved sources): a hit means injected text was carried into our own
+# files, which a person should look at before anything downstream reads it.
+#
+# This is DATA: edit it by hand, no code change needed.
+
+ignore (?:all |any |the )?(?:previous|prior|above|earlier) (?:instructions|prompts?|messages)
+disregard (?:all |your |the )?(?:instructions|task|brief|rules)
+(?:new|updated|real) instructions\s*:
+you are now (?:a|an|the)\b
+(?:reveal|print|show|repeat) (?:your|the) (?:system prompt|instructions)
+\bsystem prompt\b
+<\|?(?:im_start|im_end|system)\|?>
+игнорируй (?:все |предыдущие )?инструкции|забудь (?:все |предыдущие )?инструкции

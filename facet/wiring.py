@@ -48,6 +48,15 @@ class Scenario:
 # One per stage of every script: a stage no scenario reaches is a stage nothing checks.
 SCENARIOS: tuple[Scenario, ...] = (
     Scenario(
+        "panels",
+        "solution-design.js",
+        {
+            "runDir": "r",
+            "now": NOW,
+            "config": {"fresh": True, "claimCheck": True, "rulePanel": True},
+        },
+    ),
+    Scenario(
         "requirements",
         "solution-design.js",
         {"runDir": "r", "now": NOW, "config": {"fresh": True, "stages": ["requirements"]}},

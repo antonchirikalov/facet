@@ -137,6 +137,8 @@ const MODELS = {
   client: 'opus',
   voice: 'opus',
   slop: 'sonnet',
+  claims: 'sonnet',
+  rules: 'sonnet',
   // Carriers run one command and copy its output. Sonnet, not haiku, and this was measured: a
   // haiku carrier read the harness's relayed user request ("check the prompts, run the tests") as
   // its own task, ran pytest and dry-runs for eight minutes, wrote a report into the repository
@@ -187,6 +189,15 @@ const SLOP_FLAGS = [
 ]
 // The slop critic sits in every revision loop of a client-facing document; off with false.
 const SLOP_CRITIC = cfg.slopCritic !== false
+// Two panels that can take a critic's seat in a revision round. Both are new and off until each
+// has had one live call on real material; switch them on with config.claimCheck and
+// config.rulePanel.
+const CLAIM_CHECK = cfg.claimCheck === true
+const RULE_PANEL = cfg.rulePanel === true
+const CLAIM_BATCH = cfg.claimBatch || 12
+const RULES_TOOL = cfg.rulesTool || 'python -X utf8 tools/rules.py'
+const REQ_PROFILE = '.claude/skills/requirements-profile/SKILL.md'
+const DESIGN_PROFILE = '.claude/skills/solution-design-profile/SKILL.md'
 const CLIENT_GATE_FLAGS = cfg.clientGateFlags || [
   '--no-empty-sections',
   ...SLOP_FLAGS,
@@ -856,6 +867,205 @@ const present = new Set()
   }
 }
 
+// --- Panels: many fresh readers in one critic seat ------------------------------------------
+//
+// One reader checking fifty claims checks the first thirty and skims the rest, and one critic
+// holding a fifteen-item checklist reads its first items closely. Both panels split the work so
+// that every reader holds little: the claim panel lists every checkable claim once and hands them
+// to fresh checkers in batches; the rule panel gives every top-tier rule of the profile its own
+// checker in a clean context and lets a skeptic drop the false positives. Each panel returns a
+// verdict like a critic, so the loop treats it as one.
+const CLAIMS = {
+  type: 'object',
+  required: ['claims'],
+  properties: {
+    claims: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['id', 'where', 'text', 'cited'],
+        properties: {
+          id: { type: 'string', description: 'C1, C2, ... in document order' },
+          where: { type: 'string', description: 'the row id or the section' },
+          text: { type: 'string', description: 'the claim in the document\'s exact words' },
+          cited: { type: 'string', description: 'the source the document cites, or "none cited"' },
+        },
+      },
+    },
+  },
+}
+const CHECKED = {
+  type: 'object',
+  required: ['results'],
+  properties: {
+    results: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['id', 'holds', 'problem'],
+        properties: {
+          id: { type: 'string' },
+          holds: { type: 'boolean' },
+          problem: { type: 'string', description: 'what the evidence says instead, quoted; empty when the claim holds' },
+        },
+      },
+    },
+  },
+}
+const RULES = {
+  type: 'object',
+  required: ['rules', 'count'],
+  properties: {
+    rules: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['id', 'severity', 'text'],
+        properties: { id: { type: 'string' }, severity: { type: 'string' }, text: { type: 'string' } },
+      },
+    },
+    count: { type: 'integer', description: 'the count number from the report measures, verbatim' },
+  },
+}
+const FLAGS = {
+  type: 'object',
+  required: ['flags'],
+  properties: {
+    flags: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['where', 'quote', 'why'],
+        properties: { where: { type: 'string' }, quote: { type: 'string' }, why: { type: 'string' } },
+      },
+    },
+  },
+}
+
+// Evidence travels under one port name whatever it is: extracts, input documents, requirements.
+const asEvidence = (ports) => ports.map((e) => ({ port: `evidence:${e.port.split(':').pop()}`, path: e.path }))
+
+function claimPanel({ tag, artifact, evidence, brief }) {
+  return {
+    tag,
+    agentType: 'claim-checker',
+    run: async (loop, round, phaseName) => {
+      const listed = await call(task({ inputs: [{ port: 'draft', path: artifact }], noFile: true, brief }), {
+        agentType: 'claim-lister',
+        model: MODELS.claims,
+        label: `${loop}:${tag}:list:${round}`,
+        phase: phaseName,
+        schema: CLAIMS,
+      })
+      if (!listed) return noVerdict(`${tag} (claim-lister)`)
+      const claims = listed.claims || []
+      const batches = []
+      for (let i = 0; i < claims.length; i += CLAIM_BATCH) batches.push(claims.slice(i, i + CLAIM_BATCH))
+      log(`[${loop}/${round}/${tag}] claims=${claims.length} batches=${batches.length}`)
+      const checked = await parallel(
+        batches.map((batch, k) => () =>
+          call(
+            task({
+              inputs: [{ port: 'draft', path: artifact }, ...evidence],
+              noFile: true,
+              brief,
+              extra:
+                `CLAIMS TO CHECK\n` +
+                batch.map((c) => `${c.id} (${c.where}): "${c.text}" (cited: ${c.cited})`).join('\n'),
+            }),
+            {
+              agentType: 'claim-checker',
+              model: MODELS.claims,
+              label: `${loop}:${tag}:check:${round}:${k + 1}`,
+              phase: phaseName,
+              schema: CHECKED,
+            },
+          ),
+        ),
+      )
+      const remarks = []
+      batches.forEach((batch, k) => {
+        const got = checked[k]
+        if (!got) {
+          remarks.push(`[HIGH] claims ${batch[0].id} to ${batch[batch.length - 1].id} were not checked: the checker returned nothing`)
+          return
+        }
+        const byId = new Map((got.results || []).map((r) => [r.id, r]))
+        for (const c of batch) {
+          const r = byId.get(c.id)
+          if (!r) remarks.push(`[HIGH] ${c.where} — "${c.text}" — not checked: no result for ${c.id}`)
+          else if (!r.holds) remarks.push(`[HIGH] ${c.where} — "${c.text}" — ${r.problem || 'does not hold against the evidence'}`)
+        }
+      })
+      log(`[${loop}/${round}/${tag}] claims that do not hold or were not checked: ${remarks.length}`)
+      return { verdict: remarks.length ? 'revise' : 'approved', remarks }
+    },
+  }
+}
+
+function rulePanel({ tag, profile, artifact, evidence, brief }) {
+  let rules = null
+  return {
+    tag,
+    agentType: 'rule-skeptic',
+    run: async (loop, round, phaseName) => {
+      if (rules === null) {
+        const got = await call(
+          commands([`${RULES_TOOL} --profile ${profile} --top ${noted(`top rules of ${profile}`)}`]) +
+            `\n\nReturn the rules from measures.rules and the number from measures.count, unchanged.`,
+          { agentType: 'gate-runner', model: MODELS.gate, label: `${loop}:${tag}:rules`, phase: phaseName, schema: RULES },
+        )
+        rules = got && Array.isArray(got.rules) && got.rules.length === got.count ? got.rules : []
+        if (!rules.length) {
+          log(`[${loop}/${tag}] the rules of ${profile} did not arrive whole: the rule panel is skipped`)
+          warnings.push(`rule panel ${tag} skipped: the rules of ${profile} did not arrive whole`)
+        }
+      }
+      if (!rules.length) return { verdict: 'approved', remarks: [] }
+      const flagged = await parallel(
+        rules.map((r) => () =>
+          call(
+            task({
+              inputs: [{ port: 'draft', path: artifact }, ...evidence],
+              noFile: true,
+              brief,
+              extra: `THE RULE\n${r.id}. [${r.severity}] ${r.text}`,
+            }),
+            {
+              agentType: 'rule-checker',
+              model: MODELS.rules,
+              label: `${loop}:${tag}:rule-${r.id}:${round}`,
+              phase: phaseName,
+              schema: FLAGS,
+            },
+          ),
+        ),
+      )
+      const lines = []
+      rules.forEach((r, i) => {
+        const got = flagged[i]
+        if (!got) {
+          lines.push(`rule ${r.id} [${r.severity}]: its checker returned nothing, so the rule was not checked`)
+          return
+        }
+        for (const f of got.flags || []) lines.push(`rule ${r.id} [${r.severity}] — ${f.where} — "${f.quote}" — ${f.why}`)
+      })
+      log(`[${loop}/${round}/${tag}] rules=${rules.length} flags=${lines.length}`)
+      if (!lines.length) return { verdict: 'approved', remarks: [] }
+      const kept = await call(
+        task({
+          inputs: [{ port: 'draft', path: artifact }, ...evidence],
+          noFile: true,
+          brief,
+          extra: `FLAGS\n` + lines.map((l, i) => `${i + 1}. ${l}`).join('\n'),
+        }),
+        { agentType: 'rule-skeptic', model: MODELS.rules, label: `${loop}:${tag}:skeptic:${round}`, phase: phaseName, schema: VERDICT },
+      )
+      return kept || noVerdict(`${tag} (rule-skeptic)`)
+    },
+  }
+}
+
 // --- The revision loop, as a function --------------------------------------------------------
 //
 // The whole shape of a revision round, parameterised. In the article pipeline this sits inlined
@@ -1286,7 +1496,9 @@ async function reviseLoop({
     // them instead of their sum.
     const judged = await parallel(
       critics.map((c) => () =>
-        call(task({ inputs: c.inputs, noFile: true, extra: declinedBlock || undefined, brief: c.brief }), {
+        c.run
+          ? c.run(loop, round, phaseName)
+          : call(task({ inputs: c.inputs, noFile: true, extra: declinedBlock || undefined, brief: c.brief }), {
           agentType: c.agentType,
           model: c.model,
           label: `${loop}:${c.tag}:${round}`,
@@ -1502,7 +1714,9 @@ if (RUN_REQUIREMENTS) {
   // stakeholder table, and the critic found it, not the gate.
   const extractFlags = (extractPath) => {
     const i = extractPaths.indexOf(extractPath)
-    return `--rows-have-source --language-of ${sources[i]}`
+    // Extracts are written by the one agent that reads the client's raw material; injected
+    // instructions carried into an extract would reach every agent downstream.
+    return `--rows-have-source --language-of ${sources[i]} --forbid-file library/style/forbid/injection.txt`
   }
 
   // What is already extracted is not extracted again. The disk is the checkpoint here as
@@ -1668,6 +1882,10 @@ if (RUN_REQUIREMENTS) {
       },
       ...(SLOP_CRITIC
         ? [{ tag: 'SLOP', agentType: 'slop-critic', model: MODELS.slop, inputs: [{ port: 'draft', path: REQ_PATH }, ...voicePort], brief: voiceBrief }]
+        : []),
+      ...(CLAIM_CHECK ? [claimPanel({ tag: 'CLAIMS', artifact: REQ_PATH, evidence: asEvidence(extractPorts), brief: voiceBrief })] : []),
+      ...(RULE_PANEL
+        ? [rulePanel({ tag: 'RULES', profile: REQ_PROFILE, artifact: REQ_PATH, evidence: asEvidence(extractPorts), brief: voiceBrief })]
         : []),
     ],
   })
@@ -2084,6 +2302,12 @@ const design = await reviseLoop({
             brief: DESIGN_BRIEF,
           },
         ]
+      : []),
+    ...(CLAIM_CHECK
+      ? [claimPanel({ tag: 'CLAIMS', artifact: DESIGN_PATH, evidence: asEvidence([{ port: 'requirements', path: REQ_PATH }]), brief: DESIGN_BRIEF })]
+      : []),
+    ...(RULE_PANEL
+      ? [rulePanel({ tag: 'RULES', profile: DESIGN_PROFILE, artifact: DESIGN_PATH, evidence: asEvidence([{ port: 'requirements', path: REQ_PATH }]), brief: DESIGN_BRIEF })]
       : []),
   ],
 })

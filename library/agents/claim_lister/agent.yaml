@@ -1,0 +1,17 @@
+name: claim_lister
+version: 1
+summary: "Выписывает из документа все проверяемые утверждения: числа, цитаты и их авторство, ссылки на источник, факты о клиенте. Каждое — с номером, точной цитатой из документа и тем, на что документ ссылается. Ничего не проверяет и не правит: список раздаётся свежим проверяющим пачками."
+description: >
+  Lists every checkable claim of a document: each number, each quote and who it
+  is attributed to, each source reference, each statement of fact about the
+  client or the environment. Every claim carries an id, the exact words of the
+  document and the source the document cites for it. Checks nothing and edits
+  nothing: the list is handed to fresh checkers in batches.
+consumes:
+  - { port: draft, type: document@v1, about: "the document whose claims you list; you never edit it" }
+produces:
+  - { port: claims, type: claim_list@v1 }
+# Read only: listing is reading, and a lister that could edit would start fixing.
+needs: [read]
+defaults:
+  timeout_s: 1800
