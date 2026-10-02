@@ -321,3 +321,36 @@ def test_failed_conversion_never_hands_a_missing_markdown(tmp_path: Path) -> Non
     items = word_prompts(tmp_path, "bad")
     extracts = by_agent(items, "source-processor")
     assert not any("scope.docx.md" in p for p in extracts)
+
+
+@pytest.mark.parametrize("dead", ["plan", "draw", "critic-used", "look", "redraw", "gate", "*"])
+def test_figures_survive_a_dead_agent(tmp_path: Path, dead: str) -> None:
+    """agent() returns null when a subagent dies; the script names it, it never throws a TypeError."""
+    for mode in ("ok", "bad"):
+        done = subprocess.run(
+            ["node", str(DRY_RUN), str(FIGURES), mode, json.dumps(FIG_ARGS)],
+            cwd=ROOT,
+            check=False,
+            env={**os.environ, "DRY_NULL": dead},
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+        )
+        crash = done.stdout + done.stderr
+        assert "TypeError" not in crash and "ReferenceError" not in crash, crash[-600:]
+
+
+def test_an_unchecked_figure_is_never_accepted(tmp_path: Path) -> None:
+    """A figure critic that returned nothing has checked nothing: the figures are redrawn."""
+    items = figure_prompts(tmp_path, FIG_ARGS)
+    assert any(p["label"] == "look:1" for p in items)
+    done = subprocess.run(
+        ["node", str(DRY_RUN), str(FIGURES), "ok", json.dumps(FIG_ARGS)],
+        cwd=ROOT,
+        check=False,
+        env={**os.environ, "DRY_NULL": "look"},
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    assert "counted as unchecked" in done.stdout and "redraw:1" in done.stdout

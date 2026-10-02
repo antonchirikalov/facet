@@ -444,6 +444,12 @@ const plan = await agent(
         `not it.`),
   { agentType: 'article-writer', model: 'sonnet', label: 'plan', phase: 'Plan', schema: PLAN },
 )
+// agent() yields null when a subagent dies after its retries. Without a plan there is nothing to
+// draw, so the run stops here with the reason instead of failing later on a property of null.
+if (!plan || !Array.isArray(plan.figures)) {
+  throw new Error('the plan step returned nothing: no figure list to draw from. Run again; if the ' +
+    'article-writer agent was built in this turn, wait for the next message first.')
+}
 const LANG = (plan.language || '').trim() || 'the language of the document'
 log(`[plan] figures planned=${plan.figures.length} language=${LANG}`)
 for (const f of plan.figures) {
@@ -531,6 +537,11 @@ let drawn = await agent(
     schema: DRAWN,
   },
 )
+if (!drawn || !Array.isArray(drawn.done)) {
+  throw new Error('the illustrator returned nothing: no figure was drawn or recorded. Read ' +
+    `${WORK_DIR}/logs/ and run again.`)
+}
+drawn.failed = drawn.failed || []
 log(`[draw] drawn=${drawn.done.length} failed=${drawn.failed.length} gateway_ok=${drawn.gateway_ok}`)
 for (const d of drawn.done) {
   log(`[draw/${d.slug}] critic=${d.critic_provider} iterations=${d.iterations} run=${d.run_dir}`)
@@ -547,10 +558,11 @@ if (renderLogs.length) {
       `Return the parsed report in the report field and the raw output in stdout. Correct nothing.`,
     { agentType: 'gate-runner', model: 'haiku', label: 'critic-used', phase: 'Draw', schema: GATE },
   )
-  for (const [name, facts] of Object.entries((judged.report.measures && judged.report.measures.logs) || {})) {
+  const judgedReport = (judged && judged.report) || { measures: {}, problems: ['the critic-used check did not report: who judged the figures is unknown'] }
+  for (const [name, facts] of Object.entries((judgedReport.measures && judgedReport.measures.logs) || {})) {
     log(`[draw/critic] ${name}: configured=${facts.configured} judged_by=${(facts.judged_by || []).join(',') || 'none'} fell_back=${facts.fell_back}`)
   }
-  for (const problem of judged.report.problems) log(`[draw/critic] PROBLEM: ${problem}`)
+  for (const problem of judgedReport.problems || []) log(`[draw/critic] PROBLEM: ${problem}`)
 }
 
 if (!drawn.gateway_ok) {
@@ -604,6 +616,14 @@ const lookTask = (slugs) =>
   `raw underscore in a formula is a defect, and it is especially visible when both spellings ` +
   `sit side by side on one picture. Check every dimension separately.`
 
+// A look that returned nothing has checked nothing: every figure it was given counts as not
+// fit, with the reason, so it is redrawn or reported rather than accepted unseen.
+function lookedOrUnchecked(result, slugs) {
+  if (result && Array.isArray(result.checks)) return result
+  log('[look] the figure critic returned nothing: the figures are counted as unchecked')
+  return { checks: slugs.map((slug) => ({ slug, labels_seen: [], ok: false, defects: ['not checked: the figure critic returned nothing'] })) }
+}
+
 phase('Look')
 let looked = await agent(lookTask(drawn.done.map((d) => d.slug)), {
   agentType: 'figure-critic',
@@ -612,6 +632,7 @@ let looked = await agent(lookTask(drawn.done.map((d) => d.slug)), {
   phase: 'Look',
   schema: LOOKED,
 })
+looked = lookedOrUnchecked(looked, drawn.done.map((d) => d.slug))
 for (const c of looked.checks) {
   log(`[look/${c.slug}] ok=${c.ok}${c.defects.length ? ' | ' + c.defects.join('; ') : ''}`)
 }
@@ -655,10 +676,11 @@ while (redraws < MAX_REDRAWS && looked.checks.some((c) => !c.ok)) {
       schema: DRAWN,
     },
   )
-  for (const d of again.done) {
+  if (!again || !Array.isArray(again.done)) log(`[redraw/${redraws}] the illustrator returned nothing`)
+  for (const d of (again && again.done) || []) {
     log(`[redraw/${redraws}/${d.slug}] critic=${d.critic_provider} iterations=${d.iterations}`)
   }
-  for (const f of again.failed) log(`[redraw/${redraws}/failed] ${f.slug}: ${f.reason}`)
+  for (const f of (again && again.failed) || []) log(`[redraw/${redraws}/failed] ${f.slug}: ${f.reason}`)
 
   looked = await agent(lookTask(bad.map((c) => c.slug)), {
     agentType: 'figure-critic',
@@ -667,6 +689,7 @@ while (redraws < MAX_REDRAWS && looked.checks.some((c) => !c.ok)) {
     phase: 'Redraw',
     schema: LOOKED,
   })
+  looked = lookedOrUnchecked(looked, bad.map((c) => c.slug))
   for (const c of looked.checks) {
     log(`[look/${redraws + 1}/${c.slug}] ok=${c.ok}${c.defects.length ? ' | ' + c.defects.join('; ') : ''}`)
   }
@@ -681,17 +704,18 @@ const gate = await agent(
     `Return the parsed report in the report field and the raw output in stdout. Correct nothing.`,
   { agentType: 'gate-runner', model: 'haiku', label: 'gate', phase: 'Gate', schema: GATE },
 )
+const gateReport = (gate && gate.report) || { ok: false, problems: ['the delivery gate did not report'], measures: {} }
 log(
-  `[gate] ok=${gate.report.ok} problems=${gate.report.problems.length} ` +
-    `measures=${JSON.stringify(gate.report.measures)}`,
+  `[gate] ok=${gateReport.ok} problems=${gateReport.problems.length} ` +
+    `measures=${JSON.stringify(gateReport.measures)}`,
 )
-for (const p of gate.report.problems) log(`[gate/problem] ${p}`)
+for (const p of gateReport.problems) log(`[gate/problem] ${p}`)
 
 // A floor is not enough for a delivery directory. The vision check cropped fragments to look
 // at them closely and left four crop_*.png next to the figures; `--min-entries 4` counted
 // eight and said ok, so the debris would have shipped with the article.
 const expectedEntries = plan.figures.length + 1
-const actualEntries = gate.report.measures.entries
+const actualEntries = gateReport.measures.entries
 if (typeof actualEntries === 'number' && actualEntries !== expectedEntries) {
   log(
     `[gate] EXTRA FILES IN THE DELIVERY: ${actualEntries} files, expected ${expectedEntries} ` +
@@ -708,7 +732,7 @@ if (stillBad.length) {
 
 log(
   `[summary] planned=${plan.figures.length} drawn=${drawn.done.length} ` +
-    `redraws=${redraws} not_good_enough=${stillBad.length} gate_ok=${gate.report.ok}`,
+    `redraws=${redraws} not_good_enough=${stillBad.length} gate_ok=${gateReport.ok}`,
 )
 
 return {
@@ -721,6 +745,6 @@ return {
   redraws,
   not_good_enough: stillBad.map((c) => ({ slug: c.slug, defects: c.defects })),
   gateway_ok: drawn.gateway_ok,
-  gate_ok: gate.report.ok,
-  gate_measures: gate.report.measures,
+  gate_ok: gateReport.ok,
+  gate_measures: gateReport.measures,
 }

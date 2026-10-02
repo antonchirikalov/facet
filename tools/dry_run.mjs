@@ -199,6 +199,10 @@ const stubs = {
     if (prompt.includes('undefined')) {
       throw new Error(`prompt for "${opts.label}" contains the literal "undefined"`)
     }
+    // DRY_NULL="look,gate" makes the calls whose label starts with any of these return null, as
+    // agent() does when a subagent dies after its retries; "*" makes every call return null.
+    const dead = (process.env.DRY_NULL || '').split(',').filter(Boolean)
+    if (dead.some((d) => d === '*' || (opts.label ?? '').startsWith(d))) return null
     return fill(opts.schema, prompt)
   },
   parallel: async (thunks) => Promise.all(thunks.map((t) => t())),
