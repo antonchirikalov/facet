@@ -1,6 +1,5 @@
 name: source_finder
 version: 1
-summary: "Ищет и сохраняет источники по аспекту брифа: каждый источник отдельным файлом, со сводкой по аспекту и указателем, откуда что взято."
 description: >
   Finds and captures source material for a research brief: searches the web,
   reads what it finds, and saves each worthwhile source as its own file. The

@@ -1,6 +1,5 @@
 name: rule_checker
 version: 1
-summary: "Проверяет документ по одному правилу чек-листа профиля, в чистом контексте: ищет каждое нарушение именно этого правила, с местом и цитатой. Один проверяющий на правило, а не один критик на пятнадцать пунктов."
 description: >
   Checks a document against one rule of its profile's critic checklist, in a
   clean context: finds every violation of that rule and only that rule, with

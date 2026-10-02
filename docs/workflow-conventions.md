@@ -128,8 +128,8 @@ Breaking any of them — the run does not start, or fails for the wrong reason:
   decision, not a side effect.
 
   Logs, error messages, `handoff.md`, comments and docs are English too: the one Russian
-  document is README.md (plus the `summary` field of each `agent.yaml`, which feeds its agent
-  table). Held by `tests/test_language.py`;
+  document is README.md; the Russian description of each agent is written in its agent table
+  by hand, and the generator keeps it. Held by `tests/test_language.py`;
 - **the output language comes from the material, not from the prompt.** The requirements writer
   writes in the language of the sources: a document read by the people whose words it brings
   together cannot be checked against them in another language. So an English run means English

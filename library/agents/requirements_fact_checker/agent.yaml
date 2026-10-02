@@ -1,6 +1,5 @@
 name: requirements_fact_checker
 version: 1
-summary: "Исправляет черновик требований по извлечениям до критика: числа, атрибуцию, ссылки на источники."
 description: >
   Corrects a requirements draft against the source extracts and returns the
   corrected document. A middle element of a refine loop's body chain (SPEC §10.3):

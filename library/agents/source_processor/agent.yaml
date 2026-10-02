@@ -1,6 +1,5 @@
 name: source_processor
 version: 1
-summary: "Разбирает один входной документ (стенограмма, RFP, PDF, заметки, таблица) в извлечение: факты, требования, вопросы, у каждой строки источник."
 description: >
   Processes one source document (transcript, RFP, PDF, notes, spreadsheet) into
   a structured extract@v1. The per-item worker of the Extract pipeline: the

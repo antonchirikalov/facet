@@ -1,6 +1,5 @@
 name: requirements_writer
 version: 1
-summary: "Пишет единый документ требований из извлечений всех источников; вес каждого требования берёт из сводки «Голос клиента»."
 description: >
   Synthesizes a single requirements document from the collection of per-source
   extracts. The body agent of the Extract pipeline's refine loop: it drafts the

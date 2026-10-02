@@ -1,6 +1,5 @@
 name: brief_writer
 version: 1
-summary: "Превращает свободный текст заказа в бриф: тема, читатель, язык, объём, что обязательно и что исключено; разбивает тему на аспекты для поиска."
 description: >
   Turns the free text of an order into the brief every downstream agent consumes: the
   subject, the reader, the language, the length, what must be covered and what must stay

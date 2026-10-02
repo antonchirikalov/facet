@@ -1,6 +1,5 @@
 name: arch_probe
 version: 1
-summary: "Ищет в требованиях архитектурные пробелы, противоречия и невысказанные компромиссы и превращает их в вопросы к заказчику со ссылками на пункты требований."
 description: >
   An enterprise architect that mines a requirements document for architectural
   gaps, contradictions, and unstated trade-offs, then produces workshop-ready

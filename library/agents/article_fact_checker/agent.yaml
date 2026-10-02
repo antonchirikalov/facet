@@ -1,6 +1,5 @@
 name: article_fact_checker
 version: 1
-summary: "Сверяет утверждения статьи с источниками и исправляет на месте: имена, годы, наборы данных, конфигурации, преувеличения."
 description: >
   Corrects an article's sourced claims against the notes it was written from and returns the
   same article. Not a reviewer: it fixes names, years, corpora, model configurations, quoted

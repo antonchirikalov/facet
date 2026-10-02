@@ -1,6 +1,5 @@
 name: example_verifier
 version: 1
-summary: "Пересчитывает сквозной пример статьи кодом и исправляет числа на месте; безнадёжный пример заменяет рабочим."
 description: >
   Recomputes the worked example of an explanatory article and corrects its numbers in
   place. The middle element of the writing loop: in an explainer the fragile part is

@@ -1,6 +1,5 @@
 name: domain_analyst
 version: 1
-summary: "Сводит заметки по источникам в анализ: что источники устанавливают вместе, где расходятся, хронологии и сравнения, которых нет ни в одной заметке."
 description: >
   Does the subject-matter work between reading and writing: takes the whole set of
   per-source study notes and produces the analysis the report is built on — what the

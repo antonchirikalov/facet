@@ -2,8 +2,7 @@
 
 The README is for the Russian-speaking reader of the project; everything else is read by agents
 or by developers, and one language keeps them from drifting apart. Russian is allowed only where
-it is data: the clichés and examples a critic matches in Russian text, the `summary` fields that
-feed the README agent table, string literals a tool or test needs (a Russian column name, a
+it is data: the clichés and examples a critic matches in Russian text, string literals a tool or test needs (a Russian column name, a
 Russian fixture), and one key in a script that maps a Russian language name.
 """
 
@@ -67,12 +66,6 @@ def test_only_readme_is_russian() -> None:
             continue
         for n, line in enumerate(text.splitlines(), 1):
             if not CYRILLIC.search(line):
-                continue
-            if (
-                rel.startswith("library/agents/")
-                and rel.endswith("agent.yaml")
-                and line.startswith("summary:")
-            ):
                 continue
             if rel.endswith((".js", ".mjs")) and line in SCRIPT_DATA_LINES:
                 continue

@@ -8,6 +8,7 @@ were two renames behind the script.
 
 from __future__ import annotations
 
+import re
 import shutil
 from pathlib import Path
 
@@ -41,7 +42,7 @@ def test_every_scenario_ran(runs: list[wiring.Run]) -> None:
 @needs_node
 def test_readme_registry_is_current(runs: list[wiring.Run]) -> None:
     readme = (ROOT / "README.md").read_bytes().decode("utf-8")
-    table = wiring.render_registry(wiring.registry(ROOT, runs))
+    table = wiring.render_registry(wiring.registry(ROOT, runs), wiring.descriptions_of(readme))
     assert wiring.splice(readme, table) == readme, "run: uv run python -m facet.wiring"
 
 
@@ -113,3 +114,22 @@ def test_undeclared_phase_is_named(tmp_path: Path) -> None:
         b"export const meta = {\n  phases: [{ title: 'A' }],\n}\nphase('A')\nphase('B')\n"
     )
     assert wiring.phase_problems(script) == ["[demo.js] phase 'B' is not declared in meta"]
+
+
+CYRILLIC = re.compile("[Ѐ-ӿ]")
+
+
+def test_every_agent_has_a_russian_description_in_the_readme() -> None:
+    """The README is the one Russian document; an agent's own files are English."""
+    readme = (ROOT / "README.md").read_bytes().decode("utf-8")
+    described = wiring.descriptions_of(readme)
+    for slug in wiring.load_specs(ROOT / "library" / "agents"):
+        assert CYRILLIC.search(described.get(slug, "")), (
+            f"{slug}: write its Russian description in README"
+        )
+
+
+def test_descriptions_survive_regeneration() -> None:
+    row = "| `gate-runner` | Ручное | a | b |"
+    readme = f"{wiring.BEGIN}\n| Agent | x |\n|---|---|\n{row}\n{wiring.END}"
+    assert wiring.descriptions_of(readme) == {"gate-runner": "Ручное"}

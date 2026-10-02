@@ -1,6 +1,5 @@
 name: coverage_mapper
 version: 1
-summary: "Карта покрытия пропозала: каждая просьба, опасение и вопрос заказчика с ролью, таймкодом и дословными словами, и раздел пропозала, который отвечает, или «вне рамок» с причиной."
 description: >
   Writes the coverage map of a client proposal: one row for every ask, worry,
   question and constraint the client raised in the call transcript and in their

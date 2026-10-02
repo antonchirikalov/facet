@@ -1,6 +1,5 @@
 name: confluence_publisher
 version: 1
-summary: "Публикует готовый документ в Confluence через tools/confluence_publish.py: создаёт или обновляет страницу, загружает рисунки, возвращает адрес и версию."
 description: >
   Publishes a finalized design document to Confluence by running the repository's
   publish tool: it converts the markdown to the platform's storage format, creates the

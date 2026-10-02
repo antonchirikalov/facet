@@ -1,6 +1,5 @@
 name: proposal_reviewer
 version: 1
-summary: "Независимо проверяет пропозал до автора: покрытие просьб заказчика, противоречия между разделами и рисунками, обещания без плана, утверждения без опоры, голос по профилю."
 description: >
   Reviews a client proposal before the author sees it and emits a verdict@v1:
   coverage of every client ask, contradictions between sections and between text

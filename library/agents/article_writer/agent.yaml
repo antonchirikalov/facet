@@ -1,6 +1,5 @@
 name: article_writer
 version: 1
-summary: "Пишет объясняющую статью из анализа источников, с примером, посчитанным вручную, и плейсхолдерами рисунков. В attn-figures планирует рисунки, если их нет в тексте."
 description: >
   Writes an explanatory technical article that teaches a mechanism: the reader does not
   know the subject yet and must be able to follow it end to end, including a worked

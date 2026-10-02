@@ -44,8 +44,8 @@ that agent's `agent.yaml`; a new collection is handed as `<singular>:<stem>` or 
 - **Everything is English except README.md**: prompts, task texts in scripts, schema
   `description`s, command arguments, profiles in `.claude/skills/`, this file, and also
   `log()` and error messages, `handoff.md` and round records, code comments, docstrings, tests,
-  SPEC and `docs/`. README.md is the one Russian document, together with the `summary` field of
-  each `agent.yaml` that feeds its agent table. Language material an agent must match in Russian
+  SPEC and `docs/`. README.md is the one Russian document; the Russian description of each agent
+  is written in its agent table by hand and kept when the table is regenerated. Language material an agent must match in Russian
   text (a dictionary of Russian clichés, Russian examples of a tell) lives in data files under
   `library/style/`, and Russian test fixtures stay where a test is about Russian text. Held by
   `test_generated_agent_prompts_are_english` and `test_only_readme_is_russian`.

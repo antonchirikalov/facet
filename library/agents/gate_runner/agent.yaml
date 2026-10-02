@@ -1,6 +1,5 @@
 name: gate_runner
 version: 1
-summary: "Руки скрипта для проверок. Скрипт конвейера не может сам запустить Python, поэтому команду гейта запускает этот агент и приносит отчёт без изменений. Ничего не исправляет, не создаёт и не оценивает: так скрипт решает по измерению, а не по словам агента."
 description: >
   Carries a deterministic check and brings its output back unchanged. Runs the exact
   commands it is given from the repository root and returns their parsed reports and their

@@ -1,6 +1,5 @@
 name: claim_checker
 version: 1
-summary: "Проверяет пачку утверждений документа по источникам, каждое в свежем контексте: открывает указанное место, сверяет число, цитату, авторство, вес. На каждое — держится или нет, и что именно не так. Только судит."
 description: >
   Checks a batch of a document's claims against the evidence, in a fresh context:
   opens the place each claim cites, compares the number, the quote, who said it

@@ -1,6 +1,5 @@
 name: client_editor
 version: 1
-summary: "Делает из внутренних версий требований и дизайна, где у каждой строки указан источник, версии для клиента: убирает источники, служебные метки и следы внутренней работы, сохраняет каждое требование с весом и цитатами клиента, перенумеровывает и ведёт карту номеров."
 description: >
   Writes the client edition of a traceable requirements document or solution
   design: drops source locators, tags and every trace of our internal materials

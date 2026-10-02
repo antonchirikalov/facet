@@ -1,6 +1,5 @@
 name: figure_critic
 version: 1
-summary: "Смотрит отрисованные рисунки глазами читателя: выписывает каждую подпись, сверяет блоки и стрелки со списками брифа, числа с текстом, орфографию и язык. Только судит."
 description: >
   Looks at rendered figures the way a reader of the document would and reports,
   per figure, every label it sees and every defect: wrong or reversed connections

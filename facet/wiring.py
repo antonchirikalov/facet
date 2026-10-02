@@ -318,13 +318,33 @@ def used_by(entry: AgentEntry) -> str:
     return "<br>".join(lines) or "пока ни один скрипт — деталь для следующего конвейера"
 
 
-def render_registry(entries: Iterable[AgentEntry]) -> str:
+def descriptions_of(readme: str) -> dict[str, str]:
+    """The "what it does" cell of every agent row already in the README table, by slug.
+
+    The README is the one Russian document; an agent's own files are English. So the Russian
+    description is written in the table by hand and kept on every regeneration, while the
+    columns that come from the contract are rebuilt.
+    """
+    start, end = readme.find(BEGIN), readme.find(END)
+    if start < 0 or end < start:
+        return {}
+    found: dict[str, str] = {}
+    for line in readme[start:end].splitlines():
+        m = re.match(r"^\| `([a-z0-9-]+)` \| (.*?) \| ", line)
+        if m:
+            found[m.group(1)] = m.group(2)
+    return found
+
+
+def render_registry(
+    entries: Iterable[AgentEntry], descriptions: dict[str, str] | None = None
+) -> str:
     rows = [
         "| Агент | Что делает | Берёт | Отдаёт | Профиль | Кто вызывает (скрипт: шаги) |",
         "|---|---|---|---|---|---|",
     ]
     for e in entries:
-        what = e.spec.summary or first_sentence(e.spec.description)
+        what = (descriptions or {}).get(e.slug) or first_sentence(e.spec.description)
         profile = ", ".join(f"`{s}`" for s in e.spec.skills) or "—"
         rows.append(
             f"| `{e.slug}` | {what} | {ports_of(e.spec.consumes)} | {ports_of(e.spec.produces)} | "
@@ -347,7 +367,7 @@ def main() -> int:
     problems = check(root, runs)
     readme = root / "README.md"
     text = readme.read_bytes().decode("utf-8")
-    new = splice(text, render_registry(registry(root, runs)))
+    new = splice(text, render_registry(registry(root, runs), descriptions_of(text)))
     if new != text:
         readme.write_bytes(new.encode("utf-8"))
         print("README: agent registry updated")

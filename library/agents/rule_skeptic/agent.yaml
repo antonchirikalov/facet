@@ -1,6 +1,5 @@
 name: rule_skeptic
 version: 1
-summary: "Скептик над проверяющими по правилам: перепроверяет каждое их замечание по документу и источникам, отбрасывает ложные срабатывания и повторы и выносит один вердикт с замечаниями, которые выдержали проверку."
 description: >
   The skeptic over the rule checkers: re-checks each of their flags against the
   document and the evidence, drops false positives and duplicates, and returns

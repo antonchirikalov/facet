@@ -1,6 +1,5 @@
 name: proposal_editor
 version: 1
-summary: "Правит пропозал на месте по нумерованным замечаниям проверяющего и гейта, пакетами, и отвечает на каждое «исправлено» или «отклонено» с причиной."
 description: >
   Answers a proposal reviewer's numbered remarks and the gate's problems by
   editing the proposal in place, in batches, and records every remark as fixed

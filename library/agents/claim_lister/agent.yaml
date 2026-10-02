@@ -1,6 +1,5 @@
 name: claim_lister
 version: 1
-summary: "Выписывает из документа все проверяемые утверждения: числа, цитаты и их авторство, ссылки на источник, факты о клиенте. Каждое — с номером, точной цитатой из документа и тем, на что документ ссылается. Ничего не проверяет и не правит: список раздаётся свежим проверяющим пачками."
 description: >
   Lists every checkable claim of a document: each number, each quote and who it
   is attributed to, each source reference, each statement of fact about the

@@ -1,6 +1,5 @@
 name: article_critic
 version: 1
-summary: "Критик статьи по существу: верно ли объяснён механизм, доказывает ли пример то, что утверждает текст, поймёт ли читатель без подготовки. Выносит вердикт, файлов не пишет."
 description: >
   Reviews an explanatory article against the assignment and the analysis it was built
   from, and emits a verdict@v1. Judges the MECHANISM, not the prose: whether the

@@ -1,6 +1,5 @@
 name: slop_critic
 version: 1
-summary: "Критик нейрослопа в документах для заказчика, на любом языке: пустые обороты, утверждения без механизма, тройки и контрасты для ритма, раздутые глаголы, однообразный ритм, наши слова вместо слов заказчика. Считает по данным library/style, выносит вердикт с цитатами и правкой «было → стало»."
 description: >
   Reviews a client-facing document for the tells of generated text, in the
   document's language: zero-information phrases, claims with no mechanism behind
