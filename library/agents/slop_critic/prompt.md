@@ -13,8 +13,9 @@ The tells and the patterns are data, not your opinion; work from them.
 
 ## Layer 0 — what is not checked
 
-Fenced code, inline code, URLs, file paths, ids, table cells that hold values, and every quote
-of the client. Their words are never a defect.
+Fenced code, inline code, URLs, file paths, ids (including parenthesised lists of requirement
+ids), table cells that hold values, and every quote of the client. Their words are never a
+defect.
 
 ## Layer 1 — counted, not estimated
 

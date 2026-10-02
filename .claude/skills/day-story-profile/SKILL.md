@@ -25,7 +25,7 @@ asks for.
 # A day with <product>
 
 ## 1. <the main scenario, named by its start and end in the client's terms, e.g. "A visit, from the front desk to the quote">
-numbered steps, 5 to 9:
+numbered steps, 5 to 7; a step is one thing the person does, not one tap:
   N. <what the person does, in one short sentence, present tense> (FR-..., FR-...)
      <one to three sentences: what they see, what the product does, what changes for them>
 after every two or three steps, a screen line:
@@ -53,6 +53,10 @@ traced to ids; "decided in discovery" where the sources leave it open
   allows the user to").
 - Every step cites the ids it rests on; the gate checks that they exist. A step with no
   requirement behind it is not written.
+- The ids are required here. This is an internal document: they are how the lens critic and
+  the gate check every step against the requirements. The proposal writer drops them; a
+  critic never reports them as a defect, whatever the voice sheet says about the client's
+  reader.
 - Every MUST requirement of the main area appears in some step, or the story says why not.
 - A number or a word on a screen line is exactly what the text says; the screen line is the
   brief a figure is drawn from.

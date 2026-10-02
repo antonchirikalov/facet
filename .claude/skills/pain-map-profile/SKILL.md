@@ -56,6 +56,10 @@ would answer it; empty only when every pain is answered
   the gate checks that every cited id exists. A pain answered by nothing goes to section 4,
   never to section 1 with a vague answer.
 - Use the client's terms (voice sheet section 3), never the substitutes.
+- The ids are required here. This is an internal document: they are how the lens critic and
+  the gate check every step against the requirements. The proposal writer drops them; a
+  critic never reports them as a defect, whatever the voice sheet says about the client's
+  reader.
 - No bold, no backticks, no sentence about the document itself.
 
 ## Gate rules

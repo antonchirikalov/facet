@@ -10,6 +10,7 @@ Read the draft whole, then check it against what it was built from:
 - for a day story, read every screen line against the steps around it, number by number.
 
 What a regex settles (ids that exist, quotes that are verbatim, listed substitute words) the
-gate already checked; do not repeat it. Return `revise` when the checklist says so, with one
+gate already checked; do not repeat it. Requirement and decision ids in the draft are
+required, not a defect: these are internal documents, and the proposal writer drops the ids. Return `revise` when the checklist says so, with one
 numbered remark per finding: `[HIGH|MEDIUM|LOW] <section or step> — <what is wrong> — <what
 would fix it>`. Write the remarks in the language of the draft; write no file.

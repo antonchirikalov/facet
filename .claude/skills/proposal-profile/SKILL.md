@@ -34,7 +34,8 @@ is absent from the sources, never to shorten.
 1. Overview: the client's situation in their terms, what one use of the product gives each
    party, the product as the client's own, the proposed start, and the preliminary note.
 2. What was said: a table, the client's verbatim words on the left, what the product does about
-   them on the right.
+   them on the right; one row per pain and worry of the pain map, eight to ten rows, no detail
+   of how a feature works.
 3. A day with the product: the main scenario step by step with its screens, the secondary
    scenarios, every role in one table, how the product reaches its users (distribution,
    onboarding, training).

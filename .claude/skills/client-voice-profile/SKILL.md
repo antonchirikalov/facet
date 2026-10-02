@@ -62,6 +62,10 @@ table: # | In their words | Who, where | What it commits us to | Weight
 
 ## 3. Their vocabulary
 table: Their term | What they mean by it | Do not replace with
+the right column lists only words a draft would use for the same thing ("appointment" for
+their "visit"); never a word that is a legitimate name of something else in their trade, and
+never a generic word ("area", "case", "solution") that a sentence may need for its own
+meaning: a gate flags every listed word, and a false alarm costs a round
 the words they use for their people, their work, their documents and their money; the right
 column holds the words our drafts tend to substitute
 
