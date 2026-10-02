@@ -241,6 +241,32 @@ def rows_without_source(text: str) -> list[str]:
     return empty
 
 
+def sourced_rows(text: str) -> int:
+    """Body rows with a filled Source cell, across every table that has a Source column.
+
+    A section with nothing to report is legitimately a table with only its header, so "no empty
+    section" cannot tell a real extract from a skeleton of six empty tables. This counts what the
+    skeleton lacks: rows that cite their source.
+    """
+    count = 0
+    source_index: int | None = None
+    in_table = False
+    for line in text.splitlines():
+        if not TABLE_LINE.match(line):
+            in_table, source_index = False, None
+            continue
+        cells = split_row(line)
+        if not in_table:
+            in_table = True
+            source_index = next((i for i, c in enumerate(cells) if SOURCE_HEADER.match(c)), None)
+            continue
+        if TABLE_RULE.match(line) and all(TABLE_RULE.match(c) or not c for c in cells):
+            continue
+        if source_index is not None and source_index < len(cells) and cells[source_index]:
+            count += 1
+    return count
+
+
 def cell_forbidden(text: str, pattern_files: list[Path]) -> tuple[list[tuple[str, str]], list[str]]:
     """(row id, matched phrase) for every weak-word hit inside a statement cell.
 
@@ -512,6 +538,12 @@ def main() -> int:
         help="in every table with a Source/Источник column, every body row fills it",
     )
     p.add_argument(
+        "--min-sourced-rows",
+        type=int,
+        metavar="N",
+        help="floor on table rows that cite a source, across all tables with a Source column",
+    )
+    p.add_argument(
         "--unique-ids",
         metavar="REGEX",
         help="ids matching this pattern at the start of a table row must be unique",
@@ -614,6 +646,14 @@ def main() -> int:
                 if unsourced:
                     problems.append(
                         f"rows without a source ({len(unsourced)}): " + ", ".join(unsourced[:12])
+                    )
+
+            if args.min_sourced_rows is not None:
+                rows = sourced_rows(text)
+                measures["sourced_rows"] = rows
+                if rows < args.min_sourced_rows:
+                    problems.append(
+                        f"sourced rows {rows} < {args.min_sourced_rows}: the tables are empty"
                     )
 
             if args.unique_ids:

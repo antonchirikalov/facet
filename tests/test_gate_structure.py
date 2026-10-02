@@ -288,3 +288,33 @@ def test_section_refs_via_cli(
     doc = write(tmp_path, "## 1. One\n\nSee section 9.\n")
     report, _ = run(capsys, monkeypatch, "--file", str(doc), "--section-refs")
     assert report["measures"]["unresolved_section_refs"] == ["section 9"]
+
+
+# --- sourced rows -------------------------------------------------------------------------
+
+
+SKELETON = (
+    "# Extract: x\n\n## Requirements\n| ID | Statement | Type | Source |\n| --- | --- | --- | --- |\n\n"
+    "## Facts\n| Topic | Fact | Source |\n| --- | --- | --- |\n"
+)
+
+
+def test_a_skeleton_of_empty_tables_has_no_sourced_rows() -> None:
+    """Header-only tables are a legitimate "nothing found" per section, never for a whole extract."""
+    assert gate.sourced_rows(SKELETON) == 0
+
+
+def test_sourced_rows_count_filled_source_cells_only() -> None:
+    text = (
+        SKELETON + "| F-1 | Two clinics | call: 01:20 - \u201ctwo\u201d |\n| F-2 | Unsourced |  |\n"
+    )
+    assert gate.sourced_rows(text) == 1
+
+
+def test_min_sourced_rows_via_cli(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    doc = write(tmp_path, SKELETON)
+    report, _ = run(capsys, monkeypatch, "--file", str(doc), "--min-sourced-rows", "1")
+    assert report["measures"]["sourced_rows"] == 0
+    assert any("the tables are empty" in p for p in report["problems"])

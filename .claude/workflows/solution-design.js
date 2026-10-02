@@ -120,6 +120,16 @@ if (!RUN_REQUIREMENTS && !RUN_DESIGN && !RUN_DISCOVERY && !RUN_CLIENT) {
 const MAX_ROUNDS = cfg.maxRounds || 3
 const PLATEAU_ROUNDS = cfg.plateauRounds || 2
 const MIN_ARTIFACT_CHARS = cfg.minArtifactChars || 200
+// The shape of an extract, from the source-processor prompt: six tables, each row sourced. A table
+// with only its header is a legitimate "nothing found", so the floor is on sourced rows across
+// the whole extract, not on length: a skeleton of six empty tables passed a 200-character floor.
+const EXTRACT_SHAPE = cfg.extractShape || [
+  ...['Requirements', 'Decisions', 'Constraints', 'Roles', 'Facts', 'Open questions'].map(
+    (h) => `--require-heading "^##\\s+${h}\\b"`,
+  ),
+  '--rows-have-source',
+  '--min-sourced-rows 1',
+].join(' ')
 // The contest. Two models rather than two temperatures: the point is a different reading of the
 // same requirements, and the selector then has something to choose between. One model here is a
 // legal answer and turns the contest off.
@@ -1716,7 +1726,7 @@ if (RUN_REQUIREMENTS) {
     const i = extractPaths.indexOf(extractPath)
     // Extracts are written by the one agent that reads the client's raw material; injected
     // instructions carried into an extract would reach every agent downstream.
-    return `--rows-have-source --language-of ${sources[i]} --forbid-file library/style/forbid/injection.txt`
+    return `${EXTRACT_SHAPE} --language-of ${sources[i]} --forbid-file library/style/forbid/injection.txt`
   }
 
   // What is already extracted is not extracted again. The disk is the checkpoint here as
