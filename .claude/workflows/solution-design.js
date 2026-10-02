@@ -1748,11 +1748,14 @@ if (RUN_REQUIREMENTS) {
     // A file cannot repeat itself; a duplicate names another file of the inventory.
     if (!f.duplicate_of || f.duplicate_of === f.path || !listedPaths.has(f.duplicate_of)) return true
     log(`[extract/inventory] duplicate, not read twice: ${f.path} = ${f.duplicate_of}`)
+    // Accounted for: the audit counts a file the inventory chose not to read as read, not as lost.
+    touched.add(`${INPUTS_DIR}/${f.path}`)
     return false
   })
   for (const f of unique.filter((f) => AUDIO_VIDEO.test(f.path))) {
     log(`[extract/inventory] audio or video cannot be read: ${f.path} — put its transcript next to it`)
     warnings.push(`not read: ${f.path} is audio or video; a transcript next to it would be read`)
+    touched.add(`${INPUTS_DIR}/${f.path}`)
   }
   // A Word file that already has its markdown twin is read through the twin.
   let docs = unique
@@ -1807,7 +1810,10 @@ if (RUN_REQUIREMENTS) {
     if (!held || rankOf(rel) < rankOf(held)) chosen.set(key, rel)
   }
   for (const rel of docs) {
-    if (chosen.get(baseOf(rel)) !== rel) log(`[extract/inventory] another format of ${chosen.get(baseOf(rel))}, not read twice: ${rel}`)
+    if (chosen.get(baseOf(rel)) !== rel) {
+      log(`[extract/inventory] another format of ${chosen.get(baseOf(rel))}, not read twice: ${rel}`)
+      touched.add(`${INPUTS_DIR}/${rel}`)
+    }
   }
   docs = docs.filter((rel) => chosen.get(baseOf(rel)) === rel)
 
@@ -1829,6 +1835,8 @@ if (RUN_REQUIREMENTS) {
     if (companion) {
       const folder = dir ? `${INPUTS_DIR}/${dir}` : INPUTS_DIR
       imageDirsOf.set(companion, [...(imageDirsOf.get(companion) || []), folder])
+      // The extractor reads the folder, so its images are read through it.
+      for (const rel of images.filter((r) => dirOf(r) === dir)) touched.add(`${INPUTS_DIR}/${rel}`)
       log(`[extract/images] ${dir || '(top level)'} goes with ${companion}`)
     } else {
       for (const rel of images.filter((r) => dirOf(r) === dir)) docs.push(rel)
