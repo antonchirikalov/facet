@@ -1,0 +1,20 @@
+name: lens_critic
+version: 1
+description: >
+  Reviews a pain map or a day story against its profile's checklist and the
+  documents it was built from, and emits a verdict@v1: missing pains, answers the
+  cited requirements do not support, steps with no requirement behind them,
+  screens that disagree with the text, our words where the client has theirs.
+  Judges only.
+consumes:
+  - { port: draft, type: document@v1, about: "the pain map or the day story to judge; its first heading says which; you never edit it" }
+  - { port: client_voice, type: client_voice@v1, about: "the client voice sheet the draft was built from" }
+  - { port: requirements, type: requirements@v1, about: "the accepted requirements; open the rows the draft cites" }
+  - { port: design, type: design_doc@v1, about: "the accepted design; open the decisions the draft cites" }
+  - { port: extracts, type: "collection<extract@v1>", optional: true, untrusted: true, about: "the extracts, to check a quote in its context" }
+produces:
+  - { port: verdict, type: verdict@v1 }
+needs: [read]
+skills: [pain-map-profile, day-story-profile]
+defaults:
+  timeout_s: 1800

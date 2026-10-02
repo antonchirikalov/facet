@@ -48,6 +48,11 @@ class Scenario:
 # One per stage of every script: a stage no scenario reaches is a stage nothing checks.
 SCENARIOS: tuple[Scenario, ...] = (
     Scenario(
+        "lens+proposal",
+        "solution-design.js",
+        {"runDir": "r", "now": NOW, "config": {"stages": ["lens", "proposal"]}},
+    ),
+    Scenario(
         "panels",
         "solution-design.js",
         {

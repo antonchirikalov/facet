@@ -33,6 +33,8 @@ export const meta = {
     { title: 'Design', detail: 'the winner is refined against a critic, in rounds' },
     { title: 'Discovery', detail: 'what the design could not answer becomes questions' },
     { title: 'Client', detail: 'the editions the client reads, with the id map, gated' },
+    { title: 'Lens', detail: 'the client lens: pain map and day story, in rounds' },
+    { title: 'Proposal', detail: 'the proposal from the lens and the accepted documents, gated' },
     { title: 'Gate', detail: 'records, unresolved items, audit of the run directory' },
   ],
 }
@@ -83,6 +85,9 @@ const REQ_CLIENT_PATH = `${run}/requirements.client.md`
 const DESIGN_CLIENT_PATH = `${run}/design.client.md`
 const ID_MAP_PATH = `${run}/client-id-map.json`
 const VOICE_PATH = `${run}/client-voice.md`
+const PAIN_PATH = `${run}/pain-map.md`
+const STORY_PATH = `${run}/day-story.md`
+const PROP_PATH = `${run}/prop.md`
 const CANDIDATES_DIR = `${run}/design-candidates`
 const candidatePathOf = (n) => `${CANDIDATES_DIR}/candidate-${n}.md`
 const extractPathOf = (stem) => `${EXTRACTS_DIR}/${stem}.md`
@@ -112,9 +117,19 @@ if (RUN_CLIENT && STAGES.length > 1) {
       `received: ${STAGES.join(', ')}`,
   )
 }
-if (!RUN_REQUIREMENTS && !RUN_DESIGN && !RUN_DISCOVERY && !RUN_CLIENT) {
+// The client lens (pain map and day story) and the proposal are written from accepted
+// requirements and design, so they run on their own: "lens", "proposal", or both in order.
+const RUN_LENS = STAGES.includes('lens')
+const RUN_PROPOSAL = STAGES.includes('proposal')
+if ((RUN_LENS || RUN_PROPOSAL) && STAGES.some((st) => st !== 'lens' && st !== 'proposal')) {
   throw new Error(
-    `config.stages must name "requirements", "design", "discovery", "client" or a combination; got: ${STAGES.join(', ')}`,
+    `config.stages "lens" and "proposal" run on their own, after requirements and design have been accepted; ` +
+      `received: ${STAGES.join(', ')}`,
+  )
+}
+if (!RUN_REQUIREMENTS && !RUN_DESIGN && !RUN_DISCOVERY && !RUN_CLIENT && !RUN_LENS && !RUN_PROPOSAL) {
+  throw new Error(
+    `config.stages must name "requirements", "design", "discovery", "client", "lens", "proposal" or a combination; got: ${STAGES.join(', ')}`,
   )
 }
 const MAX_ROUNDS = cfg.maxRounds || 3
@@ -146,6 +161,9 @@ const MODELS = {
   discovery: 'opus',
   client: 'opus',
   voice: 'opus',
+  lens: 'opus',
+  lensCritic: 'opus',
+  proposal: 'opus',
   slop: 'sonnet',
   claims: 'sonnet',
   rules: 'sonnet',
@@ -218,6 +236,8 @@ const CLIENT_GATE_FLAGS = cfg.clientGateFlags || [
 ]
 const CLIENT_ID_FLAGS = [`--unique-ids "${CLIENT_ID_PATTERN}"`, `--sequential-ids "${CLIENT_ID_PATTERN}"`]
 const QUOTES_TOOL = cfg.quotesTool || 'python -X utf8 tools/check_quotes.py'
+const TRACE_TOOL = cfg.traceTool || 'python -X utf8 tools/trace_ids.py'
+const VOCAB_TOOL = cfg.vocabTool || 'python -X utf8 tools/vocab.py'
 // The client-voice profile's gate rules (.claude/skills/client-voice-profile/SKILL.md).
 const VOICE_GATE_FLAGS = cfg.voiceGateFlags || [
   ...[1, 2, 3, 4, 5, 6].map((n) => `--require-heading "^##\\s+${n}\\."`),
@@ -273,6 +293,11 @@ const STAGE_OWNED = [
   { prefix: REQ_CLIENT_PATH, mine: RUN_CLIENT },
   { prefix: DESIGN_CLIENT_PATH, mine: RUN_CLIENT },
   { prefix: ID_MAP_PATH, mine: RUN_CLIENT },
+  { prefix: PAIN_PATH, mine: RUN_LENS },
+  { prefix: STORY_PATH, mine: RUN_LENS },
+  { prefix: `${run}/rounds/pain/`, mine: RUN_LENS },
+  { prefix: `${run}/rounds/story/`, mine: RUN_LENS },
+  { prefix: PROP_PATH, mine: RUN_PROPOSAL },
 ]
 
 const GATE_TOOL = cfg.gateTool || 'python -X utf8 tools/gate.py'
@@ -836,7 +861,7 @@ async function auditRun() {
 const present = new Set()
 {
   phase('Resume')
-  const resumePaths = [REQ_PATH, DESIGN_PATH, VOICE_PATH]
+  const resumePaths = [REQ_PATH, DESIGN_PATH, VOICE_PATH, PAIN_PATH, STORY_PATH, DISCOVERY_PATH]
   // One carrier call for both questions, matched by index: the occupancy check first (when the
   // time is known), then one existence check per path.
   const busyCommand = now
@@ -906,6 +931,8 @@ const present = new Set()
     if (RUN_REQUIREMENTS) present.delete(REQ_PATH)
     if (RUN_REQUIREMENTS) present.delete(VOICE_PATH)
     if (RUN_DESIGN) present.delete(DESIGN_PATH)
+    if (RUN_LENS) present.delete(PAIN_PATH)
+    if (RUN_LENS) present.delete(STORY_PATH)
   }
 }
 
@@ -1139,6 +1166,9 @@ async function reviseLoop({
   correctors = [],
   critics,
   maxRounds = MAX_ROUNDS,
+  // Commands run beside gate.py in the same round (quotes, ids, vocabulary): their problems join
+  // the gate's, so the writer gets them in the same numbered list.
+  extraChecks = [],
 }) {
   const roundsDir = roundsDirOf(loop)
 
@@ -1511,6 +1541,18 @@ async function reviseLoop({
     previousMeasured = measured
     measured = (gateReport.measures && gateReport.measures.prose_chars) || 0
     gateProblems = gateReport.problems || []
+    if (extraChecks.length) {
+      const more = await call(commands(extraChecks), {
+        agentType: 'gate-runner',
+        model: MODELS.gate,
+        label: `${loop}:checks:${round}`,
+        phase: phaseName,
+        schema: EXISTENCE,
+      })
+      const got = (more && more.checks) || []
+      if (got.length !== extraChecks.length) gateProblems = [...gateProblems, 'the extra checks did not all report']
+      gateProblems = [...gateProblems, ...got.flatMap((c) => c.problems || [])]
+    }
     const grew = previousMeasured ? measured - previousMeasured : 0
     log(
       `[${loop}/${round}/gate] ok=${gateReport.ok} prose characters=${measured}` +
@@ -2181,6 +2223,197 @@ if (RUN_CLIENT) {
     files_read_by_agents: touched.size,
     orphans: cOrphans,
     other_stage: cForeign,
+    warnings,
+  }
+}
+
+// --- Client lens and proposal: the documents that speak to the client ----------------------
+//
+// One proposal read as being about the client's business because of its order, not its
+// technology: their own words first, then a day of the person who will use the product, then the
+// one mechanism their trust depended on, and only then how it is built. That was done by hand
+// over sixteen revisions. The lens stage writes the two documents it rested on (a pain map: does
+// the solution remove what hurts; a day story: the product through the main user's eyes), and the
+// proposal stage writes the proposal from them. proposal-review.js then reviews it in rounds.
+if (RUN_LENS || RUN_PROPOSAL) {
+  phase('Lens')
+  const needed = [REQ_PATH, DESIGN_PATH].filter((pth) => !present.has(pth))
+  if (needed.length) {
+    throw new Error(
+      `the lens and proposal stages need accepted ${needed.join(' and ')}, and they are missing. First ` +
+        `config.stages=["requirements","design"] in this same directory, read the result, then lens.`,
+    )
+  }
+  touched.add(REQ_PATH)
+  touched.add(DESIGN_PATH)
+  const docs = [
+    { port: 'requirements', path: REQ_PATH },
+    { port: 'design', path: DESIGN_PATH },
+  ]
+  const extractsIn = [{ port: 'extracts', path: EXTRACTS_DIR }]
+
+  // The voice sheet comes from the requirements stage; a run that predates it writes it here,
+  // from the input folder and the extracts on disk.
+  if (!present.has(VOICE_PATH)) {
+    const voiced = await call(
+      task({
+        inputs: [{ port: 'sources', path: INPUTS_DIR }, ...extractsIn],
+        output: VOICE_PATH,
+        brief: ORDER_BLOCK,
+      }),
+      { agentType: 'client-voice', model: MODELS.voice, label: 'lens:voice', phase: 'Lens', schema: WROTE },
+    )
+    const vgate = await call(
+      commands([
+        gateCommand(VOICE_PATH, null, 'client voice gate', VOICE_GATE_FLAGS),
+        `${QUOTES_TOOL} --file "${VOICE_PATH}" --source "${EXTRACTS_DIR}" --source "${INPUTS_DIR}" ${noted('client voice quotes')}`,
+      ]),
+      { agentType: 'gate-runner', model: MODELS.gate, label: 'lens:voice-gate', phase: 'Lens', schema: EXISTENCE },
+    )
+    const vchecks = (vgate && vgate.checks) || []
+    for (const pr of vchecks.flatMap((c) => c.problems || [])) warnings.push(`client voice: ${pr}`)
+    if (voiced && voiced.written && vchecks[0] && vchecks[0].ok) present.add(VOICE_PATH)
+  }
+  if (!present.has(VOICE_PATH)) {
+    throw new Error(
+      `the lens stage needs ${VOICE_PATH}, and it could not be written or did not pass its gate. ` +
+        `Read the log above, then launch the stage again.`,
+    )
+  }
+  touched.add(VOICE_PATH)
+  const voiceIn = [{ port: 'client_voice', path: VOICE_PATH }]
+  const lensBrief = [ORDER_BLOCK, VOICE_NOTE].filter(Boolean).join('\n\n')
+  const lensGate = (n) => [
+    ...Array.from({ length: n }, (_, i) => `--require-heading "^##\\s+${i + 1}\\."`),
+    ...SLOP_FLAGS,
+    '--forbid-file library/style/forbid/no-bold.txt',
+    '--forbid "\\x60"',
+  ]
+  const traceCheck = (pth) =>
+    `${TRACE_TOOL} --file "${pth}" --against "${REQ_PATH}" --against "${DESIGN_PATH}" ${noted(`ids cited by ${pth}`)}`
+  const vocabCheck = (pth) => `${VOCAB_TOOL} --file "${pth}" --voice "${VOICE_PATH}" ${noted(`client vocabulary in ${pth}`)}`
+  const lensCritics = (pth) => [
+    {
+      tag: 'LENS',
+      agentType: 'lens-critic',
+      model: MODELS.lensCritic,
+      inputs: [{ port: 'draft', path: pth }, ...voiceIn, ...docs, ...extractsIn],
+      brief: lensBrief,
+    },
+    ...(SLOP_CRITIC
+      ? [{ tag: 'SLOP', agentType: 'slop-critic', model: MODELS.slop, inputs: [{ port: 'draft', path: pth }, ...voiceIn], brief: lensBrief }]
+      : []),
+  ]
+
+  let pain = null
+  let story = null
+  if (RUN_LENS) {
+    pain = await reviseLoop({
+      loop: 'pain',
+      artifact: PAIN_PATH,
+      bounds: { minLength: 1500 },
+      gateFlags: lensGate(4),
+      phaseName: 'Lens',
+      writer: { agentType: 'pain-mapper', model: MODELS.lens, inputs: [...voiceIn, ...docs, ...extractsIn], brief: lensBrief },
+      critics: lensCritics(PAIN_PATH),
+      extraChecks: [
+        `${QUOTES_TOOL} --file "${PAIN_PATH}" --source "${EXTRACTS_DIR}" --source "${INPUTS_DIR}" ${noted('pain map quotes')}`,
+        traceCheck(PAIN_PATH),
+        vocabCheck(PAIN_PATH),
+      ],
+    })
+    present.add(PAIN_PATH)
+    story = await reviseLoop({
+      loop: 'story',
+      artifact: STORY_PATH,
+      bounds: { minLength: 2500 },
+      gateFlags: lensGate(4),
+      phaseName: 'Lens',
+      writer: {
+        agentType: 'story-writer',
+        model: MODELS.lens,
+        inputs: [...voiceIn, { port: 'pain_map', path: PAIN_PATH }, ...docs],
+        brief: lensBrief,
+      },
+      critics: lensCritics(STORY_PATH),
+      extraChecks: [traceCheck(STORY_PATH), vocabCheck(STORY_PATH)],
+    })
+    present.add(STORY_PATH)
+  }
+
+  let proposalReport = null
+  if (RUN_PROPOSAL) {
+    phase('Proposal')
+    const missing = [PAIN_PATH, STORY_PATH].filter((pth) => !present.has(pth))
+    if (missing.length) {
+      throw new Error(`the proposal needs ${missing.join(' and ')}: run config.stages=["lens"] first.`)
+    }
+    touched.add(PAIN_PATH)
+    touched.add(STORY_PATH)
+    const wrote = await call(
+      task({
+        inputs: [
+          ...docs,
+          ...voiceIn,
+          { port: 'pain_map', path: PAIN_PATH },
+          { port: 'day_story', path: STORY_PATH },
+          ...(present.has(DISCOVERY_PATH) ? [{ port: 'discovery', path: DISCOVERY_PATH }] : []),
+          ...extractsIn,
+        ],
+        output: PROP_PATH,
+        brief: DESIGN_BRIEF,
+      }),
+      { agentType: 'proposal-writer', model: MODELS.proposal, label: 'proposal:write', phase: 'Proposal', schema: WROTE },
+    )
+    if (!wrote) warnings.push('the proposal writer returned nothing')
+    // The proposal profile's mechanical rules; the reviewing rounds are proposal-review.js.
+    const gated = await call(
+      commands([
+        gateCommand(PROP_PATH, null, 'proposal gate', [
+          ...Array.from({ length: 9 }, (_, i) => `--require-heading "^##\\s+${i + 1}\\."`),
+          '--figures-numbered',
+          '--section-refs',
+          '--no-empty-cells --empty-cells-allow "cost|rate|price"',
+          '--forbid-outside-quotes "\\byou\\b" --forbid-outside-quotes "\\byour\\b"',
+          '--forbid-file library/style/forbid/no-bold.txt',
+          ...SLOP_FLAGS,
+        ]),
+        `${QUOTES_TOOL} --file "${PROP_PATH}" --source "${EXTRACTS_DIR}" --source "${INPUTS_DIR}" ${noted('proposal quotes')}`,
+        vocabCheck(PROP_PATH),
+      ]),
+      { agentType: 'gate-runner', model: MODELS.gate, label: 'proposal:gate', phase: 'Proposal', schema: EXISTENCE },
+    )
+    const checks = (gated && gated.checks) || []
+    const problems = checks.flatMap((c) => c.problems || [])
+    if (checks.length !== 3) problems.push('the proposal gates did not all report')
+    proposalReport = { ok: !problems.length, problems }
+    log(`[proposal/gate] ok=${!problems.length}${problems.length ? ' | ' + problems.join('; ') : ''}`)
+    for (const pr of problems) warnings.push(`proposal: ${pr}`)
+    log(
+      `[proposal] next: proposal-review.js with document=${PROP_PATH}, sources=["${INPUTS_DIR}"], ` +
+        `voice=${VOICE_PATH}, to review it in rounds before the author reads it`,
+    )
+  }
+
+  const open = [
+    ...(pain ? pain.open.map((o) => `Pain map: ${o}`) : []),
+    ...(story ? story.open.map((o) => `Day story: ${o}`) : []),
+  ]
+  await recordUnresolved(open, Boolean((pain ? pain.accepted : true) && (story ? story.accepted : true)))
+  await recordHandoff()
+  const { onDisk: lOnDisk, orphans: lOrphans, foreign: lForeign } = await auditRun()
+  return {
+    stages: STAGES,
+    client_voice: VOICE_PATH,
+    pain_map: pain ? PAIN_PATH : present.has(PAIN_PATH) ? PAIN_PATH : null,
+    day_story: story ? STORY_PATH : present.has(STORY_PATH) ? STORY_PATH : null,
+    proposal: RUN_PROPOSAL ? PROP_PATH : null,
+    proposal_gate_ok: proposalReport ? proposalReport.ok : null,
+    rounds: { pain: pain ? pain.rounds : null, story: story ? story.rounds : null },
+    unresolved: open.length ? UNRESOLVED_PATH : null,
+    files_on_disk: lOnDisk.length,
+    orphans: lOrphans,
+    other_stage: lForeign,
     warnings,
   }
 }

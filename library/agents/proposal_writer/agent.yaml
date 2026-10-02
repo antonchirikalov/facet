@@ -1,0 +1,23 @@
+name: proposal_writer
+version: 1
+description: >
+  Writes the client proposal from the accepted requirements and design, the
+  client voice sheet, the pain map and the day story, in the order and the words
+  that answer the client: what was said, a day with the product, the mechanism
+  they worry about most, then how it is built, the plan and what stays open. The
+  ids of the internal documents are dropped; the figures are declared as
+  placeholders.
+consumes:
+  - { port: requirements, type: requirements@v1, about: "the accepted requirements: what the product must do" }
+  - { port: design, type: design_doc@v1, about: "the accepted design: how it is built, the decisions, the open questions" }
+  - { port: client_voice, type: client_voice@v1, about: "the client voice sheet: their ranking, their words and vocabulary, who wants what, the proposal order it suggests" }
+  - { port: pain_map, type: pain_map@v1, about: "the pain map: sections 2 and 4 of the proposal are built from it" }
+  - { port: day_story, type: day_story@v1, about: "the day story: section 3 of the proposal, copied nearly as it is without the ids" }
+  - { port: discovery, type: discovery_report@v1, optional: true, about: "the discovery questions; section 7 of the proposal draws on them" }
+  - { port: extracts, type: "collection<extract@v1>", untrusted: true, about: "the extracts; quotes in section 2 are copied from here, verbatim" }
+produces:
+  - { port: proposal, type: proposal@v1 }
+needs: [read, edit]
+skills: [proposal-profile]
+defaults:
+  timeout_s: 3600

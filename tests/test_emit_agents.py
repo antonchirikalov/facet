@@ -2,7 +2,7 @@
 
 Two parts. The first is the mapping of contract capabilities to tools: the table from
 `docs/decisions/2026-08-13-collimator-plan.md`, including `read` and `vision` collapsing into one `Read`.
-The second is a build of the real library: 33 agents, and MCP on exactly the five whose `needs` name it.
+The second is a build of the real library: 37 agents, and MCP on exactly the five whose `needs` name it.
 """
 
 from __future__ import annotations
@@ -34,6 +34,8 @@ SKILLS = ROOT / ".claude" / "skills"
 PROFILE_AGENTS = {
     "client-edition-profile": {"client_editor"},
     "client-voice-profile": {"client_voice"},
+    "pain-map-profile": {"pain_mapper", "lens_critic"},
+    "day-story-profile": {"story_writer", "lens_critic"},
     "requirements-profile": {
         "requirements_writer",
         "requirements_fact_checker",
@@ -45,7 +47,7 @@ PROFILE_AGENTS = {
         "solution_design_selector",
     },
     "discovery-questions-profile": {"arch_probe", "arch_critic"},
-    "proposal-profile": {"coverage_mapper", "proposal_reviewer", "proposal_editor"},
+    "proposal-profile": {"coverage_mapper", "proposal_reviewer", "proposal_editor", "proposal_writer"},
 }
 
 # Who needs MCP in the library as it stands: four Tavily, three pdf-reader, source_finder both.
@@ -256,8 +258,8 @@ def test_missing_prompt_is_named_in_the_error(tmp_path: Path) -> None:
 
 def test_emits_every_agent_of_the_library(tmp_path: Path) -> None:
     written = emit_all(LIBRARY_AGENTS, tmp_path)
-    assert len(written) == 33
-    assert len(list(tmp_path.glob("*.md"))) == 33
+    assert len(written) == 37
+    assert len(list(tmp_path.glob("*.md"))) == 37
 
 
 def test_every_emitted_file_parses_and_has_tools(tmp_path: Path) -> None:
@@ -317,6 +319,7 @@ def test_agents_without_mcp_declare_no_servers(tmp_path: Path) -> None:
         "claim-checker",
         "rule-checker",
         "rule-skeptic",
+        "lens-critic",
     ],
 )
 def test_critics_cannot_write(tmp_path: Path, critic: str) -> None:

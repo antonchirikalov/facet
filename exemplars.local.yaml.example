@@ -3,3 +3,4 @@
 # Type -> where the full document lives. An agent reads it when the path is reachable; otherwise the skeleton.
 requirements: https://confluence.example.com/pages/viewpage.action?pageId=<id>
 solution-design: C:/path/to/approved/_solution_design.md
+proposal: C:/path/to/accepted/prop.md

@@ -106,6 +106,13 @@ in the figure plan (attn-figures.js):
 Every number a figure shows agrees with the text around it: a spacing banner, the posts placed
 under it and the price that counts them are one example, not three.
 
+## Exemplar
+
+exemplars/proposal/skeleton.md: the anonymised skeleton of an accepted proposal, and why.md beside
+it for what made that proposal work. exemplars.local.yaml names the full document under
+"proposal" on a machine that has it (not in the repository). Take the shape and the tone from
+it, never its content.
+
 ## Reviewer checklist
 
 HIGH (any one forces revise)
