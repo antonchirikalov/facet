@@ -47,3 +47,11 @@ def test_real_docx_becomes_markdown(tmp_path: Path) -> None:
     converted, _kept, problems = to_text.convert(tmp_path)
     assert problems == [] and converted == ["Скоуп.docx"]
     assert "Объём работ" in (tmp_path / "Скоуп.docx.md").read_text(encoding="utf-8")
+
+
+def test_recursive_reaches_subfolders(tmp_path: Path) -> None:
+    (tmp_path / "call").mkdir()
+    (tmp_path / "call" / "notes.docx").write_bytes(b"PK")
+    (tmp_path / "call" / "notes.docx.md").write_text("done", encoding="utf-8")
+    assert to_text.convert(tmp_path, pandoc="unused")[1] == []
+    assert to_text.convert(tmp_path, pandoc="unused", recursive=True)[1] == ["call/notes.docx"]

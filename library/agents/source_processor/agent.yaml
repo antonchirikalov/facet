@@ -7,6 +7,7 @@ description: >
   engine fans it out over the scanned source collection via a map node (§10.3).
 consumes:
   - { port: source, type: source@v1, untrusted: true, about: "the one input document you turn into an extract" }
+  - { port: images, type: "collection<image@v1>", optional: true, untrusted: true, about: "a folder of images that belong to this document, such as screen frames of a recorded call; read every image and record what it shows that the text does not" }
 produces:
   - { port: extract, type: extract@v1 }
 needs: [read, edit, vision, "mcp:pdf-reader"]

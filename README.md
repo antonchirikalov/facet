@@ -536,7 +536,7 @@ consumes:
 | `example-verifier` | Пересчитывает сквозной пример статьи кодом и исправляет числа на месте; безнадёжный пример заменяет рабочим. | `draft`: `article@v1`<br>`brief`: `brief@v1` | `article`: `article@v1` | — | `explainer-article`: verify-example |
 | `figure-critic` | Смотрит отрисованные рисунки глазами читателя: выписывает каждую подпись, сверяет блоки и стрелки со списками брифа, числа с текстом, орфографию и язык. Только судит. | `document`: `document@v1`<br>`figures`: `collection<image@v1>`<br>`briefs`: `collection<figure_brief@v1>` (opt.) | `checks`: `figure_checks@v1` | — | `attn-figures`: look |
 | `file-copier` | Руки скрипта для записи. Скрипт конвейера сам с файлами не работает, а gate-runner создавать их запрещено, поэтому копирует этот агент: снимок черновика после каждого круга, победителя конкурса дизайнов в design.md, применение списка правок писателя через apply_edits.py, перевод Word во входной папке в .md через to_text.py. У него только Bash: файлы не читает и не судит, выполняет команду и сообщает, что она сделала. | — | `copies`: `gate_report@v1` | — | `explainer-article`: snapshot<br>`proposal-review`: snapshot<br>`solution-design`: design:promote, design:snapshot, req:snapshot |
-| `gate-runner` | Руки скрипта для проверок. Скрипт конвейера не может сам запустить Python, поэтому команду гейта запускает этот агент и приносит отчёт без изменений. Ничего не исправляет, не создаёт и не оценивает: так скрипт решает по измерению, а не по словам агента. | — | `report`: `gate_report@v1` | — | `attn-figures`: critic-used, gate, preflight<br>`explainer-article`: audit, busy, gate, gate:final, sources:list, verify, verify:structure<br>`proposal-review`: gate<br>`solution-design`: audit, client:gate, design:RULES:rules, design:candidates-verify, design:gate, design:resume-rounds, discovery:gate, extract:verify, inputs:intake, inputs:list, req:RULES:rules, req:gate, resume, voice:gate |
+| `gate-runner` | Руки скрипта для проверок. Скрипт конвейера не может сам запустить Python, поэтому команду гейта запускает этот агент и приносит отчёт без изменений. Ничего не исправляет, не создаёт и не оценивает: так скрипт решает по измерению, а не по словам агента. | — | `report`: `gate_report@v1` | — | `attn-figures`: critic-used, gate, preflight<br>`explainer-article`: audit, busy, gate, gate:final, sources:list, verify, verify:structure<br>`proposal-review`: gate<br>`solution-design`: audit, client:gate, design:RULES:rules, design:candidates-verify, design:gate, design:resume-rounds, discovery:gate, extract:verify, inputs:intake, req:RULES:rules, req:gate, resume, voice:gate |
 | `illustrator` | Рисует рисунки по плейсхолдерам документа через figgybanana: пишет бриф, рендерит трёх кандидатов, выбирает, ведёт манифест с командами для перерисовки. | `article`: `article@v1` | `illustration`: `illustration@v1` | — | `attn-figures`: draw, redraw |
 | `proposal-editor` | Правит пропозал на месте по нумерованным замечаниям проверяющего и гейта, пакетами, и отвечает на каждое «исправлено» или «отклонено» с причиной. | `draft`: `proposal@v1`<br>`remarks`: `verdict@v1`<br>`coverage`: `coverage_map@v1`<br>`sources`: `collection<source@v1>` | `doc`: `proposal@v1` | `proposal-profile` | `proposal-review`: edit |
 | `proposal-reviewer` | Независимо проверяет пропозал до автора: покрытие просьб заказчика, противоречия между разделами и рисунками, обещания без плана, утверждения без опоры, голос по профилю. | `draft`: `proposal@v1`<br>`coverage`: `coverage_map@v1`<br>`sources`: `collection<source@v1>`<br>`figures`: `collection<image@v1>`<br>`answers`: `answers@v1` (opt.)<br>`client_voice`: `client_voice@v1` (opt.) | `verdict`: `verdict@v1` | `proposal-profile` | `proposal-review`: review |
@@ -550,7 +550,7 @@ consumes:
 | `solution-design-selector` | Выбирает лучший из кандидатов дизайна, написанных разными моделями, и записывает, почему. | `candidates`: `collection<design_doc@v1>` | `choice`: `selection@v1` | `solution-design-profile` | `solution-design`: design:select |
 | `solution-designer` | Пишет технический дизайн из требований: кандидат в конкурсе моделей и писатель в кругах правки. | `requirements`: `requirements@v1`<br>`draft`: `design_doc@v1` (opt.) | `design_doc`: `design_doc@v1` | `solution-design-profile` | `solution-design`: design:candidate |
 | `source-finder` | Ищет и сохраняет источники по аспекту брифа: каждый источник отдельным файлом, со сводкой по аспекту и указателем, откуда что взято. | `brief`: `brief@v1` | `found`: `found_sources@v1` | — | `explainer-article`: find |
-| `source-processor` | Разбирает один входной документ (стенограмма, RFP, PDF, заметки, таблица) в извлечение: факты, требования, вопросы, у каждой строки источник. | `source`: `source@v1` | `extract`: `extract@v1` | — | `solution-design`: extract |
+| `source-processor` | Разбирает один входной документ (стенограмма, RFP, PDF, заметки, таблица) в извлечение: факты, требования, вопросы, у каждой строки источник. | `source`: `source@v1`<br>`images`: `collection<image@v1>` (opt.) | `extract`: `extract@v1` | — | `solution-design`: extract |
 | `style-critic-ru` | Критик русского стиля: машинные обороты, типографика, кальки, рассинхрон терминов, сверка с профилем голоса автора. Вердикт с цитатами. | `draft`: `article@v1`<br>`brief`: `brief@v1`<br>`voice`: `style_profile@v1` (opt.) | `verdict`: `verdict@v1` | — | `explainer-article`: style |
 | `verbatim-writer` | Руки скрипта для записей. Скрипт сам файлы не пишет, поэтому записи прогона — круги правки с замечаниями, UNRESOLVED.md, handoff.md — оформляет этот агент: заголовок и пункты ровно как получил, без пересказа. Так незакрытое и переданное остаётся на диске, а не только в логе. | — | `document`: `document@v1` | — | `explainer-article`: handoff, record, unresolved<br>`proposal-review`: record, unresolved<br>`solution-design`: design:record, handoff, req:record, unresolved |
 <!-- agents:end -->
@@ -579,8 +579,18 @@ consumes:
 ### Требования
 
 Запуск — как в [С чего начать](#с-чего-начать), шаг 4. Перед разбором опись (`tools/intake.py`)
-обходит вложенные папки в `inputs/` и называет в логе файлы, которые не будут обработаны,
-дубли и наши собственные заметки, чтобы их не приняли за слова клиента.
+обходит `inputs/` целиком, со всеми подпапками, и решает, что читать:
+- документы из любой подпапки разбираются наравне с файлами верхнего уровня;
+- Word и PowerPoint сначала переводятся в `.md`;
+- дубль по содержимому и тот же документ в другом формате (`transcript.html` рядом с
+  `transcript.md`) читаются один раз;
+- папка с картинками (кадры звонка) идёт вместе с документом клиента из той же подпапки;
+  картинка без документа рядом разбирается сама по себе;
+- видео и аудио не читаются: положите рядом стенограмму;
+- наши собственные заметки разбираются с пометкой, и писатель требований знает, что строка,
+  опирающаяся только на них, — наше допущение, а не слова клиента.
+
+Всё, что пропущено, названо в логе прогона с причиной.
 
 Результат:
 - `requirements.md` — требования;

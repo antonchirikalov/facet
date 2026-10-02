@@ -6,7 +6,8 @@ is a zip archive, "This tool cannot read binary files". On one live run the Word
 were converted by hand before the launch, which is why it worked; a folder handed over as it
 came from the client would have lost its scope document without an error.
 
-Every ``<name>.docx`` (or .pptx, .odt, .rtf, .epub) directly inside ``--dir`` becomes
+Every ``<name>.docx`` (or .pptx, .odt, .rtf, .epub) inside ``--dir`` (with ``--recursive``, in its
+subfolders too) becomes
 ``<name>.docx.md``. A file whose markdown already exists is left alone, so a continued run does
 not convert twice. The folder is the only argument: file names travel in the report, never on
 the command line, because a Cyrillic name on a Windows command line is a name mangled.
@@ -28,11 +29,14 @@ import toollog
 CONVERTIBLE = {".docx", ".pptx", ".odt", ".rtf", ".epub"}
 
 
-def convert(folder: Path, pandoc: str | None = None) -> tuple[list[str], list[str], list[str]]:
+def convert(
+    folder: Path, pandoc: str | None = None, recursive: bool = False
+) -> tuple[list[str], list[str], list[str]]:
     """(converted, kept, problems): names converted now, names already converted, failures."""
     if not folder.is_dir():
         return [], [], [f"directory missing: {folder.as_posix()}"]
-    sources = sorted(p for p in folder.iterdir() if p.is_file() and p.suffix.lower() in CONVERTIBLE)
+    walk = folder.rglob("*") if recursive else folder.iterdir()
+    sources = sorted(p for p in walk if p.is_file() and p.suffix.lower() in CONVERTIBLE)
     if not sources:
         return [], [], []
     tool = pandoc or shutil.which("pandoc")
@@ -44,7 +48,7 @@ def convert(folder: Path, pandoc: str | None = None) -> tuple[list[str], list[st
     for src in sources:
         out = src.with_name(src.name + ".md")
         if out.is_file() and out.stat().st_size > 0:
-            kept.append(src.name)
+            kept.append(src.relative_to(folder).as_posix())
             continue
         done = subprocess.run(
             [tool, str(src), "-t", "gfm", "--wrap=none", "-o", str(out)],
@@ -56,19 +60,20 @@ def convert(folder: Path, pandoc: str | None = None) -> tuple[list[str], list[st
         )
         if done.returncode != 0 or not out.is_file() or out.stat().st_size == 0:
             problems.append(
-                f"{src.name}: pandoc failed: {(done.stderr or 'empty output').strip()[:200]}"
+                f"{src.relative_to(folder).as_posix()}: pandoc failed: {(done.stderr or 'empty output').strip()[:200]}"
             )
             continue
-        converted.append(src.name)
+        converted.append(src.relative_to(folder).as_posix())
     return converted, kept, problems
 
 
 def main() -> int:
     p = argparse.ArgumentParser(description="Convert office documents in a folder to markdown.")
     p.add_argument("--dir", type=Path, required=True, help="input folder")
+    p.add_argument("--recursive", action="store_true", help="also convert documents in subfolders")
     toollog.add_argument(p)
     args = p.parse_args()
-    converted, kept, problems = convert(args.dir)
+    converted, kept, problems = convert(args.dir, recursive=args.recursive)
     report = {
         "ok": not problems,
         "problems": problems,

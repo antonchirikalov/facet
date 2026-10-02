@@ -109,6 +109,16 @@ function fill(schema, prompt) {
           out[key] = process.env.DRY_INPUTS.split(',')
           continue
         }
+        // The same switch for an inventory, whose files are objects: "call/transcript.md|ours" gives
+        // a path and a kind, "a.md|client|b.md" also marks a.md as a duplicate of b.md.
+        if (key === 'files' && process.env.DRY_INPUTS && sub && sub.type === 'array' && ((sub.items ?? {}).properties ?? {}).path) {
+          out[key] = process.env.DRY_INPUTS.split(',').map((entry) => {
+            const [path, kind, dup] = entry.split('|')
+            const media = /\.(png|jpe?g|gif|webp|mp4|mov|mp3|wav)$/i.test(path)
+            return { path, kind: kind || (media ? 'media' : 'client'), ...(dup ? { duplicate_of: dup } : {}) }
+          })
+          continue
+        }
         if (key === 'count') {
           // The count travels next to the list it counts: files for a listing, rules for rules.py.
           const files = out.files ?? Object.values(out).find((v) => Array.isArray(v))

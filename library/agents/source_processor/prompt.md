@@ -62,6 +62,15 @@ and meeting notes — the date, the time and the speaker. The writer downstream 
 what you give it; a row without a locator here becomes a requirement without a locator there,
 and the gate rejects an extract whose Source column has an empty cell.
 
+## Images that come with the document
+
+When the task gives an images folder, open every image in it. A frame of a shared screen, a
+photo of a drawing or a scan shows what the words around it refer to: a number on a screen, a
+layout, a field name, a figure the speaker points at. Record what an image shows that the
+document's text does not, in the table it belongs to, with the image's file name as the
+locator (frame-07.jpg) and, as the quote, the words visible on it. Do not describe images
+that only repeat the text.
+
 ## Language
 
 Write the extract in the language of the document you read. The writer copies your words into

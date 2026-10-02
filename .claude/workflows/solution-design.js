@@ -334,11 +334,29 @@ const unnumbered = (text) => String(text).replace(/^\s*\d{1,2}[.)]\s+/, '')
 // A file name from a path, without directory and without suffix. The listing reports what is on
 // disk; this turns each reported name into the name of the file the script will write next to it,
 // so the correspondence between an input and its extract is visible in the directory.
-const stemOf = (path) =>
-  String(path)
+// The stem is the path inside inputs/ with folders joined by "__": two transcript.md files in two
+// subfolders would otherwise write one extract over the other. A top-level file keeps its name.
+//
+// Tool arguments must be ASCII (a Cyrillic name on a Windows command line arrives mangled), and the
+// stem becomes the extract's file name, which travels in gate commands. Spaces become hyphens; any
+// other character outside [A-Za-z0-9._-] is dropped and a short hash of the original name is
+// appended, so two names that differ only in those characters still get two extracts.
+const hashOf = (text) => {
+  let h = 5381
+  for (const ch of String(text)) h = ((h * 33) ^ ch.codePointAt(0)) >>> 0
+  return h.toString(36)
+}
+const stemOf = (path) => {
+  const raw = String(path)
+    .replace(/\\/g, '/')
+    .replace(`${INPUTS_DIR}/`, '')
     .split('/')
-    .pop()
+    .join('__')
     .replace(/\.[^.]+$/, '')
+    .replace(/ +/g, '-')
+  const safe = raw.replace(/[^A-Za-z0-9._-]+/g, '').replace(/^-+|-+$/g, '')
+  return safe === raw ? raw : `${safe || 'doc'}-${hashOf(raw)}`
+}
 
 async function call(taskText, opts) {
   handoff.push({
@@ -443,7 +461,7 @@ const LISTING = {
 // The inventory walks the whole tree and the script names what the listing will not process.
 const INTAKE = {
   type: 'object',
-  required: ['files'],
+  required: ['files', 'count'],
   properties: {
     files: {
       type: 'array',
@@ -457,6 +475,7 @@ const INTAKE = {
         },
       },
     },
+    count: { type: 'integer', description: 'the files number from the report measures, verbatim' },
   },
 }
 
@@ -674,7 +693,7 @@ function gateCommand(path, bounds, purpose, flags = []) {
   // every heading the contract asks for, in order — and fills it pass by pass. Caught live at
   // 1 748 bytes of headings alone, and again at 68 KB with three of six sections still hollow.
   parts.push('--no-empty-sections')
-  return `${GATE_TOOL} --file ${path} ${parts.join(' ')} ${noted(purpose)}`.trim()
+  return `${GATE_TOOL} --file "${path}" ${parts.join(' ')} ${noted(purpose)}`.trim()
 }
 
 function commands(list) {
@@ -687,7 +706,7 @@ function commands(list) {
 function existenceCommands(paths, purpose = 'file is where it should be', flagsOf = () => '') {
   return commands(
     paths.map(
-      (p) => `${GATE_TOOL} --file ${p} --min-length ${MIN_ARTIFACT_CHARS} ${flagsOf(p)} ${noted(purpose)}`.replace(/\s+/g, ' '),
+      (p) => `${GATE_TOOL} --file "${p}" --min-length ${MIN_ARTIFACT_CHARS} ${flagsOf(p)} ${noted(purpose)}`.replace(/ {2,}/g, ' '),
     ),
   )
 }
@@ -1656,34 +1675,56 @@ let requirements = null
 
 if (RUN_REQUIREMENTS) {
   phase('Extract')
-  const listed = await call(
-    commands([`${LISTING_TOOL} --dir ${INPUTS_DIR} --ext "" ${noted('what input documents are there')}`]),
-    { agentType: 'gate-runner', model: MODELS.gate, label: 'inputs:list', phase: 'Extract', schema: LISTING },
+  // One inventory of the whole tree is the list of what gets read. A subfolder is part of the
+  // input: a call folder with its transcript and screen frames was once listed by name in a
+  // warning and never read, because only the top level went to the extractors.
+  const inventory = await call(
+    commands([`${INTAKE_TOOL} --dir ${INPUTS_DIR} ${noted('inventory of the whole input tree')}`]),
+    { agentType: 'gate-runner', model: MODELS.gate, label: 'inputs:intake', phase: 'Extract', schema: INTAKE },
   )
-  sources = (listed && listed.files) || []
-  const counted = listed && typeof listed.count === 'number' ? listed.count : null
-  if (counted !== null && counted !== sources.length) {
+  const files = (inventory && inventory.files) || []
+  if (inventory && typeof inventory.count === 'number' && inventory.count !== files.length) {
     throw new Error(
-      `the listing of input documents counted ${counted}, but only ${sources.length} arrived through the agent. ` +
-        `The pipeline must not be built on an incomplete list: a lost document is a requirement ` +
+      `the inventory of ${INPUTS_DIR} counted ${inventory.count} files, but only ${files.length} arrived through ` +
+        `the agent. The pipeline must not be built on an incomplete list: a lost document is a requirement ` +
         `that will be missing from the result, and nobody can notice it later.`,
     )
   }
-  if (!sources.length) {
+  if (!files.length) {
     throw new Error(
       `${INPUTS_DIR} holds no input documents. This pipeline has nothing to extract from — ` +
         `put in the request, the transcript, the correspondence or the RFP, and launch again.`,
     )
   }
+  const IMAGE = /\.(png|jpe?g|gif|webp)$/i
+  const AUDIO_VIDEO = /\.(mp4|mov|mkv|avi|webm|mp3|wav|m4a|ogg)$/i
+  const OFFICE = /\.(docx|pptx|odt|rtf|epub)$/i
+  const dirOf = (rel) => (rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : '')
+  const listedPaths = new Set(files.map((f) => f.path))
+  const kindOf = new Map(files.map((f) => [f.path, f.kind]))
+  const unique = files.filter((f) => {
+    // A file cannot repeat itself; a duplicate names another file of the inventory.
+    if (!f.duplicate_of || f.duplicate_of === f.path || !listedPaths.has(f.duplicate_of)) return true
+    log(`[extract/inventory] duplicate, not read twice: ${f.path} = ${f.duplicate_of}`)
+    return false
+  })
+  for (const f of unique.filter((f) => AUDIO_VIDEO.test(f.path))) {
+    log(`[extract/inventory] audio or video cannot be read: ${f.path} — put its transcript next to it`)
+    warnings.push(`not read: ${f.path} is audio or video; a transcript next to it would be read`)
+  }
+  // A Word file that already has its markdown twin is read through the twin.
+  let docs = unique
+    .map((f) => f.path)
+    .filter((rel) => !IMAGE.test(rel) && !AUDIO_VIDEO.test(rel))
+    .filter((rel) => !(OFFICE.test(rel) && listedPaths.has(`${rel}.md`)))
+
   // Office documents become markdown before anyone reads them: the extracting agent reads with
   // Read, and Read refuses a .docx. The tool takes the folder, never a file name, and writes
   // <name>.docx.md next to each; the script knows those names without asking for them.
-  const OFFICE = /\.(docx|pptx|odt|rtf|epub)$/i
-  const office = sources.filter((s) => OFFICE.test(s) && !sources.includes(`${s}.md`))
-  sources = sources.filter((s) => !(OFFICE.test(s) && sources.includes(`${s}.md`)))
+  const office = docs.filter((rel) => OFFICE.test(rel))
   if (office.length) {
     const converted = await call(
-      commands([`${TO_TEXT_TOOL} --dir ${INPUTS_DIR} ${noted('office documents to markdown')}`]),
+      commands([`${TO_TEXT_TOOL} --dir ${INPUTS_DIR} --recursive ${noted('office documents to markdown')}`]),
       { agentType: 'file-copier', model: MODELS.copy, label: 'inputs:to-text', phase: 'Extract', schema: GATE },
     )
     const report = (converted && converted.report) || { ok: false, problems: ['the conversion did not report'] }
@@ -1693,39 +1734,80 @@ if (RUN_REQUIREMENTS) {
     }
     // A problem that names a file fails that file; any other (pandoc missing, no report) fails all,
     // so no agent is ever handed a .md that was never written.
-    const nameOf = (s) => s.replace(/\\/g, '/').split('/').pop()
     const problems = report.problems || []
-    const perFile = problems.every((pr) => office.some((o) => pr.startsWith(`${nameOf(o)}:`)))
+    const perFile = problems.every((pr) => office.some((o) => pr.startsWith(`${o}:`)))
     const allFailed = !converted || (!report.ok && !perFile)
-    sources = sources.map((s) => {
-      if (!office.includes(s)) return s
-      touched.add(s)
-      const name = nameOf(s)
-      if (allFailed || problems.some((pr) => pr.startsWith(`${name}:`))) return s
-      log(`[extract/word] ${name} → ${name}.md`)
-      return `${s}.md`
+    docs = docs.map((rel) => {
+      if (!office.includes(rel)) return rel
+      touched.add(`${INPUTS_DIR}/${rel}`)
+      if (allFailed || problems.some((pr) => pr.startsWith(`${rel}:`))) return rel
+      kindOf.set(`${rel}.md`, kindOf.get(rel))
+      log(`[extract/word] ${rel} → ${rel}.md`)
+      return `${rel}.md`
     })
   }
-  log(`[extract] input documents: ${sources.length}`)
-  for (const s of sources) log(`[extract/input] ${s}`)
 
-  // Warnings, not a stop: a person decides whether a nested call folder belongs to the order.
-  const inventory = await call(
-    commands([`${INTAKE_TOOL} --dir ${INPUTS_DIR} ${noted('inventory of the whole input tree')}`]),
-    { agentType: 'gate-runner', model: MODELS.gate, label: 'inputs:intake', phase: 'Extract', schema: INTAKE },
-  )
-  const listedNames = new Set(sources.map((s) => s.replace(/\\/g, '/').split('/').pop()))
-  for (const f of (inventory && inventory.files) || []) {
-    const nested = f.path.includes('/')
-    if (f.duplicate_of) log(`[extract/inventory] duplicate: ${f.path} = ${f.duplicate_of}`)
-    else if (nested && f.kind !== 'media' && !listedNames.has(f.path.split('/').pop()))
-      log(`[extract/inventory] in a subfolder and not processed: ${f.path} — move it to ${INPUTS_DIR} if it is part of the order`)
-    if (f.kind === 'ours') {
-      ourNotes.push(`${INPUTS_DIR}/${f.path}`)
-      log(`[extract/inventory] our own note, not the client's words: ${f.path}`)
-    }
-    if (f.kind === 'unknown') log(`[extract/inventory] unclear whose document this is: ${f.path}`)
+  // One document is often saved in several formats (transcript.html, .md and .txt side by side).
+  // They are not byte-identical, so the duplicate check misses them, and three extracts of one
+  // transcript would bring every requirement in three times. Files with the same name in the same
+  // folder are versions of one document; one is read, by this preference.
+  const FORMAT_RANK = ['.md', '.txt', '.docx.md', '.pptx.md', '.odt.md', '.rtf.md', '.pdf', '.html', '.htm']
+  const formatOf = (rel) => FORMAT_RANK.find((ext) => rel.toLowerCase().endsWith(ext)) || rel.slice(rel.lastIndexOf('.'))
+  const baseOf = (rel) => rel.slice(0, rel.length - formatOf(rel).length)
+  const rankOf = (rel) => {
+    const r = FORMAT_RANK.indexOf(formatOf(rel))
+    return r < 0 ? FORMAT_RANK.length : r
   }
+  const chosen = new Map()
+  for (const rel of docs) {
+    const key = baseOf(rel)
+    const held = chosen.get(key)
+    if (!held || rankOf(rel) < rankOf(held)) chosen.set(key, rel)
+  }
+  for (const rel of docs) {
+    if (chosen.get(baseOf(rel)) !== rel) log(`[extract/inventory] another format of ${chosen.get(baseOf(rel))}, not read twice: ${rel}`)
+  }
+  docs = docs.filter((rel) => chosen.get(baseOf(rel)) === rel)
+
+  // Images travel with the document they belong to: a folder of screen frames goes, as one
+  // folder, to the extractor of the document in the same folder, or in the folder above it (a
+  // call folder holding transcript.md and frames/). An image with no document near it is read on
+  // its own.
+  const imageDirsOf = new Map()
+  const images = unique.map((f) => f.path).filter((rel) => IMAGE.test(rel))
+  for (const dir of [...new Set(images.map(dirOf))]) {
+    // Only inside a subfolder: the top level holds unrelated documents, and an image there, or a
+    // folder of images whose parent is the top level, does not belong to any one of them.
+    // The client's document first: frames of a call belong to its transcript, not to our digest.
+    const near = (folder) => {
+      const here = docs.filter((rel) => dirOf(rel) === folder)
+      return here.find((rel) => kindOf.get(rel) === 'client') || here[0]
+    }
+    const companion = !dir ? undefined : near(dir) || (dirOf(dir) ? near(dirOf(dir)) : undefined)
+    if (companion) {
+      const folder = dir ? `${INPUTS_DIR}/${dir}` : INPUTS_DIR
+      imageDirsOf.set(companion, [...(imageDirsOf.get(companion) || []), folder])
+      log(`[extract/images] ${dir || '(top level)'} goes with ${companion}`)
+    } else {
+      for (const rel of images.filter((r) => dirOf(r) === dir)) docs.push(rel)
+      log(`[extract/images] ${dir || '(top level)'}: no document beside it, each image is read on its own`)
+    }
+  }
+  if (!docs.length) {
+    throw new Error(`${INPUTS_DIR} holds no readable document: only duplicates, audio or video.`)
+  }
+
+  sources = docs.map((rel) => `${INPUTS_DIR}/${rel}`)
+  const imagesOf = new Map(docs.map((rel) => [`${INPUTS_DIR}/${rel}`, imageDirsOf.get(rel) || []]))
+  for (const rel of docs) {
+    if (kindOf.get(rel) === 'ours') {
+      ourNotes.push(`${INPUTS_DIR}/${rel}`)
+      log(`[extract/inventory] our own note, not the client's words: ${rel}`)
+    }
+    if (kindOf.get(rel) === 'unknown') log(`[extract/inventory] unclear whose document this is: ${rel}`)
+  }
+  log(`[extract] input documents: ${sources.length}`)
+  for (const src of sources) log(`[extract/input] ${src}`)
 
   // Matched by index, never by a path the agent chose how to spell.
   const extractPaths = sources.map((s) => extractPathOf(stemOf(s)))
@@ -1737,7 +1819,12 @@ if (RUN_REQUIREMENTS) {
     const i = extractPaths.indexOf(extractPath)
     // Extracts are written by the one agent that reads the client's raw material; injected
     // instructions carried into an extract would reach every agent downstream.
-    return `${EXTRACT_SHAPE} --language-of ${sources[i]} --forbid-file library/style/forbid/injection.txt`
+    // The language check needs the source's path on the command line; a name outside ASCII cannot
+    // travel there, so that one extract is checked without it and the log says so.
+    const ascii = /^[\x20-\x7e]*$/.test(sources[i])
+    if (!ascii) log(`[extract] language not checked for ${sources[i]}: the file name is not ASCII`)
+    const language = ascii ? `--language-of "${sources[i]}"` : ''
+    return `${EXTRACT_SHAPE} ${language} --forbid-file library/style/forbid/injection.txt`
   }
 
   // What is already extracted is not extracted again. The disk is the checkpoint here as
@@ -1766,7 +1853,14 @@ if (RUN_REQUIREMENTS) {
   const extracted = await pipeline(todo, (source) => {
     const stem = stemOf(source)
     return call(
-      task({ inputs: [{ port: 'source', path: source }], output: extractPathOf(stem) }),
+      task({
+        inputs: [{ port: 'source', path: source }, ...(imagesOf.get(source) || []).map((d) => ({ port: 'images', path: d }))],
+        output: extractPathOf(stem),
+        extra: ourNotes.includes(source)
+          ? `OUR NOTE\nThis document is our own note, not the client's words. Set trust_level to low and ` +
+            `say so in the header; a row that only this note supports is our reading.`
+          : undefined,
+      }),
       {
         agentType: 'source-processor',
         model: MODELS.extract,
@@ -1866,7 +1960,15 @@ if (RUN_REQUIREMENTS) {
     voicePort = [{ port: 'client_voice', path: VOICE_PATH }]
     present.add(VOICE_PATH)
   }
-  const voiceBrief = [ORDER_BLOCK, voicePort.length ? VOICE_NOTE : ''].filter(Boolean).join('\n\n')
+  // Our notes reach the extracts marked; the requirements loop is told which extracts they are.
+  const noteStems = ourNotes.map((n) => stemOf(n))
+  const notesBlock = noteStems.length
+    ? `OUR NOTES, NOT THE CLIENT'S WORDS\nThese extracts come from our own notes: ` +
+      noteStems.map((st) => `extract:${st}`).join(', ') +
+      `. A row that rests on them alone is our interpretation: an assumption in 8.3, never a client statement.`
+    : ''
+  const voiceBrief = [ORDER_BLOCK, voicePort.length ? VOICE_NOTE : '', notesBlock].filter(Boolean).join('\n\n')
+  const factBrief = [ORDER_BLOCK, notesBlock].filter(Boolean).join('\n\n')
 
   // --- Requirements: the first revision loop -------------------------------------------------
   requirements = await reviseLoop({
@@ -1890,7 +1992,7 @@ if (RUN_REQUIREMENTS) {
         agentType: 'requirements-fact-checker',
         model: MODELS.reqFix,
         inputs: [{ port: 'draft', path: REQ_PATH }, ...extractPorts],
-        brief: ORDER_BLOCK,
+        brief: factBrief,
       },
     ],
     critics: [

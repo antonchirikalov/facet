@@ -269,7 +269,7 @@ def test_slop_critic_judges_every_client_facing_loop(tmp_path: Path) -> None:
     gates = [
         p
         for p in by_agent(items, "gate-runner")
-        if "--file dry/run/design.md" in p and "--require-heading" in p
+        if '--file "dry/run/design.md"' in p and "--require-heading" in p
     ]
     assert gates and all("en-slop.txt" in g and "ru-slop.txt" in g for g in gates)
     off = prompts(tmp_path, {**RUN, "config": {"fresh": True, "slopCritic": False}})
@@ -290,7 +290,7 @@ def word_prompts(tmp_path: Path, mode: str) -> list[dict[str, str]]:
     env = {
         **os.environ,
         "DRY_PROMPTS_OUT": str(out),
-        "DRY_INPUTS": "dry/run/inputs/scope.docx,dry/run/inputs/call.md",
+        "DRY_INPUTS": "scope.docx,call.md",
     }
     subprocess.run(
         ["node", str(DRY_RUN), str(SCRIPT), mode, json.dumps(args)],
@@ -395,3 +395,69 @@ def test_a_dead_checker_is_an_open_remark_not_a_pass(tmp_path: Path) -> None:
     )
     assert "were not checked: the checker returned nothing" in done.stdout
     assert "RULES (rule-skeptic) returned no verdict" in done.stdout
+
+
+TREE = (
+    "scope.docx,call/transcript.md,call/transcript.html,call/frames/f1.png,"
+    "call/digest.md|ours,dup.md|client|call/transcript.md,rec.mp4,lone/pic.png"
+)
+
+
+def tree_run(tmp_path: Path, inputs: str = TREE) -> tuple[list[dict[str, str]], str]:
+    out = tmp_path / "tree.json"
+    args = {**RUN, "config": {"fresh": True, "stages": ["requirements"]}}
+    done = subprocess.run(
+        ["node", str(DRY_RUN), str(SCRIPT), "ok", json.dumps(args)],
+        cwd=ROOT,
+        check=False,
+        env={**os.environ, "DRY_PROMPTS_OUT": str(out), "DRY_INPUTS": inputs},
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    loaded: list[dict[str, str]] = json.loads(out.read_text(encoding="utf-8"))
+    return loaded, done.stdout
+
+
+def test_subfolders_are_read_not_only_named(tmp_path: Path) -> None:
+    items, _ = tree_run(tmp_path)
+    sources = [p.split("OUTPUT")[0] for p in by_agent(items, "source-processor")]
+    assert any("source: dry/run/inputs/call/transcript.md" in s for s in sources)
+    assert any("source: dry/run/inputs/call/digest.md" in s for s in sources)
+
+
+def test_duplicates_formats_and_media_are_read_once(tmp_path: Path) -> None:
+    items, log = tree_run(tmp_path)
+    sources = "\n".join(by_agent(items, "source-processor"))
+    assert "dup.md" not in sources and "transcript.html" not in sources and "rec.mp4" not in sources
+    assert (
+        "another format of call/transcript.md" in log
+        and "audio or video cannot be read: rec.mp4" in log
+    )
+
+
+def test_frames_go_with_the_client_transcript(tmp_path: Path) -> None:
+    items, _ = tree_run(tmp_path)
+    transcript = next(p for p in by_agent(items, "source-processor") if "call/transcript.md" in p)
+    assert "images: dry/run/inputs/call/frames" in transcript
+    lone = next(p for p in by_agent(items, "source-processor") if "lone/pic.png" in p)
+    assert "images:" not in lone.split("OUTPUT")[0]
+
+
+def test_our_notes_are_marked_down_to_the_requirements_writer(tmp_path: Path) -> None:
+    items, _ = tree_run(tmp_path)
+    digest = next(p for p in by_agent(items, "source-processor") if "call/digest.md" in p)
+    assert "OUR NOTE" in digest
+    writer = by_agent(items, "requirements-writer")[0]
+    assert "OUR NOTES, NOT THE CLIENT'S WORDS" in writer and "extract:call__digest" in writer
+
+
+def test_file_names_in_commands_are_quoted_and_ascii(tmp_path: Path) -> None:
+    # A client file name with a space and one in Cyrillic, as client folders arrive.
+    items, log = tree_run(tmp_path, "Phase 1 Scope.md,Договор.md")
+    verify = next(
+        p for p in by_agent(items, "gate-runner") if "was the extract actually written" in p
+    )
+    assert '--file "dry/run/extracts/Phase-1-Scope.md"' in verify
+    assert all(ord(ch) < 128 for ch in verify)
+    assert "language not checked" in log
