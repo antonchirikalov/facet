@@ -496,6 +496,26 @@ const BUSY = {
   },
 }
 
+// Startup: the busy.py report (which carries `busy`) and then gate.py existence reports.
+const STARTUP = {
+  type: 'object',
+  required: ['checks'],
+  properties: {
+    checks: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['ok', 'problems'],
+        properties: {
+          ok: { type: 'boolean' },
+          problems: { type: 'array', items: { type: 'string' } },
+          busy: { type: 'boolean', description: 'the busy field of the report, verbatim; only the busy.py report has it' },
+        },
+      },
+    },
+  },
+}
+
 const ROUNDS = {
   type: 'object',
   required: ['report', 'rounds', 'counts'],
@@ -789,39 +809,6 @@ async function auditRun() {
 // analysis while the first's writer was reading it, and which version reached the document can no
 // longer be established. A quiet tool log looks exactly like a finished one, so the question has
 // to be measured, not judged.
-if (!now) {
-  warnings.push(
-    'not checked whether another run is using this directory: args.now was not passed — ' +
-      'two runs in one directory make the provenance of the document unprovable',
-  )
-  log('[busy] args.now was not passed — directory occupancy was NOT checked')
-} else {
-  phase('Resume')
-  const occupied = await call(
-    commands([
-      `${BUSY_TOOL} --file ${TOOLS_LOG} --now ${now} --idle-seconds ${cfg.idleSeconds || 600} ` +
-        `${noted('is another run working here')}`,
-    ]),
-    { agentType: 'gate-runner', model: MODELS.gate, label: 'busy', phase: 'Resume', schema: BUSY },
-  )
-  const verdict = occupied && occupied.checks && occupied.checks[0]
-  if (!verdict) {
-    log('[busy] the check did not come back — directory occupancy is unknown')
-    warnings.push('the directory occupancy check did not come back: the answer is unknown')
-  } else if (verdict.busy && !cfg.ignoreBusy) {
-    throw new Error(
-      `another run seems to be using ${run}: ${verdict.problems.join('; ')}. ` +
-        `A new run gets a new directory: python -X utf8 tools/newrun.py --base docs-runs --label <what>. ` +
-        `If that run is certainly dead, config.ignoreBusy=true.`,
-    )
-  } else if (verdict.busy) {
-    log(`[busy] the directory is busy, but config.ignoreBusy is set — continuing: ${verdict.problems.join('; ')}`)
-    warnings.push('the directory was busy; the run was started over it under config.ignoreBusy')
-  } else {
-    log('[busy] the directory is free')
-  }
-}
-
 // --- Resume: the artifacts on disk are the checkpoint ----------------------------------------
 //
 // A dynamic workflow lives inside the CLI process, and that process restarts routinely. The cache
@@ -831,14 +818,40 @@ const present = new Set()
 {
   phase('Resume')
   const resumePaths = [REQ_PATH, DESIGN_PATH, VOICE_PATH]
-  const onDisk = await call(existenceCommands(resumePaths, 'resume: what is already on disk'), {
-    agentType: 'gate-runner',
-    model: MODELS.gate,
-    label: 'resume',
-    phase: 'Resume',
-    schema: EXISTENCE,
-  })
-  const checks = (onDisk && onDisk.checks) || []
+  // One carrier call for both questions, matched by index: the occupancy check first (when the
+  // time is known), then one existence check per path.
+  const busyCommand = now
+    ? [`${BUSY_TOOL} --file ${TOOLS_LOG} --now ${now} --idle-seconds ${cfg.idleSeconds || 600} ${noted('is another run working here')}`]
+    : []
+  const existence = existenceCommands(resumePaths, 'resume: what is already on disk').replace(/^COMMANDS\n/, '')
+  const startup = await call(
+    commands([...busyCommand, ...existence.split('\n').map((line) => line.replace(/^\d+\.\s/, ''))]),
+    { agentType: 'gate-runner', model: MODELS.gate, label: 'resume', phase: 'Resume', schema: STARTUP },
+  )
+  const all = (startup && startup.checks) || []
+  const verdict = now ? all[0] : null
+  const checks = now ? all.slice(1) : all
+  if (!now) {
+    warnings.push(
+      'not checked whether another run is using this directory: args.now was not passed — ' +
+        'two runs in one directory make the provenance of the document unprovable',
+    )
+    log('[busy] args.now was not passed — directory occupancy was NOT checked')
+  } else if (!verdict) {
+    log('[busy] the check did not come back — directory occupancy is unknown')
+    warnings.push('the directory occupancy check did not come back: the answer is unknown')
+  } else if (verdict.busy && !cfg.ignoreBusy) {
+    throw new Error(
+      `another run seems to be using ${run}: ${(verdict.problems || []).join('; ')}. ` +
+        `A new run gets a new directory: python -X utf8 tools/newrun.py --base docs-runs --label <what>. ` +
+        `If that run is certainly dead, config.ignoreBusy=true.`,
+    )
+  } else if (verdict.busy) {
+    log(`[busy] the directory is busy, but config.ignoreBusy is set — continuing: ${(verdict.problems || []).join('; ')}`)
+    warnings.push('the directory was busy; the run was started over it under config.ignoreBusy')
+  } else {
+    log('[busy] the directory is free')
+  }
   if (checks.length !== resumePaths.length) {
     // One result per command is the contract. A different count means the results cannot be
     // matched to paths at all, and guessing which is which would reuse the wrong file.
@@ -1489,14 +1502,12 @@ async function reviseLoop({
     // Acceptance looks at the file, not at whether an agent came back. A writer that died on the
     // session limit had written the file and not answered: the artifact exists, the result does
     // not.
-    const onDisk = await call(existenceCommands([artifact], `${loop}: is the draft on disk`), {
-      agentType: 'gate-runner',
-      model: MODELS.gate,
-      label: `${loop}:exists:${round}`,
-      phase: phaseName,
-      schema: EXISTENCE,
-    })
-    const exists = onDisk && onDisk.checks && onDisk.checks[0] && onDisk.checks[0].ok
+    // The gate measured the file, so it also answers whether it is there: gate.py prints `chars`
+    // for a file it read and `output missing` for one it did not. A separate existence call asked
+    // the same question twice.
+    const exists =
+      typeof (gateReport.measures && gateReport.measures.chars) === 'number' &&
+      gateReport.measures.chars >= MIN_ARTIFACT_CHARS
     if (!exists) {
       log(`[${loop}/${round}] NO DRAFT ON DISK — the round cannot be counted`)
       warnings.push(`in round ${round} (${loop}) the draft did not reach the disk`)
@@ -2077,18 +2088,11 @@ if (RUN_CLIENT) {
 // A launch that runs only the design stage never saw the loop above, so it asks the disk instead
 // of assuming. Same rule as everywhere: acceptance looks at the file.
 if (!RUN_REQUIREMENTS) {
-  const checks = await call(existenceCommands([REQ_PATH], 'design stage: are there requirements'), {
-    agentType: 'gate-runner',
-    model: MODELS.gate,
-    label: 'design:requirements-exist',
-    phase: 'Contest',
-    schema: EXISTENCE,
-  })
-  const ok = checks && checks.checks && checks.checks[0] && checks.checks[0].ok
-  if (!ok) {
+  // The startup check already measured requirements.md; asking the disk again cost a carrier call.
+  if (!present.has(REQ_PATH)) {
     throw new Error(
-      `the design stage needs ${REQ_PATH}, and it is missing. First config.stages=["requirements"] ` +
-        `in this same directory.`,
+      `the design stage needs ${REQ_PATH}, and it is missing. First run config.stages=["requirements"] ` +
+        `in the same directory.`,
     )
   }
   touched.add(REQ_PATH)
