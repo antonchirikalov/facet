@@ -21,7 +21,7 @@ CYRILLIC = re.compile("[Ѐ-ӿ]")
 # Russian documents by design.
 RUSSIAN_FILES = {"README.md", "docs/article-dynamic-workflows.md"}
 # Language material: what critics match in Russian text, and archived agents kept for history.
-MATERIAL_DIRS = ("library/style/", "library/agents-archive/")
+MATERIAL_DIRS = ("library/style/",)
 # Script lines that carry Russian as data, verbatim.
 SCRIPT_DATA_LINES = {"  { russian: RU, 'русский': RU },"}
 

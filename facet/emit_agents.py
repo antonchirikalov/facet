@@ -8,7 +8,7 @@ only the source in `library/agents/<name>/` is edited.
 The frontmatter shape comes not from the documentation but from the stage 0 probe: `tools` as a
 comma-separated string and `mcpServers` as a block list. That is exactly how `probe-researcher`
 was declared, and in a live run it came up under its `agentType` and reached
-`mcp__tavily-remote__tavily_search` (`docs/decisions/2026-08-13-probe-findings.md`, items 2 and 3).
+`mcp__tavily-remote__tavily_search`, as measured on a live probe run.
 
 Document-type profiles (facet SPEC §6) arrive through the `skills:` frontmatter field: the runtime
 loads `.claude/skills/<name>/SKILL.md` into the agent's context at launch. A profile that does not

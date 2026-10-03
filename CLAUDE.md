@@ -83,8 +83,6 @@ never here.
 ## Layout
 
 - `library/agents/<name>/{agent.yaml,prompt.md}` — source of truth for the 37 agents (registry table in README, generated);
-  `library/agents-archive/` — six agents no script calls, plus the refract compiler's
-  pipeline templates and type schemas, kept for history;
 - `.claude/agents/` — **generated** by `emit_agents`, committed; edit the source only;
 - `.claude/skills/<type>-profile/SKILL.md` — document-type profiles (SPEC §6). **The document
   contract lives in the profile, not in prompts**: writer, corrector and critic read one text,

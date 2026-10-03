@@ -16,9 +16,6 @@ its own runtime. There is no scheduler, no ledger, no crash recovery and no runt
 all of that existed in refract and died on purpose, because the platform does it better and
 changes faster than we could keep up with it.
 
-The analysis this decision grew out of is in `docs/decisions/2026-08-13-analysis-native-claude-vs-refract.md`
-and `docs/decisions/2026-08-13-collimator-plan.md` (moved over from refract).
-
 ## Commands
 
 ```bash

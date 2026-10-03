@@ -1,7 +1,7 @@
 """Tests of the subagent definition generator.
 
-Two parts. The first is the mapping of contract capabilities to tools: the table from
-`docs/decisions/2026-08-13-collimator-plan.md`, including `read` and `vision` collapsing into one `Read`.
+Two parts. The first is the mapping of contract capabilities to tools: the table in
+`facet/emit_agents.py`, including `read` and `vision` collapsing into one `Read`.
 The second is a build of the real library: 37 agents, and MCP on exactly the five whose `needs` name it.
 """
 
@@ -271,7 +271,7 @@ def test_every_emitted_file_parses_and_has_tools(tmp_path: Path) -> None:
 
 
 def test_mcp_appears_exactly_where_the_contract_names_it(tmp_path: Path) -> None:
-    """Checks the result from `docs/decisions/2026-08-13-collimator-plan.md`: not one extra MCP permission."""
+    """Not one extra MCP permission: each agent gets exactly the servers its `needs` name."""
     emit_all(LIBRARY_AGENTS, tmp_path)
     with_tavily = set()
     with_pdf = set()
