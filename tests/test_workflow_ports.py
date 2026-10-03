@@ -265,7 +265,9 @@ def test_slop_critic_judges_every_client_facing_loop(tmp_path: Path) -> None:
     """Generated-text slop is caught twice: a narrow list in the gate and a critic in every round of a client document."""
     items = prompts(tmp_path, {**RUN, "config": {"fresh": True}})
     labels = [p["label"] for p in items]
-    assert "req:SLOP:1" in labels and "design:SLOP:1" in labels
+    assert "design:SLOP:1" in labels
+    # The requirements are internal: judged on completeness and traceability, not on wording.
+    assert not any(label.startswith("req:SLOP") for label in labels)
     gates = [
         p
         for p in by_agent(items, "gate-runner")

@@ -47,7 +47,12 @@ PROFILE_AGENTS = {
         "solution_design_selector",
     },
     "discovery-questions-profile": {"arch_probe", "arch_critic"},
-    "proposal-profile": {"coverage_mapper", "proposal_reviewer", "proposal_editor", "proposal_writer"},
+    "proposal-profile": {
+        "coverage_mapper",
+        "proposal_reviewer",
+        "proposal_editor",
+        "proposal_writer",
+    },
 }
 
 # Who needs MCP in the library as it stands: four Tavily, three pdf-reader, source_finder both.

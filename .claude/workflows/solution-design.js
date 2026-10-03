@@ -2053,9 +2053,8 @@ if (RUN_REQUIREMENTS) {
         inputs: [{ port: 'draft', path: REQ_PATH }, ...extractPorts, ...voicePort],
         brief: voiceBrief,
       },
-      ...(SLOP_CRITIC
-        ? [{ tag: 'SLOP', agentType: 'slop-critic', model: MODELS.slop, inputs: [{ port: 'draft', path: REQ_PATH }, ...voicePort], brief: voiceBrief }]
-        : []),
+      // No slop critic here: the requirements are an internal document, judged on completeness,
+      // traceability and weight. Wording is judged where the client reads, after the proposal.
       ...(CLAIM_CHECK ? [claimPanel({ tag: 'CLAIMS', artifact: REQ_PATH, evidence: asEvidence(extractPorts), brief: voiceBrief })] : []),
       ...(RULE_PANEL
         ? [rulePanel({ tag: 'RULES', profile: REQ_PROFILE, artifact: REQ_PATH, evidence: asEvidence(extractPorts), brief: voiceBrief })]
