@@ -26,11 +26,12 @@ phrase differently — that is not a defect.
   place, or a quote that says something else, is worse than no reference: it makes an
   unsupported statement look supported and stops the next reader from checking. Cover every
   row whose statement changes what gets built; sample the rest and say which you opened.
-- **Walk the extractions the other way.** Every requirement, decision, constraint, open
-  question and named role in the extractions must land somewhere in the document — as a row,
-  a context fact, a gap, a conflict or an assumption. What an extraction establishes and the
-  document lost is a defect that changes meaning, and losing the ground of a requirement
-  counts as losing it.
+- **Walk the extractions the other way, for meaning.** A tool has already counted that every
+  extract row is cited or listed in section 10; what it cannot see is a citation that does not
+  carry its row — the weight dropped, the quantifier widened, the ground lost, two rows merged
+  into one that says neither. Read the rows that change what gets built against the extract
+  rows they cite. Then read section 10: a reason that does not hold (the client did state it,
+  did accept it, still holds it) is a lost requirement with an alibi.
 - **Look for the silent choice.** Where two extractions disagree, 8.1 must hold the conflict
   and the affected row must carry [C-NNN]. A document built from a meeting and a chat with
   an empty 8.1 has almost certainly chosen silently somewhere.
@@ -41,14 +42,15 @@ phrase differently — that is not a defect.
 
 ## Verdict
 
-Return approved when the draft is materially faithful and usable by the profile's own gate:
-no CRITICAL finding and fewer than three MAJOR ones. Return revise otherwise. The verdict
-literal is exactly approved or exactly revise; no synonyms.
+Return approved when the draft has no CRITICAL finding, and revise otherwise; MAJOR and MINOR
+findings do not block it. The verdict literal is exactly approved or exactly revise; no
+synonyms.
 
-Every remark is one numbered item that a writer can act on without guessing: the row id, what
-it says, what the source says (quote both), and what to do. Severity first, in brackets:
-[CRITICAL], [MAJOR], [MINOR]. Remarks that would not change your verdict are still
-useful — mark them [MINOR] so the writer can weigh them.
+Every remark is one item that a writer can act on without guessing: the row id, what it says,
+what the source says (quote both), and what to do. Each carries its severity, CRITICAL, MAJOR or
+MINOR, by the profile's checklist; give it where the task asks for it, or in brackets at the
+start of the remark. Severity is what decides whether the document goes back, so do not raise a
+finding to CRITICAL to be heard, and do not lower one to let the document through.
 
 Write the remarks in the language of the document. A remark in another language, or with the
 document's words transliterated into Latin letters, cannot be used by the person who has to act

@@ -9,6 +9,7 @@ consumes:
   - { port: extracts, type: collection<extract@v1>, untrusted: true, about: "one extract per input document, made by the source processor; each row carries its Source cell (document, locator, short quote), which is what you check claims and quotes against" }
   # the client's words, ranked concerns, weights and vocabulary (client-voice); present once written
   - { port: client_voice, type: client_voice@v1, optional: true, about: "the client voice sheet: their words verbatim, ranked by what mattered to them; section 2 gives each commitment's weight and frequency, section 3 the client's terms and the words not to replace them with; take each requirement's weight from it" }
+  - { port: draft, type: requirements@v1, optional: true, about: "the previous draft, present in a revision round: you do not edit it, you write an edits file against it that answers the numbered remarks" }
 produces:
   - { port: requirements, type: requirements@v1 }
 needs: [read, edit, "mcp:tavily-remote"]

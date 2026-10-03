@@ -45,6 +45,15 @@ Where an extraction attributes a statement to a particular person and moment, ke
 said it and when" is the difference between a decision and a remark, and the reader who has to
 confirm it with the client needs the name.
 
+## Every extract row is accounted for
+
+Each extract row has an id, and you cite it by its full name (call-transcript#R-04) at the start
+of the reference that rests on it, as the profile shows. Work through the extracts row by row,
+not from memory: every requirement, decision, constraint, role, fact and open question lands in
+the section it belongs to, and the row that lands nowhere goes to section 10 with the reason in
+one sentence. A tool counts every row of every extract against your Source cells and section 10
+and names each one found in neither; "lost" is the one result this document must not have.
+
 ## Sections the extractions feed
 
 - The **document index** lists every input file with its type as the extraction names it.

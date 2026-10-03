@@ -24,7 +24,7 @@ Source cell. Start with a header block, then the tables, in this order.
 ```
 # Extract: <source id>
 
-- source: <file stem — exactly the identifier every downstream citation will use>
+- source: <the source id the task gives — exactly the identifier every downstream citation will use>
 - type: brief | rfp | transcript | meeting notes | chat | email | spreadsheet | client answers
 - date: <as the document gives it>
 - participants: <names and roles as the document names them>
@@ -42,10 +42,10 @@ Source cell. Start with a header block, then the tables, in this order.
 | ID | Constraint | Source |
 
 ## Roles
-| Role | What the source says they do | Source |
+| ID | Role | What the source says they do | Source |
 
 ## Facts
-| Topic | Fact | Source |
+| ID | Topic | Fact | Source |
 
 ## Open questions
 | ID | Question or contradiction | Positions (who says what) | Source |
@@ -64,6 +64,22 @@ Source cell. Start with a header block, then the tables, in this order.
   with itself, or two speakers in it disagree, record both positions with who holds them.
   Where a statement is a wish or a passing thought rather than a decision, say so in the row:
   the writer must not promote it.
+
+## Row ids
+
+Every row of every table opens with its id: R-01, R-02 … in Requirements, DE- in Decisions,
+CO- in Constraints, RO- in Roles, F- in Facts, Q- in Open questions; two digits, from 01,
+without gaps, in the order the rows appear. The requirements cite a row by the source id and
+this number (call-transcript#R-04), and a script counts that every row was either carried or set
+aside with a reason, so a row without an id is a row nobody can account for.
+
+## A second pass over what was missed
+
+When the task lists items an independent reader found missing or distorted, check each one
+against the document. Add the rows that hold, with new ids after the last one of their table;
+correct a distorted row in place and keep its id. An item that the document does not support,
+or that an existing row already carries in full, is left out. Edit the extract; do not write it
+again.
 
 ## The Source cell
 

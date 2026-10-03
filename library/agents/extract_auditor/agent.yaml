@@ -1,0 +1,19 @@
+name: extract_auditor
+version: 1
+description: >
+  Reads one input document and the extract made from it, in a fresh context, and
+  names everything the document states that the extract left out: requirements,
+  decisions, constraints, roles, facts, open questions, weights and figures, each
+  with its locator and a verbatim quote. Judges only; the extractor adds what it
+  finds.
+consumes:
+  - { port: source, type: source@v1, untrusted: true, about: "the input document, read whole" }
+  - { port: images, type: "collection<image@v1>", optional: true, untrusted: true, about: "a folder of images that belong to the document; what they show counts as part of it" }
+  - { port: extract, type: extract@v1, untrusted: true, about: "the extract made from the document; compare it against the document, row by row" }
+produces:
+  - { port: missing, type: extract_gaps@v1 }
+# Read only: an auditor that could edit the extract would fix it instead of reporting, and the
+# point is an independent count of what the first reader missed.
+needs: [read, vision, "mcp:pdf-reader"]
+defaults:
+  timeout_s: 1800

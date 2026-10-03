@@ -57,7 +57,7 @@ PROFILE_AGENTS = {
 
 # Who needs MCP in the library as it stands: four Tavily, three pdf-reader, source_finder both.
 TAVILY_AGENTS = {"arch_probe", "requirements_writer", "solution_designer", "source_finder"}
-PDF_AGENTS = {"source_processor", "source_finder", "client_voice"}
+PDF_AGENTS = {"source_processor", "source_finder", "client_voice", "extract_auditor"}
 
 
 def spec_of(
@@ -263,8 +263,8 @@ def test_missing_prompt_is_named_in_the_error(tmp_path: Path) -> None:
 
 def test_emits_every_agent_of_the_library(tmp_path: Path) -> None:
     written = emit_all(LIBRARY_AGENTS, tmp_path)
-    assert len(written) == 37
-    assert len(list(tmp_path.glob("*.md"))) == 37
+    assert len(written) == 38
+    assert len(list(tmp_path.glob("*.md"))) == 38
 
 
 def test_every_emitted_file_parses_and_has_tools(tmp_path: Path) -> None:

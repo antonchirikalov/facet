@@ -87,6 +87,16 @@ SCENARIOS: tuple[Scenario, ...] = (
         {"runDir": "r", "now": NOW, "config": {"stages": ["client"]}},
     ),
     Scenario(
+        "req-pipeline",
+        "requirements.js",
+        {"runDir": "r", "now": NOW, "config": {"fresh": True}},
+    ),
+    Scenario(
+        "req-pipeline-continue",
+        "requirements.js",
+        {"runDir": "r", "now": NOW, "config": {"continue": True}},
+    ),
+    Scenario(
         "figures", "attn-figures.js", {"runDir": "r", "articlePath": "r/design.md", "figures": 3}
     ),
     Scenario(

@@ -53,6 +53,7 @@ one paragraph "About this version": how Source cells are formed (see below), wha
 ### 8.2 Gaps                 table: # | Gap | Impact | Source
 ### 8.3 Assumptions          table: # | Assumption | Basis | Status
 ## 9. Confirmed environment and technical facts   table: Topic | Fact | Source
+## 10. Extract rows not carried   table: Row | Why not carried
 ---
 *End of requirements document.*
 ```
@@ -133,6 +134,13 @@ Rules that make the shape worth having:
 - **Section 9** collects the confirmed facts about the client's environment that architecture
   and sizing need — existing systems, versions, volumes, hosting, network, devices, who
   operates what — with a source per row. Facts, not requirements.
+- **Section 10 closes the trace.** Every row of every extract lands somewhere: a requirement,
+  a role, a context bullet, a rule, a conflict, a gap, a fact. A row that lands nowhere is
+  listed here by its full name (call-transcript#R-07) with the reason in one sentence: a
+  duplicate of the row it repeats (name it), our own proposal the client did not take up,
+  superseded by a later statement (name it), not about this system. A tool counts every row
+  of every extract against the Source cells and this section; a row in neither is lost, and
+  the gate names it. The client edition drops this section.
 
 ## IDs, tags and priorities
 
@@ -164,6 +172,10 @@ is not a requirement — it is a conclusion, and it moves to 8.3. The cell is bu
 <doc-id>: <locator> — “<short verbatim quote>”
 ```
 
+- Where the document is built from extracts, each reference opens with the extract row it
+  rests on: <doc-id>#<row id>: <locator> — “<quote>”, e.g. 03-chat#R-04: 08.09 11:20, client
+  lead — “SMS code”. Every row the reference supports is named; a row of several sources
+  names one extract row per source.
 - <doc-id> is the input file's stem as listed in the document index, e.g. 03-chat,
   RFP_Questions — the same identifier in every cell, never a paraphrase of the title.
 - <locator> is what lets a reader open the document and find the sentence: a section or
@@ -204,8 +216,9 @@ is not a requirement — it is a conclusion, and it moves to 8.3. The cell is bu
 
 ## Critic checklist
 
-In order of severity. CRITICAL alone forces revise; three or more MAJOR force revise;
-MINOR never does. Every finding names the row (ID) and, for a source defect, both what the
+In order of severity. Only CRITICAL forces revise. MAJOR never blocks acceptance: it is
+fixed in a round that runs anyway and recorded for the author otherwise. MINOR is recorded
+and never sent back. Every finding names the row (ID) and, for a source defect, both what the
 row says and what the source says.
 
 CRITICAL
@@ -220,6 +233,8 @@ CRITICAL
 4. A conclusion the writer drew presented as a client statement — a row with a Source cell
    pointing at something that does not say it, instead of an assumption in 8.3.
 5. A mandatory section missing, or section 3 without an Out of scope subsection.
+5a. A reason in section 10 that does not hold: a row set aside as a duplicate, as our
+   proposal or as superseded when the client stated it, accepted it or still holds it.
 
 MAJOR
 6. An NFR with no number and no checkable criterion, not tagged [PROVISIONAL], not moved to
@@ -250,7 +265,10 @@ or with the document's words transliterated, is unusable by the reader who has t
 Deterministic, run by the script before the critic sees the draft; what the gate settles never
 costs a round:
 
-- headings ## 1. … ## 9. and ### 8.1, ### 8.2, ### 8.3 present (--require-heading);
+- headings ## 1. … ## 10. and ### 8.1, ### 8.2, ### 8.3 present (--require-heading);
+- every extract row cited or listed in section 10 with a reason, and every cited row
+  declared by an extract (tools/extract_trace.py);
+- every quote in a Source cell occurs verbatim in the input documents (tools/check_quotes.py);
 - no heading with nothing under it (--no-empty-sections);
 - every body row of a table that has a Source column has a non-empty Source cell
   (--rows-have-source);
@@ -271,9 +289,10 @@ reference document, when one is available on this machine, is in exemplars.local
 
 ## Level
 
-3 — a saved Dynamic Workflow (solution-design.js, stage requirements): one extractor per
-input document in parallel, then writer → fact-checker → gate → critic in rounds up to the
-configured limit, with a plateau stop.
+3 — a saved Dynamic Workflow (requirements.js): one extractor per input document in
+parallel, an independent auditor of each extract and one pass over what it found, the client
+voice sheet, then writer → fact-checker → gate → critic in rounds until no CRITICAL remark is
+left or the round limit is reached.
 
 ## Output language
 
