@@ -1217,7 +1217,9 @@ async function reviseLoop({
     typeof recorded.report.measures.rounds === 'number' &&
     Array.isArray(recorded.rounds) &&
     Array.isArray(recorded.counts) &&
-    recorded.rounds.length === recorded.report.measures.rounds &&
+    // --last-only lists the newest round alone; matched by its number, not by the list's length.
+    recorded.rounds.length === 1 &&
+    recorded.rounds[0].round === recorded.report.measures.last_round &&
     recorded.counts.length === recorded.report.measures.rounds
   if (recorded && recorded.report && !recorded.report.ok) {
     // A record that does not parse is not trusted into the loop: continuing from a guessed round

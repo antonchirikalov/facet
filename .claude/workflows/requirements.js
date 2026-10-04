@@ -771,13 +771,18 @@ if (cfg.continue && reqPresent) {
     commands([`${tool('rounds')} --dir ${ROUNDS_DIR} --last-only ${noted('continue: rounds already judged')}`]),
     { agentType: 'gate-runner', model: MODELS.gate, label: 'req:continue', phase: 'Requirements', schema: ROUNDS },
   )
+  // --last-only lists the newest round alone and counts every round in the measures, so the
+  // list is matched to the report by that round's number. Comparing the list's length with the
+  // count rejected every history of two rounds or more, and a continued run judged its accepted
+  // document again from round 1.
   const shaped =
     recorded && recorded.report && recorded.report.measures && Array.isArray(recorded.rounds) &&
-    recorded.report.measures.rounds === recorded.rounds.length
+    recorded.rounds.length === 1 && recorded.rounds[0].round === recorded.report.measures.last_round
   if (shaped && recorded.rounds.length) {
     const last = recorded.rounds[recorded.rounds.length - 1]
     startRound = last.round + 1
     for (let n = 1; n < startRound; n++) [roundPathOf(n), draftPathOf(n), editsPathOf(n)].forEach((p) => touched.add(p))
+    touched.add(REMARKS_PATH)
     const sent = (last.remarks || []).filter((r) => !r.startsWith('[MINOR]'))
     pending = [...(last.gate || []).map((text) => ({ kind: 'GATE', text })), ...sent.map((text) => ({ kind: 'CARRIED', text }))]
     if (last.verdict === 'approved') {
@@ -786,7 +791,7 @@ if (cfg.continue && reqPresent) {
       log(`[req/continue] round ${last.round} accepted the requirements: no more rounds`)
     }
     warnings.push(`continued after round ${last.round}: the remarks of earlier rounds are in ${ROUNDS_DIR}, not in critic-remarks.md`)
-    log(`[req/continue] rounds judged ${recorded.rounds.length}, continuing from ${startRound} with ${pending.length} items`)
+    log(`[req/continue] rounds judged ${recorded.report.measures.rounds}, continuing from ${startRound} with ${pending.length} items`)
   } else {
     log('[req/continue] no usable round records: the draft on disk is judged as round 1')
   }

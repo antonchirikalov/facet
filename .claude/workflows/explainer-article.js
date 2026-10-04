@@ -1074,7 +1074,9 @@ if (cfg.fresh) {
     recorded.report.measures &&
     typeof recorded.report.measures.rounds === 'number' &&
     Array.isArray(recorded.rounds) &&
-    recorded.rounds.length === recorded.report.measures.rounds
+    // --last-only lists the newest round alone; matched by its number, not by the list's length.
+    recorded.rounds.length === 1 &&
+    recorded.rounds[0].round === recorded.report.measures.last_round
   if (recorded && recorded.report && !recorded.report.ok) {
     for (const problem of recorded.report.problems) {
       log(`[resume/rounds] THE ROUND RECORDS ARE CORRUPT, not trusted: ${problem}`)

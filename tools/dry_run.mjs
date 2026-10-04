@@ -47,6 +47,23 @@ function pathsFromPrompt(prompt) {
   return inCommands.length ? inCommands : ['dry/run/unknown.md']
 }
 
+// The history a rounds.py report describes: three rounds judged, or with DRY_PLATEAU=1 four that
+// already sit on a plateau (best on round 2, two rounds since without beating it).
+function roundsHistory() {
+  return process.env.DRY_PLATEAU
+    ? [
+        { round: 1, items: 5 },
+        { round: 2, items: 3 },
+        { round: 3, items: 5 },
+        { round: 4, items: 4 },
+      ]
+    : [
+        { round: 1, items: 5 },
+        { round: 2, items: 4 },
+        { round: 3, items: 3 },
+      ]
+}
+
 function fill(schema, prompt) {
   if (!schema || typeof schema !== 'object') return 'x'
   if (Array.isArray(schema.enum)) {
@@ -93,14 +110,7 @@ function fill(schema, prompt) {
         // on a plateau — best on round 2, two rounds since without beating it — so the branch
         // that declines to buy another round is exercised rather than assumed.
         if (key === 'counts' && sub && sub.type === 'array') {
-          out[key] = process.env.DRY_PLATEAU
-            ? [
-                { round: 1, items: 5 },
-                { round: 2, items: 3 },
-                { round: 3, items: 5 },
-                { round: 4, items: 4 },
-              ]
-            : [{ round: 1, items: 3 }]
+          out[key] = roundsHistory()
           continue
         }
         // DRY_INPUTS="a.docx,b.md" makes a listing return these names, so the branch that turns
@@ -179,6 +189,18 @@ function fill(schema, prompt) {
         }
         if (key === 'stdout') {
           out[key] = '{\n  "ok": true,\n  "problems": [],\n  "measures": {}\n}'
+          continue
+        }
+        // A rounds.py report has its own measures, and --last-only lists the newest round alone:
+        // a stub that answers with a file's measures cannot exercise the continue branch, and one
+        // live run lost a judged history because only that branch was wrong.
+        if (key === 'measures' && /tools\/rounds\.py/.test(prompt)) {
+          const counts = roundsHistory()
+          out[key] = { rounds: counts.length, last_round: counts.length, counts }
+          continue
+        }
+        if (key === 'rounds' && sub && sub.type === 'array' && /tools\/rounds\.py/.test(prompt)) {
+          out[key] = [{ ...fill(sub.items ?? {}, prompt), round: roundsHistory().length, verdict: happy ? 'approved' : 'revise' }]
           continue
         }
         if (key === 'measures') {
