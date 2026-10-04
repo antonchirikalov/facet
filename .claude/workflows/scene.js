@@ -219,7 +219,7 @@ for (let round = 1; round <= MAX_ROUNDS; round++) {
     commands(
       frames.map(
         (f, i) =>
-          `${tool('render_html')} --html "${SCENE_PATH}" --fragment step=${i + 1} --wait-ms 4000 --width 1440 --height 900 --out "${f}" ${noted(`scene step ${i + 1}`)}`,
+          `${tool('render_html')} --html "${SCENE_PATH}" --fragment step=${i + 1} --wait-ms 4000 --width 1440 --height 1200 --out "${f}" ${noted(`scene step ${i + 1}`)}`,
       ),
     ),
     { agentType: 'file-copier', model: MODELS.copy, label: `render:${round}`, phase: 'Look', schema: CHECKS },
@@ -243,7 +243,9 @@ for (let round = 1; round <= MAX_ROUNDS; round++) {
         `THE STILLS are the steps of one animated scene, in order: step-1 to step-${steps}. Each step ` +
         `must show what the brief says that step shows, every number and label must be one of the ` +
         `brief's Facts or the document's own, and no two labels may overlap or be cut by the edge. ` +
-        `Return one check per still, by its name.`,
+        `Return one check per still, by its name. The defects list holds only what is wrong; a still ` +
+        `with nothing wrong has ok true and an empty list. What you confirmed as right is not a defect ` +
+        `and goes nowhere: a confirmation in the list reads as a remark and sends the scene back.`,
     }),
     { agentType: 'figure-critic', model: MODELS.look, label: `look:${round}`, phase: 'Look', schema: LOOKED },
   )
