@@ -107,6 +107,19 @@ SCENARIOS: tuple[Scenario, ...] = (
         {"runDir": "r", "now": NOW, "config": {"stages": ["text"]}},
     ),
     Scenario(
+        "scene",
+        "scene.js",
+        {
+            "runDir": "r",
+            "slug": "pier-plan",
+            "brief": "r/scene-brief.md",
+            "document": "r/prop.md",
+            "voice": "r/client-voice.md",
+            "steps": 3,
+            "config": {"fresh": True},
+        },
+    ),
+    Scenario(
         "figures", "attn-figures.js", {"runDir": "r", "articlePath": "r/design.md", "figures": 3}
     ),
     Scenario(
