@@ -658,7 +658,13 @@ let extractPorts = []
     const checks = (found && found.checks) || []
     if (checks.length === sources.length) {
       todo = sources.filter((s, i) => !checks[i].ok)
-      for (const [i, s] of sources.entries()) if (checks[i].ok) touched.add(extractPathOf(stemOf(s)))
+      // A kept extract is its source, read by an earlier launch: both are accounted for.
+      for (const [i, s] of sources.entries()) {
+        if (!checks[i].ok) continue
+        touched.add(extractPathOf(stemOf(s)))
+        touched.add(s)
+        for (const d of imagesOf.get(s) || []) touched.add(d)
+      }
       log(`[extract] kept from the earlier run: ${sources.length - todo.length} of ${sources.length}`)
     }
   }
