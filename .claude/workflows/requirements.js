@@ -45,6 +45,15 @@ const now = (args && args.now) || ''
 // Free text about the run. Optional: the input documents are the order.
 const order = (args && args.order) || ''
 const cfg = (args && args.config) || {}
+// The client's name. Every document of these pipelines is written for the client, so it names
+// them; without the name an agent may put a placeholder ("Client A") in its place, and on one
+// live run that placeholder reached the proposal seventy-six times.
+const client = (args && args.client) || ''
+const CLIENT_BLOCK = client
+  ? `CLIENT\nThe client is ${client}. These documents are written for the client and name them as ` +
+    `${client}; never replace the name with a placeholder such as "Client A". People of the client ` +
+    `are still named by role only.`
+  : ''
 if (cfg.continue && cfg.fresh) throw new Error('config.continue and config.fresh exclude each other')
 
 // --- Paths: named here and nowhere else -------------------------------------------------------
@@ -182,9 +191,10 @@ function task({ inputs, output, extra, noFile, brief }) {
   if (!noFile && output) touched.add(output)
   lastPorts = { inputs: (inputs || []).map((i) => `${i.port} -> ${i.path}`), output: noFile ? null : output }
   const ports = (inputs || []).map((i) => `${i.port}: ${i.path}`).join('\n')
+  const lead = [CLIENT_BLOCK, brief].filter(Boolean).join('\n\n')
   return (
     (ports ? `INPUT\n${ports}\n\n` : '') +
-    (brief ? `${brief}\n\n` : '') +
+    (lead ? `${lead}\n\n` : '') +
     (noFile ? NO_FILE_RULE : `OUTPUT\n${output}\n\n` + OUTPUT_RULE) +
     (extra ? `\n\n${extra}` : '')
   )

@@ -35,17 +35,24 @@ is absent from the sources, never to shorten.
    party, the product as the client's own, the proposed start, and the preliminary note.
 2. What was said: a table, the client's verbatim words on the left, what the product does about
    them on the right; one row per pain and worry of the pain map, eight to ten rows, no detail
-   of how a feature works.
+   of how a feature works. The words quoted are what the client wants or fears, never their
+   hesitations ("still in talks", "I don't remember if"): a doubt quoted back reads as an
+   internal note. A quote from the client's document says so ("their scope document").
 3. A day with the product: the main scenario step by step with its screens, the secondary
    scenarios, every role in one table, how the product reaches its users (distribution,
    onboarding, training).
 4. The core mechanism the client worries about most (for Acme Clinics, the price quote), with
-   a worked example and who controls it.
+   a worked example in numbers and who controls it. Where the sources give no figure, the
+   example uses illustrative numbers and says so in its preliminary note; an example of X and Y
+   persuades nobody.
 5. How it is built: the parts on the device, the backend service by service, the standard
-   cloud services, where it runs, backup and environments, one technology line.
+   cloud services, where it runs, backup and restore, environments, one technology line.
 6. Plan and team: stages with weeks, milestones, what the project needs from the client with
-   dates, the team by role and phase.
-7. What we will decide together: every open decision and why it matters.
+   dates (accounts, store and developer registrations, terms of use and privacy policy where
+   the product publishes an app), the team by role, skill and phase.
+7. What we will decide together: the decisions only the client can take, and why each matters;
+   about eight. A choice the design or the sources allow us to make is not listed here: it is
+   proposed in its section as a default, with its preliminary note.
 8. Assumptions and risks.
 9. What comes next: the next step the client already asked for, then ideas for the client to
    consider.
@@ -61,6 +68,11 @@ References between sections are "section N" and must name an existing "## N." he
 - No bold anywhere. A lead-in that names an idea is set in italics.
 - A proposal says what is proposed, not what is settled. Anything the sources leave open
   carries its decision in section 7 and points there.
+- Propose rather than defer. Where the design or common practice gives a sound default
+  (how the app reaches its users, backups, environments, the team), state it as our proposal,
+  preliminary, instead of moving it to discovery. The client asked "how will it reach the
+  installers" as their main question on one call; a draft that answered "to be decided" lost the
+  section a human had filled. A proposal of fourteen open decisions reads as uncertainty.
 - The future is conditional: the ideas of section 9 and anything outside the plan are written
   with "would" and "could" and are introduced as ideas to discuss, each with what the client
   gains and what it would need from them.
@@ -125,6 +137,9 @@ HIGH (any one forces revise)
 5. A cost, a competitor name or a person's name of the client.
 
 MEDIUM (three force revise)
+5a. A question the client asked, or a part of the delivery the design gives a default for,
+    deferred to discovery instead of answered with a proposal.
+5b. A worked example without numbers; a client's hesitation quoted in section 2.
 6. An idea or next step written as a commitment.
 7. A preliminary statement inside a paragraph instead of its own note.
 8. A term with two meanings; jargon a non-technical reader cannot follow without help.

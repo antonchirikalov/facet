@@ -40,6 +40,15 @@ const order = (args && args.order) || ''
 // it is built, and every other choice becomes a decision to take with the client.
 const designPath = (args && args.design) || ''
 const cfg = (args && args.config) || {}
+// The client's name. Every document of these pipelines is written for the client, so it names
+// them; without the name an agent may put a placeholder ("Client A") in its place, and on one
+// live run that placeholder reached the proposal seventy-six times.
+const client = (args && args.client) || ''
+const CLIENT_BLOCK = client
+  ? `CLIENT\nThe client is ${client}. These documents are written for the client and name them as ` +
+    `${client}; never replace the name with a placeholder such as "Client A". People of the client ` +
+    `are still named by role only.`
+  : ''
 const STAGES = cfg.stages || ['content']
 if (STAGES.length !== 1 || !['content', 'text'].includes(STAGES[0])) {
   throw new Error(`config.stages is one stage, "content" or "text"; got: ${JSON.stringify(STAGES)}`)
@@ -143,9 +152,10 @@ function task({ inputs, output, extra, noFile, brief }) {
   if (!noFile && output) touched.add(output)
   lastPorts = { inputs: (inputs || []).map((i) => `${i.port} -> ${i.path}`), output: noFile ? null : output }
   const ports = (inputs || []).map((i) => `${i.port}: ${i.path}`).join('\n')
+  const lead = [CLIENT_BLOCK, brief].filter(Boolean).join('\n\n')
   return (
     (ports ? `INPUT\n${ports}\n\n` : '') +
-    (brief ? `${brief}\n\n` : '') +
+    (lead ? `${lead}\n\n` : '') +
     (noFile ? NO_FILE_RULE : `OUTPUT\n${output}\n\n` + OUTPUT_RULE) +
     (extra ? `\n\n${extra}` : '')
   )
