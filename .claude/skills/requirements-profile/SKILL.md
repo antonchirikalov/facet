@@ -291,7 +291,8 @@ reference document, when one is available on this machine, is in exemplars.local
 
 3 — a saved Dynamic Workflow (requirements.js): one extractor per input document in
 parallel, an independent auditor of each extract and one pass over what it found, the client
-voice sheet, then writer → fact-checker → gate → critic in rounds until no CRITICAL remark is
+voice sheet, then writer → fact-checker → gate → critic (each CRITICAL remark put to a vote of
+three checkers) in rounds until no CRITICAL remark is
 left or the round limit is reached.
 
 ## Output language

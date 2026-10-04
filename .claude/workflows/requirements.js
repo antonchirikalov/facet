@@ -76,6 +76,8 @@ const MODELS = {
   write: 'opus',
   fix: 'sonnet',
   critic: 'opus',
+  // The checkers that vote on a CRITICAL remark: several fresh readings, each cheap.
+  vote: 'sonnet',
   // Carriers stay on sonnet: a haiku carrier once read the relayed user request as its own task
   // and returned an invented report the script trusted.
   gate: 'sonnet',
@@ -757,6 +759,67 @@ if (cfg.continue && reqPresent) {
   }
 }
 
+// A CRITICAL remark sends the document back, so before it does, independent checkers vote on it.
+// One critic is one reading, and on live runs a single reader's blocking remark was as often a
+// misreading as a defect. Each checker gets the draft, the evidence and the CRITICAL remarks as
+// claims; a remark that a majority refutes is downgraded to MAJOR with the reason, one that the
+// checkers could not judge stays CRITICAL: an unverified remark is not a refuted one.
+const VOTERS = cfg.voters ?? 3
+const CHECKED = {
+  type: 'object',
+  required: ['results'],
+  properties: {
+    results: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['id', 'holds', 'problem'],
+        properties: {
+          id: { type: 'string' },
+          holds: { type: 'boolean' },
+          problem: { type: 'string', description: 'what the draft and the evidence say instead, quoted; empty when the remark holds' },
+        },
+      },
+    },
+  },
+}
+async function voteOnCritical(round, remarks) {
+  const critical = remarks.filter((r) => r.severity === 'CRITICAL')
+  if (!critical.length || VOTERS < 2) return 0
+  const evidence = [
+    ...extractPorts.map((e) => ({ port: e.port.replace(/^extract:/, 'evidence:'), path: e.path })),
+    ...voicePort.map((v) => ({ port: 'evidence:client-voice', path: v.path })),
+  ]
+  const claims =
+    `CLAIMS TO CHECK\nEach claim is a reviewer's remark about the draft. It holds when the draft really ` +
+    `has the defect the remark names and the evidence confirms what the remark says the source says.\n` +
+    critical.map((r, i) => `V${i + 1}: "${r.text}"`).join('\n')
+  const ballots = await parallel(
+    Array.from({ length: VOTERS }, (_, k) => () =>
+      call(task({ inputs: [{ port: 'draft', path: REQ_PATH }, ...evidence], noFile: true, extra: claims }), {
+        agentType: 'claim-checker',
+        model: MODELS.vote,
+        label: `req:vote:${round}:${k + 1}`,
+        phase: 'Requirements',
+        schema: CHECKED,
+      }),
+    ),
+  )
+  const majority = Math.floor(VOTERS / 2) + 1
+  let refutedCount = 0
+  critical.forEach((r, i) => {
+    const said = ballots.map((b) => b && (b.results || []).find((x) => x.id === `V${i + 1}`)).filter(Boolean)
+    const against = said.filter((x) => !x.holds)
+    log(`[req/${round}/vote] V${i + 1}: holds ${said.length - against.length}, refuted ${against.length}, not judged ${VOTERS - said.length}`)
+    if (against.length >= majority) {
+      r.severity = 'MAJOR'
+      r.text = `${r.text} [not confirmed by ${against.length} of ${VOTERS} checkers: ${against[0].problem || 'no reason given'}]`
+      refutedCount += 1
+    }
+  })
+  return refutedCount
+}
+
 for (let round = startRound; round <= MAX_ROUNDS; round++) {
   rounds = round
   phase('Requirements')
@@ -840,22 +903,30 @@ for (let round = startRound; round <= MAX_ROUNDS; round++) {
   log(`[req/${round}/gate] problems ${gateProblems.length}${gateProblems.length ? ': ' + gateProblems.join('; ') : ''}`)
 
   // --- The critic judges what only judgement decides
-  const verdict =
-    (await call(
-      task({
-        inputs: [{ port: 'draft', path: REQ_PATH }, ...extractPorts, ...voicePort],
-        noFile: true,
-        brief: writerBrief,
-        extra: declinedNotes.length
-          ? `DECLINED LAST ROUND, with the reason. Raise one again only if the reason is wrong, and say why.\n` +
-            declinedNotes.map((d, i) => `${i + 1}. ${d}`).join('\n')
-          : undefined,
-      }),
-      { agentType: 'requirements-critic', model: MODELS.critic, label: `req:critic:${round}`, phase: 'Requirements', schema: VERDICT },
-    )) || { verdict: 'revise', remarks: [{ severity: 'CRITICAL', text: 'the critic returned no verdict: that is an open item, not agreement' }] }
+  const criticSaid = await call(
+    task({
+      inputs: [{ port: 'draft', path: REQ_PATH }, ...extractPorts, ...voicePort],
+      noFile: true,
+      brief: writerBrief,
+      extra: declinedNotes.length
+        ? `DECLINED LAST ROUND, with the reason. Raise one again only if the reason is wrong, and say why.\n` +
+          declinedNotes.map((d, i) => `${i + 1}. ${d}`).join('\n')
+        : undefined,
+    }),
+    { agentType: 'requirements-critic', model: MODELS.critic, label: `req:critic:${round}`, phase: 'Requirements', schema: VERDICT },
+  )
+  // A dead critic is an open item, not agreement; it is not put to the vote.
+  const verdict = criticSaid || {
+    verdict: 'revise',
+    remarks: [{ severity: 'CRITICAL', text: 'the critic returned no verdict: that is an open item, not agreement' }],
+  }
   const remarks = (verdict.remarks || []).map((r) => ({ severity: r.severity, text: String(r.text).replace(/^\s*\d{1,2}[.)]\s+/, '') }))
+  const refuted = criticSaid ? await voteOnCritical(round, remarks) : 0
   const count = (s) => remarks.filter((r) => r.severity === s).length
-  perRound.push(`Round ${round}: CRITICAL ${count('CRITICAL')}, MAJOR ${count('MAJOR')}, MINOR ${count('MINOR')}, gate problems ${gateProblems.length}`)
+  perRound.push(
+    `Round ${round}: CRITICAL ${count('CRITICAL')}, MAJOR ${count('MAJOR')}, MINOR ${count('MINOR')}, ` +
+      `CRITICAL refuted by the vote ${refuted}, gate problems ${gateProblems.length}`,
+  )
   log(`[req/${round}/critic] ${perRound[perRound.length - 1]}`)
   for (const r of remarks) log(`[req/${round}/critic] [${r.severity}] ${r.text}`)
   if ((verdict.verdict === 'approved') !== (count('CRITICAL') === 0)) {
