@@ -489,7 +489,11 @@ const skipped = []
   let docs = unique
     .map((f) => f.path)
     .filter((rel) => !IMAGE.test(rel) && !AUDIO_VIDEO.test(rel))
-    .filter((rel) => !(OFFICE.test(rel) && listed.has(`${rel}.md`)))
+    .filter((rel) => {
+      if (!(OFFICE.test(rel) && listed.has(`${rel}.md`))) return true
+      touched.add(`${INPUTS_DIR}/${rel}`)
+      return false
+    })
 
   // Office documents become markdown first: the extractor reads with Read, and Read refuses a
   // .docx. The tool writes <name>.docx.md next to each, so the script knows the names.
@@ -728,6 +732,7 @@ let voicePort = []
   const m = (checks[0] && checks[0].measures) || {}
   if (checks.length === voiceChecks.length && typeof m.chars === 'number' && m.chars >= MIN_ARTIFACT_CHARS) {
     voicePort = [{ port: 'client_voice', path: VOICE_PATH }]
+    touched.add(VOICE_PATH)
     const problems = checks.flatMap((c) => c.problems || [])
     for (const p of problems) warnings.push(`client voice: ${p}`)
     facts.push(`Client voice: written; gate ${problems.length ? 'open: ' + problems.join('; ') : 'clean'}`)
@@ -867,6 +872,7 @@ async function voteOnCritical(round, remarks) {
 // An accepted document found on disk is measured once, so the outcome carries its trace; a
 // person may have edited it since, and the gate is how that edit is checked.
 if (accepted) {
+  touched.add(REQ_PATH)
   const list = reqChecks('recheck')
   const res = await call(commands(list), { agentType: 'gate-runner', model: MODELS.gate, label: 'req:recheck', phase: 'Requirements', schema: CHECKS })
   const checks = (res && res.checks) || []
