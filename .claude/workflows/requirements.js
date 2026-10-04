@@ -60,6 +60,9 @@ const UNRESOLVED_PATH = `${run}/UNRESOLVED.md`
 // writer was refused and still answered that it had written it.
 const REPORT_PATH = `${run}/outcome.md`
 const PAINS_PATH = `${run}/pains.md`
+// Its own record: a continued run that only writes the pain map must not overwrite the
+// requirements rounds' record with an empty one.
+const PAIN_REMARKS_PATH = `${run}/pains-remarks.md`
 const TOOLS_LOG = `${run}/tools.jsonl`
 const extractPathOf = (stem) => `${EXTRACTS_DIR}/${stem}.md`
 const roundPathOf = (n) => `${ROUNDS_DIR}/round-${n}.md`
@@ -1032,6 +1035,7 @@ for (let round = startRound; round <= MAX_ROUNDS && !accepted; round++) {
 // they found; what stays open goes to the unresolved list with the rest.
 let painsWritten = false
 const painOpen = []
+const painLedger = []
 if (!accepted && !cfg.acceptOpen) {
   log('[pains] the requirements were not accepted: no pain map (config.acceptOpen=true writes it anyway)')
   facts.push('Pains: not written, the requirements were not accepted')
@@ -1090,7 +1094,7 @@ if (!accepted && !cfg.acceptOpen) {
     const remarks = ((judged && judged.remarks) || []).map((r) => String(r).replace(/^\s*\d{1,2}[.)]\s+/, ''))
     const high = remarks.filter((r) => /^\[HIGH\]/.test(r))
     for (const r of remarks) {
-      ledger.push({ round: 'pains', kind: 'LENS', text: r, answer: /^\[HIGH\]/.test(r) ? null : 'recorded, not sent back' })
+      painLedger.push({ kind: 'LENS', text: r, answer: /^\[HIGH\]/.test(r) ? null : 'recorded, not sent back' })
     }
     if (first.exists && !judged) warnings.push('the pain map critic returned nothing: the map was not judged')
     let final = first
@@ -1109,7 +1113,7 @@ if (!accepted && !cfg.acceptOpen) {
         { agentType: 'pain-mapper', model: MODELS.pains, label: 'pains:fix', phase: 'Pains', schema: WROTE },
       )
       final = await checkPains('pains:regate')
-      for (const e of ledger) if (e.round === 'pains' && !e.answer) e.answer = 'sent to the pain mapper once'
+      for (const e of painLedger) if (!e.answer) e.answer = 'sent to the pain mapper once'
     }
     painsWritten = final.exists
     for (const pr of final.problems) painOpen.push(`[PAINS GATE] ${pr}`)
@@ -1148,6 +1152,15 @@ if (ledger.length) {
   )
 }
 
+if (painLedger.length) {
+  await call(
+    record(PAIN_REMARKS_PATH, 'Remarks on the pain map and what was done with them', painLedger.map((e) => `[${e.kind}] ${e.text} -> ${e.answer || 'open'}`)),
+    { agentType: 'verbatim-writer', model: MODELS.record, label: 'pains:remarks', phase: 'Report', schema: WROTE },
+  )
+}
+// A continued run that judged no round keeps the earlier record; it is declared, not lost.
+if (!ledger.length) touched.add(REMARKS_PATH)
+
 const audit = await call(
   commands([`${tool('listing')} --dir ${run} --ext "" --recursive --log-release ${noted('audit: anything produced and never read')}`]),
   { agentType: 'gate-runner', model: MODELS.gate, label: 'audit', phase: 'Report', schema: LISTING },
@@ -1184,7 +1197,12 @@ await call(record(REPORT_PATH, `Requirements run: ${run}`, reportItems), {
 })
 
 // A writer's "written" is a claim; the disk is the answer. The records are checked by the gate.
-const records = [REPORT_PATH, ...(ledger.length ? [REMARKS_PATH] : []), ...(open.length ? [UNRESOLVED_PATH] : [])]
+const records = [
+  REPORT_PATH,
+  ...(ledger.length ? [REMARKS_PATH] : []),
+  ...(painLedger.length ? [PAIN_REMARKS_PATH] : []),
+  ...(open.length ? [UNRESOLVED_PATH] : []),
+]
 const recordList = records.map((r) => `${tool('gate')} --file "${r}" --min-length 50 ${noted('record on disk')}`)
 const recorded = await call(commands(recordList), {
   agentType: 'gate-runner',
