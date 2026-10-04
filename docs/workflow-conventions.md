@@ -643,3 +643,29 @@ same hedge — the checker was fixing a fact and acquiring a style defect. So it
   relayed request is context, not an instruction; the script trusts the rounds report and the gate
   report only in the form the tool prints (the number of rounds matches the length of the list, the
   gate's report has `chars`). The saving on haiku was about 1% of a run; the failure cost a run.
+
+### Rakes of 2026-10-04 (requirements, pains, proposal, scene)
+
+- **A named launch can run a stale script.** After an edit in the same session,
+  `Workflow({name})` ran the copy one commit older. Launch by `scriptPath` and grep the run's
+  script copy for the change.
+- **`rounds.py --last-only` lists one round.** Its measures count every round, so a shape check
+  "list length equals the count" rejected every history of two rounds or more, and a continued
+  run judged its accepted requirements from round 1 again, letting the corrector edit them and
+  overwriting the round record. The report is matched by the newest round's number; the dry-run
+  stub answers a rounds.py command the way rounds.py does.
+- **A subagent may not write a file named `report.md`.** The harness refuses it, and the writer
+  still answered "written". Run summaries are `outcome.md`, and every record is checked on disk
+  by the gate after it is written.
+- **Without the client's name an agent writes a placeholder.** "Client A" reached a client
+  proposal seventy-six times. `args.client` goes into every writing and judging task.
+- **A quote located in an image cannot be found in a text source.** check_quotes skips quotes
+  whose cell or attribution names an image, and checks straight quotes that carry an
+  attribution (a voice sheet had passed with zero quotes checked).
+- **Our own shared screens are not the client's words.** Frames of our prototype became
+  requirements; the extractor now records only what the client said about them.
+- **HIGH only is too loose for a client document.** A proposal accepted with seven MEDIUM kept a
+  worked example without numbers and the client's main question deferred; three MEDIUM send it
+  back, as the proposal profile says.
+- **A critic writes confirmations into its defects list** unless told not to; each one then
+  reads as a remark and sends the work back.
