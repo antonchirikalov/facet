@@ -10,6 +10,10 @@ rendered here: what the HTML says is what the PNG shows, every time.
 The browser is found in this order: --chrome, $CHROME_BIN, the usual install paths of Chrome and
 Edge, then chrome, chromium and msedge on PATH. Exit code is 0 either way; the verdict travels in
 the JSON, with the command that was run.
+
+An animated scene is rendered one step at a time: --fragment "step=3" opens the page at
+scene.html#step=3, which the animated-scene profile requires to show step 3 with its animation
+finished, and --wait-ms lets the page's timers run that long in virtual time before the shot.
 """
 
 from __future__ import annotations
@@ -45,8 +49,16 @@ def locate(explicit: str | None) -> str | None:
 
 
 def command(
-    browser: str, html: Path, png: Path, width: int, height: int, scale: float
+    browser: str,
+    html: Path,
+    png: Path,
+    width: int,
+    height: int,
+    scale: float,
+    fragment: str = "",
+    wait_ms: int = 0,
 ) -> list[str]:
+    uri = html.resolve().as_uri() + (f"#{fragment}" if fragment else "")
     return [
         browser,
         "--headless=new",
@@ -55,8 +67,9 @@ def command(
         "--no-first-run",
         f"--force-device-scale-factor={scale:g}",
         f"--window-size={width},{height}",
+        *([f"--virtual-time-budget={wait_ms}"] if wait_ms else []),
         f"--screenshot={png.resolve()}",
-        html.resolve().as_uri(),
+        uri,
     ]
 
 
@@ -70,6 +83,10 @@ def main() -> int:
     p.add_argument("--height", type=int, default=900, help="viewport height in CSS pixels")
     p.add_argument("--scale", type=float, default=2.0, help="device scale factor")
     p.add_argument("--chrome", help="path to the browser")
+    p.add_argument("--fragment", default="", help='URL fragment, e.g. "step=3" for one step of a scene')
+    p.add_argument(
+        "--wait-ms", type=int, default=0, help="virtual time the page runs before the screenshot"
+    )
     toollog.add_argument(p)
     args = p.parse_args()
 
@@ -82,7 +99,16 @@ def main() -> int:
         problems.append("no Chrome or Edge found: pass --chrome or set CHROME_BIN")
     else:
         args.out.parent.mkdir(parents=True, exist_ok=True)
-        argv = command(browser, args.html, args.out, args.width, args.height, args.scale)
+        argv = command(
+            browser,
+            args.html,
+            args.out,
+            args.width,
+            args.height,
+            args.scale,
+            args.fragment,
+            args.wait_ms,
+        )
         measures["command"] = argv
         done = subprocess.run(argv, capture_output=True, text=True, timeout=120, check=False)
         if not args.out.is_file() or args.out.stat().st_size == 0:

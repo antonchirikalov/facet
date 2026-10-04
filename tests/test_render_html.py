@@ -30,6 +30,19 @@ def test_command_is_headless_with_viewport_and_scale(tmp_path: Path) -> None:
     assert argv[-1].startswith("file:///")
 
 
+def test_a_scene_step_is_opened_by_its_fragment_after_virtual_time(tmp_path: Path) -> None:
+    html = tmp_path / "scene.html"
+    html.write_text("<canvas></canvas>", encoding="utf-8")
+    argv = render_html.command(
+        "chrome", html, tmp_path / "s3.png", 1600, 900, 2.0, fragment="step=3", wait_ms=4000
+    )
+    assert argv[-1].endswith("scene.html#step=3")
+    assert "--virtual-time-budget=4000" in argv
+    plain = render_html.command("chrome", html, tmp_path / "s.png", 1600, 900, 2.0)
+    assert not any(a.startswith("--virtual-time-budget") for a in plain)
+    assert "#" not in plain[-1]
+
+
 def test_missing_html_is_a_problem(
     capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

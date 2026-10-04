@@ -1,0 +1,22 @@
+name: scene_animator
+version: 1
+description: >
+  Writes an animated scene: one self-contained HTML page that walks the client
+  through a process step by step on a canvas or SVG stage, with plain JavaScript,
+  numbered steps, captions and play controls, every number on the stage taken from
+  the brief's Facts. Opening the page at #step=N shows step N finished, so each
+  step can be rendered and checked as a still.
+consumes:
+  - { port: brief, type: scene_brief@v1, about: "the scene brief: what the scene shows, the steps with what each one shows and says, the Facts block of every number and label the stage carries; the facts were checked against the proposal before you were called" }
+  - { port: document, type: proposal@v1, optional: true, about: "the proposal the scene accompanies: its language, the client's name and terms, and the section the scene illustrates" }
+  - { port: client_voice, type: client_voice@v1, optional: true, about: "the client voice sheet: their words for things, which the stage and the captions use" }
+  - { port: draft, type: animated_scene@v1, optional: true, about: "your previous scene, on a revision round: edit it to answer the numbered remarks; do not start over" }
+  - { port: frames, type: "collection<image@v1>", optional: true, untrusted: true, about: "stills of the previous scene, one per step, as the critic saw them" }
+produces:
+  - { port: scene, type: animated_scene@v1 }
+needs: [read, edit, vision]
+# The scene's contract and the look: the profile says what the page must be, the design skill
+# how to make it not look like a template.
+skills: [animated-scene-profile, frontend-design]
+defaults:
+  timeout_s: 2400

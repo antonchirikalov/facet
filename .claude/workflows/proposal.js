@@ -242,6 +242,26 @@ const LISTING = {
   },
 }
 const WROTE = { type: 'object', required: ['written'], properties: { written: { type: 'boolean' } } }
+const ROUNDS = {
+  type: 'object',
+  required: ['report', 'rounds'],
+  properties: {
+    report: REPORT,
+    rounds: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['round', 'verdict', 'remarks', 'gate'],
+        properties: {
+          round: { type: 'number' },
+          verdict: { type: 'string', description: 'the verdict of the round, verbatim' },
+          remarks: { type: 'array', items: { type: 'string' } },
+          gate: { type: 'array', items: { type: 'string' } },
+        },
+      },
+    },
+  },
+}
 const DRAFT = {
   type: 'object',
   required: ['changes', 'addressed'],
@@ -469,8 +489,39 @@ let rounds = 0
 let previousSignature = null
 let lastCoverage = {}
 const perRound = []
+// The proposal profile's verdict rule: any HIGH, or three MEDIUM, send the draft back. A client
+// document accepted with seven MEDIUM remarks left a worked example without numbers and the
+// owner's main question deferred, which is what the comparison with the sent proposal found.
+const MEDIUM_LIMIT = cfg.mediumLimit ?? 3
 
-for (let round = 1; round <= MAX_ROUNDS; round++) {
+// Continuing: the rounds already judged are read back, so a continued launch numbers its rounds
+// after them instead of writing over round 1 of the earlier launch.
+let startRound = 1
+if (cfg.continue) {
+  const recorded = await call(
+    commands([`${tool('rounds')} --dir ${ROUNDS_DIR} --last-only ${noted('continue: rounds already judged')}`]),
+    { agentType: 'gate-runner', model: MODELS.gate, label: 'prop:continue', phase: PHASE, schema: ROUNDS },
+  )
+  const shaped =
+    recorded && recorded.report && recorded.report.measures && Array.isArray(recorded.rounds) &&
+    recorded.rounds.length === 1 && recorded.rounds[0].round === recorded.report.measures.last_round
+  if (shaped) {
+    const last = recorded.rounds[0]
+    startRound = last.round + 1
+    for (let n = 1; n < startRound; n++) [roundPathOf(n), draftPathOf(n), editsPathOf(n)].forEach((x) => touched.add(x))
+    pending = [
+      ...(last.gate || []).map((text) => ({ kind: 'GATE', text })),
+      ...(last.remarks || [])
+        .filter((r) => !/^\[LOW\]/.test(r) && !/^Gate: /.test(r))
+        .map((r) => ({ kind: /^\[(HIGH|MEDIUM)\]/.test(r) ? r.slice(1, r.indexOf(']')) : 'CARRIED', text: r.replace(/^\[(HIGH|MEDIUM)\]\s*/, '').replace(/^Carried: /, '') })),
+    ]
+    log(`[prop/continue] rounds judged ${recorded.report.measures.rounds}, continuing from ${startRound} with ${pending.length} items`)
+  } else {
+    log('[prop/continue] no usable round records: the proposal on disk is judged as round 1')
+  }
+}
+
+for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
   rounds = round
   phase(PHASE)
 
@@ -583,7 +634,12 @@ for (let round = 1; round <= MAX_ROUNDS; round++) {
     ledger.push(entry)
     if (!low) sendBack.push({ kind: r.severity, text: r.text, entry })
   }
-  const blocking = [...gateProblems, ...remarks.filter((r) => r.severity === 'HIGH').map((r) => r.text)]
+  const mediums = remarks.filter((r) => r.severity === 'MEDIUM')
+  const blocking = [
+    ...gateProblems,
+    ...remarks.filter((r) => r.severity === 'HIGH').map((r) => r.text),
+    ...(mediums.length >= MEDIUM_LIMIT ? mediums.map((r) => r.text) : []),
+  ]
   const passed = exists && blocking.length === 0
   const wrote = await call(
     record(roundPathOf(round), `Round ${round} — verdict=${passed ? 'approved' : 'revise'} style=approved`, [
@@ -604,7 +660,7 @@ for (let round = 1; round <= MAX_ROUNDS; round++) {
   if (!exists) warnings.push(`round ${round}: the proposal did not reach the disk`)
   if (passed) {
     accepted = true
-    log(`[prop/${round}] ACCEPTED: the gate is clean and no HIGH remark is left`)
+    log(`[prop/${round}] ACCEPTED: the gate is clean, no HIGH remark and fewer than ${MEDIUM_LIMIT} MEDIUM`)
     break
   }
   const signature = JSON.stringify(blocking.slice().sort())
@@ -648,7 +704,7 @@ if (!onDisk.length) warnings.push('the directory audit was not done: the listing
 const missing = Array.isArray(lastCoverage.missing) ? lastCoverage.missing : []
 const late = Array.isArray(lastCoverage.late) ? lastCoverage.late : []
 const outcome = [
-  `${STAGE === 'content' ? 'Content' : 'Text'} accepted: ${accepted ? 'yes' : 'no'}; rounds: ${rounds} of ${MAX_ROUNDS}`,
+  `${STAGE === 'content' ? 'Content' : 'Text'} accepted: ${accepted ? 'yes' : 'no'}; rounds: ${rounds} (this launch at most ${MAX_ROUNDS})`,
   `Pains answered in the client's words: ${lastCoverage.answered ?? '?'} of ${(lastCoverage.pains ?? 0) + (lastCoverage.worries ?? 0) || '?'}` +
     (missing.length ? `; not answered: ${missing.join(', ')}` : '') +
     (late.length ? `; top pains answered late: ${late.join(', ')}` : ''),
