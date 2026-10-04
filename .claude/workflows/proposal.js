@@ -545,7 +545,11 @@ for (let round = 1; round <= MAX_ROUNDS; round++) {
     { agentType: critic.agentType, model: critic.model, label: `prop:${STAGE}:critic:${round}`, phase: PHASE, schema: VERDICT },
   )
   const remarks = said
-    ? (said.remarks || []).map((r) => ({ severity: severityOf(r), text: String(r).replace(/^\s*\d{1,2}[.)]\s+/, '') }))
+    ? (said.remarks || []).map((r) => ({
+        severity: severityOf(r),
+        // The severity travels in its own field; left in the text it was printed twice.
+        text: String(r).replace(/^\s*\d{1,2}[.)]\s+/, '').replace(/^\[(?:HIGH|MEDIUM|LOW)\]\s*/, ''),
+      }))
     : [{ severity: 'HIGH', text: `the ${critic.agentType} returned no verdict: that is an open item, not agreement` }]
   const refuted = said && critic.vote ? await voteOnHigh(round, remarks) : 0
   const count = (s) => remarks.filter((r) => r.severity === s).length
@@ -573,7 +577,7 @@ for (let round = 1; round <= MAX_ROUNDS; round++) {
   const passed = exists && blocking.length === 0
   const wrote = await call(
     record(roundPathOf(round), `Round ${round} — verdict=${passed ? 'approved' : 'revise'} style=approved`, [
-      ...remarks.map((r) => r.text),
+      ...remarks.map((r) => `[${r.severity}] ${r.text}`),
       ...gateProblems.map((p) => `Gate: ${p}`),
       ...pending.map((it) => `Carried: ${it.text}`),
     ]),
