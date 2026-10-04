@@ -31,7 +31,12 @@ LIBRARY_AGENTS = ROOT / "library" / "agents"
 SKILLS = ROOT / ".claude" / "skills"
 
 # Who reads which profile (SPEC §6): the writer, corrector and critic of one type share one profile.
+# Skills that are not document profiles: a style an agent follows, copied unchanged from its source.
+STYLE_SKILLS = {"frontend-design"}
+
 PROFILE_AGENTS = {
+    "animated-scene-profile": {"scene_animator"},
+    "frontend-design": {"scene_animator"},
     "client-edition-profile": {"client_editor"},
     "client-voice-profile": {"client_voice"},
     "pain-map-profile": {"pain_mapper", "lens_critic"},
@@ -263,8 +268,8 @@ def test_missing_prompt_is_named_in_the_error(tmp_path: Path) -> None:
 
 def test_emits_every_agent_of_the_library(tmp_path: Path) -> None:
     written = emit_all(LIBRARY_AGENTS, tmp_path)
-    assert len(written) == 38
-    assert len(list(tmp_path.glob("*.md"))) == 38
+    assert len(written) == 39
+    assert len(list(tmp_path.glob("*.md"))) == 39
 
 
 def test_every_emitted_file_parses_and_has_tools(tmp_path: Path) -> None:
@@ -492,7 +497,8 @@ def test_profiles_are_preloadable_and_english() -> None:
         head = frontmatter_of(text)
         assert head["name"] == path.parent.name, f"{path}: name != directory"
         assert head.get("disable-model-invocation") is not True, f"{path}: not preloadable"
-        assert path.parent.name.endswith("-profile"), f"{path}: a profile is named <type>-profile"
+        if path.parent.name not in STYLE_SKILLS:
+            assert path.parent.name.endswith("-profile"), f"{path}: a profile is named <type>-profile"
         hits = [ln for ln in text.splitlines() if CYRILLIC.search(ln)]
         assert not hits, f"Cyrillic in profile {path.parent.name}: {hits[:3]}"
 
