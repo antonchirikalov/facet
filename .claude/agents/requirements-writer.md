@@ -1,9 +1,7 @@
 ---
 name: requirements-writer
 description: 'Synthesizes a single requirements document from the collection of per-source extracts. The body agent of the Extract pipeline''s refine loop: it drafts the document, a critic reviews it, and on ''revise'' it drafts again (loop is Phase 1; the contract is stable now).'
-tools: Read, Write, Edit, mcp__tavily-remote
-mcpServers:
-- tavily-remote
+tools: Read, Write, Edit
 omitClaudeMd: true
 skills:
 - requirements-profile

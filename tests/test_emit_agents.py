@@ -56,7 +56,7 @@ PROFILE_AGENTS = {
 }
 
 # Who needs MCP in the library as it stands: four Tavily, three pdf-reader, source_finder both.
-TAVILY_AGENTS = {"arch_probe", "requirements_writer", "solution_designer", "source_finder"}
+TAVILY_AGENTS = {"arch_probe", "solution_designer", "source_finder"}
 PDF_AGENTS = {"source_processor", "source_finder", "client_voice", "extract_auditor"}
 
 

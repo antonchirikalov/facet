@@ -787,3 +787,15 @@ def test_check_is_off_unless_asked(
     report, _ = run(capsys, monkeypatch, "--file", str(doc))
     assert report["ok"] is True
     assert "empty_sections" not in report["measures"]
+
+
+def test_require_line_found_and_missing(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = write(tmp_path, "# Requirements run\n\n1. Accepted: yes; rounds: 2 of 3\n")
+    report, _ = run(
+        capsys, monkeypatch, "--file", str(target), "--require-line", r"^1\. Accepted: yes"
+    )
+    assert report["ok"] and report["measures"]["missing_lines"] == []
+    report, _ = run(capsys, monkeypatch, "--file", str(target), "--require-line", r"Accepted: no")
+    assert not report["ok"] and "required line missing" in report["problems"][0]

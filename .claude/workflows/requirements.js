@@ -9,6 +9,9 @@
 //   Voice         the client voice sheet: what mattered to them, with weights, in their words
 //   Requirements  writer -> fact-checker -> gate (shape, every extract row traced, quotes) ->
 //                 critic, in rounds. Only a CRITICAL remark sends the document back.
+//   Pains         once the requirements are accepted: the client's pains, numbered, each tied to
+//                 the requirements that answer it or set aside as not answered yet. The
+//                 proposal pipeline reads this as its spine.
 //   Report        critic-remarks.md, UNRESOLVED.md, the directory audit, outcome.md
 //
 // The script has no filesystem and no shell: agents read and write, python tools measure through
@@ -24,6 +27,7 @@ export const meta = {
     { title: 'Extract', detail: 'extractor, gate, independent auditor, one pass over what it found' },
     { title: 'Voice', detail: 'the client in their own words: ranking, weights, vocabulary' },
     { title: 'Requirements', detail: 'writer, fact-checker, gate, critic, in rounds' },
+    { title: 'Pains', detail: 'the client pains, each tied to the requirements that answer it' },
     { title: 'Report', detail: 'remarks, unresolved items, audit, report' },
   ],
 }
@@ -55,6 +59,7 @@ const UNRESOLVED_PATH = `${run}/UNRESOLVED.md`
 // Not report.md: the harness refuses a subagent a file of that name, and on one live run the
 // writer was refused and still answered that it had written it.
 const REPORT_PATH = `${run}/outcome.md`
+const PAINS_PATH = `${run}/pains.md`
 const TOOLS_LOG = `${run}/tools.jsonl`
 const extractPathOf = (stem) => `${EXTRACTS_DIR}/${stem}.md`
 const roundPathOf = (n) => `${ROUNDS_DIR}/round-${n}.md`
@@ -78,6 +83,7 @@ const MODELS = {
   critic: 'opus',
   // The checkers that vote on a CRITICAL remark: several fresh readings, each cheap.
   vote: 'sonnet',
+  pains: 'opus',
   // Carriers stay on sonnet: a haiku carrier once read the relayed user request as its own task
   // and returned an invented report the script trusted.
   gate: 'sonnet',
@@ -114,6 +120,15 @@ const REQ_FLAGS = [
   '--cell-forbid-file library/style/forbid/req-weak-en.txt',
   '--forbid "\\x60"',
   `--min-length ${REQ_MIN_LENGTH}`,
+].join(' ')
+// The pain-map profile's gate rules (.claude/skills/pain-map-profile/SKILL.md).
+const PAIN_IDS = '\\b(?:P|WR)-\\d{2}\\b'
+const PAIN_FLAGS = [
+  ...[1, 2, 3, 4].map((n) => `--require-heading "^##\\s+${n}\\."`),
+  '--no-empty-sections',
+  `--unique-ids "${PAIN_IDS}"`,
+  `--sequential-ids "${PAIN_IDS}"`,
+  '--forbid "\\x60"',
 ].join(' ')
 // The client-voice profile's gate rules (.claude/skills/client-voice-profile/SKILL.md).
 const VOICE_FLAGS = [
@@ -277,9 +292,10 @@ const ROUNDS = {
       type: 'array',
       items: {
         type: 'object',
-        required: ['round', 'remarks', 'gate'],
+        required: ['round', 'verdict', 'remarks', 'gate'],
         properties: {
           round: { type: 'number' },
+          verdict: { type: 'string', description: 'the verdict of the round, verbatim' },
           remarks: { type: 'array', items: { type: 'string' } },
           gate: { type: 'array', items: { type: 'string' } },
         },
@@ -345,6 +361,15 @@ const DRAFT = {
         },
       },
     },
+  },
+}
+// The lens critic's verdict: remarks as strings that open with [HIGH], [MEDIUM] or [LOW].
+const LENS_VERDICT = {
+  type: 'object',
+  required: ['verdict', 'remarks'],
+  properties: {
+    verdict: { type: 'string', enum: ['approved', 'revise'], description: 'exactly approved or exactly revise' },
+    remarks: { type: 'array', items: { type: 'string', description: '[HIGH|MEDIUM|LOW] place — what is wrong — what would fix it' } },
   },
 }
 const VERDICT = {
@@ -752,6 +777,11 @@ if (cfg.continue && reqPresent) {
     for (let n = 1; n < startRound; n++) [roundPathOf(n), draftPathOf(n), editsPathOf(n)].forEach((p) => touched.add(p))
     const sent = (last.remarks || []).filter((r) => !r.startsWith('[MINOR]'))
     pending = [...(last.gate || []).map((text) => ({ kind: 'GATE', text })), ...sent.map((text) => ({ kind: 'CARRIED', text }))]
+    if (last.verdict === 'approved') {
+      accepted = true
+      rounds = last.round
+      log(`[req/continue] round ${last.round} accepted the requirements: no more rounds`)
+    }
     warnings.push(`continued after round ${last.round}: the remarks of earlier rounds are in ${ROUNDS_DIR}, not in critic-remarks.md`)
     log(`[req/continue] rounds judged ${recorded.rounds.length}, continuing from ${startRound} with ${pending.length} items`)
   } else {
@@ -820,7 +850,19 @@ async function voteOnCritical(round, remarks) {
   return refutedCount
 }
 
-for (let round = startRound; round <= MAX_ROUNDS; round++) {
+// An accepted document found on disk is measured once, so the outcome carries its trace; a
+// person may have edited it since, and the gate is how that edit is checked.
+if (accepted) {
+  const list = reqChecks('recheck')
+  const res = await call(commands(list), { agentType: 'gate-runner', model: MODELS.gate, label: 'req:recheck', phase: 'Requirements', schema: CHECKS })
+  const checks = (res && res.checks) || []
+  lastTrace = (checks[1] && checks[1].measures) || {}
+  lastQuotes = (checks[2] && checks[2].measures) || {}
+  const problems = checks.length === list.length ? checks.flatMap((c) => c.problems || []) : ['the recheck did not return one report per command']
+  for (const pr of problems) warnings.push(`accepted requirements on disk: ${pr}`)
+}
+
+for (let round = startRound; round <= MAX_ROUNDS && !accepted; round++) {
   rounds = round
   phase('Requirements')
 
@@ -982,11 +1024,109 @@ for (let round = startRound; round <= MAX_ROUNDS; round++) {
 }
 
 // =============================================================================================
+// Pains: the client's pains, each tied to the requirements that answer it
+// =============================================================================================
+
+// Written from accepted requirements only: a pain tied to a requirement that the next round
+// renumbers or drops is a trace to nothing. One writing, one gate, one critic, one pass over what
+// they found; what stays open goes to the unresolved list with the rest.
+let painsWritten = false
+const painOpen = []
+if (!accepted && !cfg.acceptOpen) {
+  log('[pains] the requirements were not accepted: no pain map (config.acceptOpen=true writes it anyway)')
+  facts.push('Pains: not written, the requirements were not accepted')
+} else if (!voicePort.length) {
+  warnings.push('no pain map: it ranks the pains by the client voice sheet, and the sheet is missing')
+  facts.push('Pains: not written, no client voice sheet')
+} else {
+  phase('Pains')
+  const painInputs = [
+    { port: 'client_voice', path: VOICE_PATH },
+    { port: 'requirements', path: REQ_PATH },
+    ...extractPorts,
+  ]
+  const painChecks = [
+    `${tool('gate')} --file "${PAINS_PATH}" --min-length ${MIN_ARTIFACT_CHARS} ${PAIN_FLAGS} ${noted('pain map gate')}`,
+    `${tool('check_quotes')} --file "${PAINS_PATH}" --source ${INPUTS_DIR} --source ${EXTRACTS_DIR} ${noted('pain map quotes')}`,
+    `${tool('trace_ids')} --file "${PAINS_PATH}" --against "${REQ_PATH}" --ids "\\b(?:FR|NFR|BR)-\\d{3}\\b" ${noted('requirement ids the pain map cites')}`,
+    `${tool('vocab')} --file "${PAINS_PATH}" --voice "${VOICE_PATH}" ${noted('client vocabulary in the pain map')}`,
+  ]
+  const checkPains = async (label) => {
+    const res = await call(commands(painChecks), { agentType: 'gate-runner', model: MODELS.gate, label, phase: 'Pains', schema: CHECKS })
+    const checks = (res && res.checks) || []
+    const m = (checks[0] && checks[0].measures) || {}
+    return {
+      exists: typeof m.chars === 'number' && m.chars >= MIN_ARTIFACT_CHARS,
+      problems:
+        checks.length === painChecks.length
+          ? checks.flatMap((c) => c.problems || [])
+          : ['the pain map check did not return one report per command'],
+    }
+  }
+  const painsOnDisk = cfg.continue ? await checkPains('pains:continue') : { exists: false, problems: [] }
+  if (painsOnDisk.exists && !painsOnDisk.problems.length) {
+    touched.add(PAINS_PATH)
+    painsWritten = true
+    log('[pains] the pain map on disk passes its gate, kept')
+    facts.push('Pains: kept from the earlier run, gate clean')
+  } else {
+    await call(task({ inputs: painInputs, output: PAINS_PATH, brief: notesBlock || undefined }), {
+      agentType: 'pain-mapper',
+      model: MODELS.pains,
+      label: 'pains:write',
+      phase: 'Pains',
+      schema: WROTE,
+    })
+    const first = await checkPains('pains:gate')
+    const judged = first.exists
+      ? await call(
+          task({
+            inputs: [{ port: 'draft', path: PAINS_PATH }, { port: 'client_voice', path: VOICE_PATH }, { port: 'requirements', path: REQ_PATH }, ...extractPorts],
+            noFile: true,
+          }),
+          { agentType: 'lens-critic', model: MODELS.critic, label: 'pains:critic', phase: 'Pains', schema: LENS_VERDICT },
+        )
+      : null
+    const remarks = ((judged && judged.remarks) || []).map((r) => String(r).replace(/^\s*\d{1,2}[.)]\s+/, ''))
+    const high = remarks.filter((r) => /^\[HIGH\]/.test(r))
+    for (const r of remarks) {
+      ledger.push({ round: 'pains', kind: 'LENS', text: r, answer: /^\[HIGH\]/.test(r) ? null : 'recorded, not sent back' })
+    }
+    if (first.exists && !judged) warnings.push('the pain map critic returned nothing: the map was not judged')
+    let final = first
+    const items = [...first.problems.map((p) => `[GATE] ${p}`), ...high]
+    if (first.exists && items.length) {
+      await call(
+        task({
+          inputs: [{ port: 'draft', path: PAINS_PATH }, ...painInputs],
+          output: PAINS_PATH,
+          brief: notesBlock || undefined,
+          extra:
+            `REMARKS ON THE PAIN MAP. GATE items are measurements; a HIGH remark you may decline in the ` +
+            `map's open rows if the sources do not support it.\n` +
+            items.map((it, i) => `${i + 1}. ${it}`).join('\n'),
+        }),
+        { agentType: 'pain-mapper', model: MODELS.pains, label: 'pains:fix', phase: 'Pains', schema: WROTE },
+      )
+      final = await checkPains('pains:regate')
+      for (const e of ledger) if (e.round === 'pains' && !e.answer) e.answer = 'sent to the pain mapper once'
+    }
+    painsWritten = final.exists
+    for (const pr of final.problems) painOpen.push(`[PAINS GATE] ${pr}`)
+    if (!final.exists) warnings.push('the pain map did not reach the disk')
+    facts.push(
+      `Pains: ${final.exists ? 'written' : 'NOT WRITTEN'}; critic HIGH ${high.length}, other ${remarks.length - high.length}; ` +
+        `gate ${final.problems.length ? 'open: ' + final.problems.join('; ') : 'clean'}`,
+    )
+  }
+}
+
+// =============================================================================================
 // Report: remarks, unresolved items, audit, report
 // =============================================================================================
 
 phase('Report')
-const open = pending.map((it) => `[${it.kind}] ${it.text}`)
+const open = [...pending.map((it) => `[${it.kind}] ${it.text}`), ...painOpen]
 if (open.length) {
   await call(
     record(
@@ -1069,6 +1209,7 @@ return {
   open_items: open.length,
   unresolved: open.length ? UNRESOLVED_PATH : null,
   remarks: ledger.length ? REMARKS_PATH : null,
+  pains: painsWritten ? PAINS_PATH : null,
   report: REPORT_PATH,
   records_missing: missingRecords,
   orphans,

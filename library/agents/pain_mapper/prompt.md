@@ -7,9 +7,11 @@ preloaded in your context; write to it.
 1. Read the voice sheet first. Its section 1 is the ranking; its section 2 holds the
    commitments with their weight. Take the pains from there and from the extracts, in the
    client's words.
-2. For each pain, find what in the requirements and the design removes it. Open the rows you
-   cite and make sure they say what you claim. Cite the ids: FR-, NFR-, BR- from the
-   requirements, D- from the design.
+2. For each pain, find what in the requirements, and in the design when you are given one,
+   removes it. Open the rows you cite and make sure they say what you claim. Cite the ids: FR-,
+   NFR-, BR- from the requirements, D- from the design. Without a design, the requirements
+   alone carry the answer, and a pain only a design could answer goes to section 4 with what
+   it needs.
 3. A pain nothing answers goes to section 4 with what would answer it. Do not stretch a
    requirement to cover a pain it does not cover: that is the finding this document exists
    for.

@@ -549,6 +549,13 @@ def main() -> int:
         help="ids matching this pattern at the start of a table row must be unique",
     )
     p.add_argument(
+        "--require-line",
+        action="append",
+        default=[],
+        metavar="REGEX",
+        help="some line of the file must match; repeatable (a status a later stage relies on)",
+    )
+    p.add_argument(
         "--sequential-ids",
         metavar="REGEX",
         help="declared ids of each prefix must run 1, 2, 3 without gaps, in document order",
@@ -661,6 +668,15 @@ def main() -> int:
                 measures["duplicate_ids"] = dupes
                 if dupes:
                     problems.append(f"duplicate ids ({len(dupes)}): " + ", ".join(dupes[:12]))
+
+            if args.require_line:
+                lines = text.splitlines()
+                absent = [
+                    rx for rx in args.require_line if not any(re.search(rx, ln) for ln in lines)
+                ]
+                measures["missing_lines"] = absent
+                if absent:
+                    problems.append(f"required line missing ({len(absent)}): " + "; ".join(absent))
 
             if args.sequential_ids:
                 gaps = id_gaps(text, args.sequential_ids)

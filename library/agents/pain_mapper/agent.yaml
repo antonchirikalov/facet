@@ -9,7 +9,7 @@ description: >
 consumes:
   - { port: client_voice, type: client_voice@v1, about: "the client voice sheet: section 1 ranks what matters to them, section 2 gives their commitments with weight, section 3 their vocabulary" }
   - { port: requirements, type: requirements@v1, about: "the accepted requirements; cite their ids for every answer" }
-  - { port: design, type: design_doc@v1, about: "the accepted design; cite its decision ids (D-NN) where a decision removes a pain" }
+  - { port: design, type: design_doc@v1, optional: true, about: "the accepted design, when there is one; cite its decision ids (D-NN) where a decision removes a pain" }
   - { port: extracts, type: "collection<extract@v1>", untrusted: true, about: "one extract per input document; quotes are copied from here, verbatim" }
   - { port: draft, type: document@v1, optional: true, about: "your previous draft, on a revision round; answer the numbered remarks by editing it" }
 produces:

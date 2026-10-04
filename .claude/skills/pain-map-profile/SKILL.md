@@ -1,12 +1,13 @@
 ---
 name: pain-map-profile
-description: Document-type profile for the pain map (level 3, solution-design.js lens stage). Preloaded into the pain mapper and the lens critic. The client's main pains in their words, what each costs them, how the proposed solution removes it with requirement and decision ids, how it will show, the worries a proposal must answer, and the gate rules.
+description: Document-type profile for the pain map (level 3, the last step of requirements.js; solution-design.js lens stage). Preloaded into the pain mapper and the lens critic. The client's main pains in their words, what each costs them, how the proposed solution removes it with requirement and decision ids, how it will show, the worries a proposal must answer, and the gate rules.
 user-invocable: false
 ---
 
 # Profile: pain map
 
-An internal document that sits between the requirements and design and the proposal. It answers
+An internal document that sits between the requirements (and the design, when there is one)
+and the proposal. It answers
 one question before anything is written for the client: does the solution remove what actually
 hurts them? A proposal built without it opens with the architecture; one built on it opens with
 the client's problem in the client's words, and puts the mechanism they worry about most in a
@@ -18,7 +19,8 @@ the design is ready to be proposed.
 ## Sources
 
 The client voice sheet (its ranking in section 1 and its commitments in section 2), the
-extracts, the requirements and the design. A pain is something the client said hurts or costs
+extracts, the requirements and, when there is one, the design. Without a design the map is
+written from the requirements alone; the proposal pipeline reads it as its spine. A pain is something the client said hurts or costs
 them; our own notes may point to a place in the transcript but are never quoted as the client.
 
 ## Section contract
@@ -27,7 +29,8 @@ them; our own notes may point to a place in the transcript but are never quoted 
 # Pain map: <product>
 
 ## 1. Pains, most important first
-table: # | The pain in their words | Who feels it | What it costs them | How the solution removes it | Ids | How it will show
+table: ID | The pain in their words | Who feels it | What it costs them | How the solution removes it | Ids | How it will show
+- ID: P-01, P-02 … in rank order; the proposal cites every pain by this id
 - The pain in their words: a verbatim quote, attributed to a role
 - What it costs them: what they said it costs, or "not stated"; never invented
 - How the solution removes it: one or two sentences in the client's terms
@@ -35,7 +38,8 @@ table: # | The pain in their words | Who feels it | What it costs them | How the
 - How it will show: the moment of the day story or the result where the client sees it gone
 
 ## 2. What they worry about
-table: # | The worry in their words | Who | Why it matters to them | Where the proposal must answer it
+table: ID | The worry in their words | Who | Why it matters to them | Where the proposal must answer it
+- ID: WR-01, WR-02 …
 worries are fears about the change, not requests: responsibility, control, cost of being
 wrong, how the tool will be adopted, who owns what
 
@@ -44,8 +48,10 @@ one paragraph: the single piece of the solution the client's trust depends on (a
 a rule, a control they keep), why, and which pains and worries hang on it
 
 ## 4. Pains the solution does not remove
-every pain of the voice sheet with no answer in the requirements or the design, and what
-would answer it; empty only when every pain is answered
+table: ID | The pain in their words | Who feels it | What would answer it
+every pain of the voice sheet with no answer in the requirements or the design, numbered on
+from section 1 (P- ids run through sections 1 and 4 without a gap); one line saying every pain
+is answered when none is left
 ```
 
 ## Rules
@@ -66,8 +72,10 @@ would answer it; empty only when every pain is answered
 
 - headings ## 1. to ## 4. present; no empty section except section 4 when every pain is
   answered (it then says so in one line);
+- P- and WR- ids unique and without gaps (--unique-ids, --sequential-ids);
 - every attributed quote found in the sources (tools/check_quotes.py);
-- every cited id declared in the requirements or the design (tools/trace_ids.py);
+- every cited id declared in the requirements, or in the design when there is one
+  (tools/trace_ids.py);
 - no substitute word from the voice sheet's vocabulary (tools/vocab.py).
 
 ## Critic checklist

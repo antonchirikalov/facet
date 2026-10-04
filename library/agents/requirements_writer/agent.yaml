@@ -12,7 +12,7 @@ consumes:
   - { port: draft, type: requirements@v1, optional: true, about: "the previous draft, present in a revision round: you do not edit it, you write an edits file against it that answers the numbered remarks" }
 produces:
   - { port: requirements, type: requirements@v1 }
-needs: [read, edit, "mcp:tavily-remote"]
+needs: [read, edit]
 # The requirements profile (facet SPEC §6): the writer, the corrector and the critic of this
 # document type read ONE contract, preloaded at spawn, instead of three copies in three prompts.
 skills: [requirements-profile]
