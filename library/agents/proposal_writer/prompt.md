@@ -18,12 +18,15 @@ from it the shape and the tone, never its content.
   feature works belongs in section 3, not here: on one run section 2 filled with twenty rows
   about the drawing and lost the client's words for the pains that mattered most.
 - Section 3 (a day with the product): the day story, nearly as it is, without the requirement
-  ids; its screen lines become figure placeholders. Keep the main scenario to its five to
-  seven steps.
+  ids; its screen lines become figure placeholders. Without a day story, write the main
+  scenario yourself from the requirements and the pain map's "how it will show" column, every
+  step resting on a requirement. Keep the main scenario to its five to seven steps.
 - Section 4 (the mechanism they worry about most): the pain map's section 3, answered with the
   design's own mechanism and the worries of the pain map's section 2.
 - Sections 5 to 8: the design, the plan the order or the design gives, the open questions of
-  the design and the discovery questions, the assumptions and risks.
+  the design and the discovery questions, the assumptions and risks. Without a design, section
+  5 says only what the requirements fix about how it is built, and every choice they leave open
+  is a decision in section 7, not a choice you make.
 - Section 9: what comes next, then ideas in the conditional.
 
 Length: about the length of the exemplar. A proposal a third longer than the one that was
@@ -31,7 +34,9 @@ accepted is a proposal the owner stops reading.
 
 Requirement and decision ids stay in the internal documents: the client reads no "FR-031".
 Every pain of the pain map's section 4 (not removed by the solution) appears honestly, in
-section 7 or section 9, never hidden.
+section 7 or section 9, never hidden. Every pain and worry is answered with the client's own
+words from the pain map, so a reader can see their problem was heard: a tool looks for each
+one's quote in the proposal.
 
 ## What not to do
 

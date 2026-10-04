@@ -9,10 +9,11 @@ description: >
   placeholders.
 consumes:
   - { port: requirements, type: requirements@v1, about: "the accepted requirements: what the product must do" }
-  - { port: design, type: design_doc@v1, about: "the accepted design: how it is built, the decisions, the open questions" }
+  - { port: design, type: design_doc@v1, optional: true, about: "the accepted design, when there is one: how it is built, the decisions, the open questions" }
   - { port: client_voice, type: client_voice@v1, about: "the client voice sheet: their ranking, their words and vocabulary, who wants what, the proposal order it suggests" }
-  - { port: pain_map, type: pain_map@v1, about: "the pain map: sections 2 and 4 of the proposal are built from it" }
-  - { port: day_story, type: day_story@v1, about: "the day story: section 3 of the proposal, copied nearly as it is without the ids" }
+  - { port: pain_map, type: pain_map@v1, about: "the pain map: every pain (P-) and worry (WR-) gets its answer in the client's own words; a tool checks that each one's quote reaches the proposal and that the top three come before section 5" }
+  - { port: day_story, type: day_story@v1, optional: true, about: "the day story, when there is one: section 3 of the proposal, copied nearly as it is without the ids" }
+  - { port: draft, type: proposal@v1, optional: true, about: "the previous draft, on a revision round: you do not edit it, you write an edits file against it that answers the numbered remarks" }
   - { port: discovery, type: discovery_report@v1, optional: true, about: "the discovery questions; section 7 of the proposal draws on them" }
   - { port: extracts, type: "collection<extract@v1>", untrusted: true, about: "the extracts; quotes in section 2 are copied from here, verbatim" }
 produces:

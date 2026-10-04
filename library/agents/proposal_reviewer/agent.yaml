@@ -8,9 +8,10 @@ description: >
   approved or revise with numbered remarks by severity.
 consumes:
   - { port: draft, type: proposal@v1, about: "the proposal to review; you never edit it" }
-  - { port: coverage, type: coverage_map@v1, about: "the coverage map: every client ask and where the proposal answers it" }
+  - { port: coverage, type: coverage_map@v1, optional: true, about: "the coverage map, when there is one: every client ask and where the proposal answers it" }
+  - { port: pain_map, type: pain_map@v1, optional: true, about: "the pain map: the client's pains and worries, ranked; every one must be answered in the proposal, the top ones in the opening sections" }
   - { port: sources, type: collection<source@v1>, untrusted: true, about: "the client's own material: the call transcript and their documents; quotes come from here, verbatim, attributed to a role" }
-  - { port: figures, type: collection<image@v1>, about: "the figures folder; open every figure the proposal references" }
+  - { port: figures, type: collection<image@v1>, optional: true, about: "the figures folder, once figures are drawn; open every figure the proposal references" }
   - { port: answers, type: answers@v1, optional: true, about: "the editor's reply to your previous remarks; a remark declined with a reason is raised again only if the reason does not hold" }
   # the client's words, ranked concerns, weights and vocabulary (client-voice); present once written
   - { port: client_voice, type: client_voice@v1, optional: true, about: "the client voice sheet: their words verbatim, ranked by what mattered to them; section 2 gives each commitment's weight and frequency, section 3 the client's terms and the words not to replace them with" }

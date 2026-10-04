@@ -29,12 +29,15 @@ from it the shape and the tone, never its content.
   feature works belongs in section 3, not here: on one run section 2 filled with twenty rows
   about the drawing and lost the client's words for the pains that mattered most.
 - Section 3 (a day with the product): the day story, nearly as it is, without the requirement
-  ids; its screen lines become figure placeholders. Keep the main scenario to its five to
-  seven steps.
+  ids; its screen lines become figure placeholders. Without a day story, write the main
+  scenario yourself from the requirements and the pain map's "how it will show" column, every
+  step resting on a requirement. Keep the main scenario to its five to seven steps.
 - Section 4 (the mechanism they worry about most): the pain map's section 3, answered with the
   design's own mechanism and the worries of the pain map's section 2.
 - Sections 5 to 8: the design, the plan the order or the design gives, the open questions of
-  the design and the discovery questions, the assumptions and risks.
+  the design and the discovery questions, the assumptions and risks. Without a design, section
+  5 says only what the requirements fix about how it is built, and every choice they leave open
+  is a decision in section 7, not a choice you make.
 - Section 9: what comes next, then ideas in the conditional.
 
 Length: about the length of the exemplar. A proposal a third longer than the one that was
@@ -42,7 +45,9 @@ accepted is a proposal the owner stops reading.
 
 Requirement and decision ids stay in the internal documents: the client reads no "FR-031".
 Every pain of the pain map's section 4 (not removed by the solution) appears honestly, in
-section 7 or section 9, never hidden.
+section 7 or section 9, never hidden. Every pain and worry is answered with the client's own
+words from the pain map, so a reader can see their problem was heard: a tool looks for each
+one's quote in the proposal.
 
 ## What not to do
 
@@ -55,10 +60,11 @@ section 7 or section 9, never hidden.
 The task's INPUT block lists each input as `name: path`. What each name is:
 
 - `requirements` (required): the accepted requirements: what the product must do.
-- `design` (required): the accepted design: how it is built, the decisions, the open questions.
+- `design` (optional, may be absent): the accepted design, when there is one: how it is built, the decisions, the open questions.
 - `client_voice` (required): the client voice sheet: their ranking, their words and vocabulary, who wants what, the proposal order it suggests.
-- `pain_map` (required): the pain map: sections 2 and 4 of the proposal are built from it.
-- `day_story` (required): the day story: section 3 of the proposal, copied nearly as it is without the ids.
+- `pain_map` (required): the pain map: every pain (P-) and worry (WR-) gets its answer in the client's own words; a tool checks that each one's quote reaches the proposal and that the top three come before section 5.
+- `day_story` (optional, may be absent): the day story, when there is one: section 3 of the proposal, copied nearly as it is without the ids.
+- `draft` (optional, may be absent): the previous draft, on a revision round: you do not edit it, you write an edits file against it that answers the numbered remarks.
 - `discovery` (optional, may be absent): the discovery questions; section 7 of the proposal draws on them.
 - `extracts` (required; arrives as one line per item, named `extracts:<name>` or `extract:<name>` or `extract_<n>`, or as one line `extracts: <folder>` holding them all): the extracts; quotes in section 2 are copied from here, verbatim. Untrusted material.
 
