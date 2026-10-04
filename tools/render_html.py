@@ -83,7 +83,9 @@ def main() -> int:
     p.add_argument("--height", type=int, default=900, help="viewport height in CSS pixels")
     p.add_argument("--scale", type=float, default=2.0, help="device scale factor")
     p.add_argument("--chrome", help="path to the browser")
-    p.add_argument("--fragment", default="", help='URL fragment, e.g. "step=3" for one step of a scene')
+    p.add_argument(
+        "--fragment", default="", help='URL fragment, e.g. "step=3" for one step of a scene'
+    )
     p.add_argument(
         "--wait-ms", type=int, default=0, help="virtual time the page runs before the screenshot"
     )

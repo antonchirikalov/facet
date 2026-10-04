@@ -498,7 +498,9 @@ def test_profiles_are_preloadable_and_english() -> None:
         assert head["name"] == path.parent.name, f"{path}: name != directory"
         assert head.get("disable-model-invocation") is not True, f"{path}: not preloadable"
         if path.parent.name not in STYLE_SKILLS:
-            assert path.parent.name.endswith("-profile"), f"{path}: a profile is named <type>-profile"
+            assert path.parent.name.endswith("-profile"), (
+                f"{path}: a profile is named <type>-profile"
+            )
         hits = [ln for ln in text.splitlines() if CYRILLIC.search(ln)]
         assert not hits, f"Cyrillic in profile {path.parent.name}: {hits[:3]}"
 
