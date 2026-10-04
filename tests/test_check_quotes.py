@@ -22,6 +22,27 @@ SOURCE = (
 )
 
 
+def test_straight_quotes_with_attribution_are_checked() -> None:
+    doc = (
+        '- "you type in the patient name" (office manager, 20:30)\n'
+        '- "a quote nobody said" (owner, 15:00)\n'
+        '- a field called "status" is not a quote\n'
+    )
+    problems, checked = check_quotes.check(doc, SOURCE)
+    assert checked == 2 and len(problems) == 1 and "nobody said" in problems[0]
+
+
+def test_quotes_located_in_an_image_are_not_checked() -> None:
+    doc = (
+        "| ID | Fact | Source |\n| --- | --- | --- |\n"
+        "| F-01 | Sample tax line | demo-08-quote-33m40s.jpg — “Tax 10.1%” |\n"
+        "| F-02 | Flat fee | 15:00 John Doe — “a flat fee per misit” |\n"
+        "Shown on screen: “Works with no signal” (frame demo-02.jpg)\n"
+    )
+    problems, checked = check_quotes.check(doc, SOURCE)
+    assert checked == 1 and problems == []
+
+
 def test_attributed_quote_found() -> None:
     doc = "Typed names “you pick a slot and you type in the patient name” (office manager)."
     problems, checked = check_quotes.check(doc, SOURCE)

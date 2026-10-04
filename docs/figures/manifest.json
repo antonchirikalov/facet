@@ -1,47 +1,38 @@
 {
-  "env_note": "Run from the repository root with W=docs-runs/readme-figures-20261001-161923/figures-work and the environment block from the task (TMPDIR inside W/tmp, KIMI_BASE_URL, MOONSHOT_API_KEY, GUIDELINES_PATH, REFERENCE_SET_PATH). Chosen images were reduced with tools/shrink_png.py --max-width 2000.",
-  "figures": [
-    {
-      "slug": "revision-round",
-      "caption": "One revision round",
-      "file": "revision-round.png",
-      "run_dir": "docs-runs/readme-figures-20261001-161923/figures-work/run_20261001_162101_87a543",
-      "chosen": "candidates/cand_3/final_output.png",
-      "command": "\"$PAPERBANANA_BIN\" generate --input docs-runs/readme-figures-20261001-161923/figures-work/brief-revision-round.txt --caption \"One revision round\" --output-dir $W --auto --max-iterations 3 --num-candidates 3 --vlm-provider claude_code --vlm-model sonnet --critic-vlm-provider kimi --critic-vlm-model k3 --image-provider ss_gateway --aspect-ratio 16:9 --save-prompts > $W/logs/revision-round.log 2>&1",
-      "renders": 1,
-      "iterations": 3,
-      "judged_by": "cand_3: kimi/k3 iter 1, claude_code/sonnet iters 2-3 (Kimi PermissionDenied, fallback); no 'Critic unavailable'",
-      "status": "ok"
-    },
-    {
-      "slug": "handoff",
-      "caption": "How an artifact is passed and checked",
-      "file": "handoff.png",
-      "run_dir": "docs-runs/readme-figures-20261001-161923/figures-work/run_20261001_162240_79392b",
-      "chosen": "candidates/cand_2/final_output.png",
-      "command": "\"$PAPERBANANA_BIN\" generate --input docs-runs/readme-figures-20261001-161923/figures-work/brief-handoff.txt --caption \"How an artifact is passed and checked\" --output-dir $W --auto --max-iterations 3 --num-candidates 3 --vlm-provider claude_code --vlm-model sonnet --critic-vlm-provider kimi --critic-vlm-model k3 --image-provider ss_gateway --aspect-ratio 16:9 --save-prompts > $W/logs/handoff.log 2>&1",
-      "renders": 1,
-      "iterations": 1,
-      "judged_by": "cand_2: kimi/k3 (single iteration, satisfied); other candidates partly claude_code/sonnet after Kimi PermissionDenied",
-      "status": "ok"
-    },
-    {
-      "slug": "pipeline-solution-design",
-      "caption": "solution-design: four stages",
-      "file": "pipeline-solution-design.png",
-      "run_dir": "docs-runs/readme-figures-20261001-161923/figures-work/run_20261001_163622_cdf0f2",
-      "chosen": "candidates/cand_2/final_output.png",
-      "command": "\"$PAPERBANANA_BIN\" generate --input docs-runs/readme-figures-20261001-161923/figures-work/brief-pipeline-c1.txt --caption \"solution-design: four stages\" --output-dir $W --auto --max-iterations 3 --num-candidates 3 --vlm-provider claude_code --vlm-model sonnet --critic-vlm-provider kimi --critic-vlm-model k3 --image-provider ss_gateway --aspect-ratio 16:9 --save-prompts > $W/logs/pipeline-solution-design-c1.log 2>&1",
-      "renders": 3,
-      "iterations": 3,
-      "other_runs": [
-        "docs-runs/readme-figures-20261001-161923/figures-work/run_20261001_162245_dd238b (original brief, all rejected)",
-        "docs-runs/readme-figures-20261001-161923/figures-work/run_20261001_164740_0fd513 (brief-pipeline-c2.txt, all rejected)"
-      ],
-      "judged_by": "claude_code/sonnet for all iterations (Kimi PermissionDenied before first review); no 'Critic unavailable'",
-      "status": "ok_with_cosmetic_defects",
-      "defects": "All 13 boxes, 13 arrows and labels correct. Cosmetic: an unlabelled empty grey panel behind the bottom routing, a second 'gate' badge on the requirements.md -> arch-probe line, heavy connector strokes."
-    }
-  ],
-  "failed": []
+ "env_note": "Run from the repository root with W=<the run's figures-work> and the environment block of docs-runs/<run>/draw.sh. Chosen images were reduced with tools/shrink_png.py --max-width 2000.",
+ "figures": [
+  {
+   "slug": "handoff",
+   "caption": "How an artifact is passed and checked",
+   "file": "handoff.png",
+   "run_dir": "docs-runs/readme-figures-20261001-161923/figures-work/run_20261001_162240_79392b",
+   "chosen": "candidates/cand_2/final_output.png",
+   "command": "\"$PAPERBANANA_BIN\" generate --input docs-runs/readme-figures-20261001-161923/figures-work/brief-handoff.txt --caption \"How an artifact is passed and checked\" --output-dir $W --auto --max-iterations 3 --num-candidates 3 --vlm-provider claude_code --vlm-model sonnet --critic-vlm-provider kimi --critic-vlm-model k3 --image-provider ss_gateway --aspect-ratio 16:9 --save-prompts > $W/logs/handoff.log 2>&1",
+   "renders": 1,
+   "iterations": 1,
+   "judged_by": "cand_2: kimi/k3 (single iteration, satisfied); other candidates partly claude_code/sonnet after Kimi PermissionDenied",
+   "status": "ok"
+  },
+  {
+   "slug": "revision-round",
+   "caption": "One revision round",
+   "file": "revision-round.png",
+   "run_dir": "docs-runs/readme-figures-20261004-151203/figures-work/run_20261004_151229_4e6172",
+   "chosen": "candidates/cand_1/final_output.png",
+   "command": "\"$PAPERBANANA_BIN\" generate --input docs-runs/readme-figures-20261004-151203/figures-work/brief-revision-round.txt --caption \"One revision round\" --output-dir $W --auto --max-iterations 3 --num-candidates 3 --vlm-provider claude_code --vlm-model sonnet --critic-vlm-provider kimi --critic-vlm-model k3 --image-provider ss_gateway --aspect-ratio 16:9 --save-prompts > $W/logs/revision-round.log 2>&1",
+   "judged_by": "kimi/k3 for the first iterations, claude_code/sonnet after Kimi PermissionDenied",
+   "status": "ok"
+  },
+  {
+   "slug": "pipeline-requirements",
+   "caption": "requirements.js: nothing lost on the way",
+   "file": "pipeline-requirements.png",
+   "run_dir": "docs-runs/readme-figures-20261004-151203/figures-work/run_20261004_151229_0a397b",
+   "chosen": "candidates/cand_2/final_output.png",
+   "command": "\"$PAPERBANANA_BIN\" generate --input docs-runs/readme-figures-20261004-151203/figures-work/brief-pipeline-requirements.txt --caption \"requirements.js: nothing lost on the way\" --output-dir $W --auto --max-iterations 3 --num-candidates 3 --vlm-provider claude_code --vlm-model sonnet --critic-vlm-provider kimi --critic-vlm-model k3 --image-provider ss_gateway --aspect-ratio 16:9 --save-prompts > $W/logs/pipeline-requirements.log 2>&1",
+   "judged_by": "kimi/k3 for the first iterations, claude_code/sonnet after Kimi PermissionDenied; cand_1 and cand_3 rejected by hand: the outcome.md arrow leaves the fact-checker",
+   "status": "ok"
+  }
+ ],
+ "failed": []
 }

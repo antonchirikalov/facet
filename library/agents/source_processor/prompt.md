@@ -87,6 +87,13 @@ document's text does not, in the table it belongs to, with the image's file name
 locator (frame-07.jpg) and, as the quote, the words visible on it. Do not describe images
 that only repeat the text.
 
+A frame of a screen our side shared (our prototype, our slides, our sample prices) shows our
+proposal, not the client's words. The transcript usually says who was sharing. Such a frame is
+not a requirement, a decision or a fact about the client: record what the client said about it
+(accepted, rejected, asked to change) with the transcript's locator, and where the client said
+nothing, at most an open question naming the frame. Rows that rest on our own screens alone
+were promoted into one live run's requirements as if the client had asked for them.
+
 ## Language
 
 Write the extract in the language of the document you read. The writer copies your words into

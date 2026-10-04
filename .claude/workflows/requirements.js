@@ -9,7 +9,7 @@
 //   Voice         the client voice sheet: what mattered to them, with weights, in their words
 //   Requirements  writer -> fact-checker -> gate (shape, every extract row traced, quotes) ->
 //                 critic, in rounds. Only a CRITICAL remark sends the document back.
-//   Report        critic-remarks.md, UNRESOLVED.md, the directory audit, report.md
+//   Report        critic-remarks.md, UNRESOLVED.md, the directory audit, outcome.md
 //
 // The script has no filesystem and no shell: agents read and write, python tools measure through
 // the gate-runner agent, results are matched to commands by index. Runtime rules: meta is a pure
@@ -52,7 +52,9 @@ const REQ_PATH = `${run}/requirements.md`
 const ROUNDS_DIR = `${run}/rounds/req`
 const REMARKS_PATH = `${run}/critic-remarks.md`
 const UNRESOLVED_PATH = `${run}/UNRESOLVED.md`
-const REPORT_PATH = `${run}/report.md`
+// Not report.md: the harness refuses a subagent a file of that name, and on one live run the
+// writer was refused and still answered that it had written it.
+const REPORT_PATH = `${run}/outcome.md`
 const TOOLS_LOG = `${run}/tools.jsonl`
 const extractPathOf = (stem) => `${EXTRACTS_DIR}/${stem}.md`
 const roundPathOf = (n) => `${ROUNDS_DIR}/round-${n}.md`
@@ -970,6 +972,21 @@ await call(record(REPORT_PATH, `Requirements run: ${run}`, reportItems), {
   schema: WROTE,
 })
 
+// A writer's "written" is a claim; the disk is the answer. The records are checked by the gate.
+const records = [REPORT_PATH, ...(ledger.length ? [REMARKS_PATH] : []), ...(open.length ? [UNRESOLVED_PATH] : [])]
+const recordList = records.map((r) => `${tool('gate')} --file "${r}" --min-length 50 ${noted('record on disk')}`)
+const recorded = await call(commands(recordList), {
+  agentType: 'gate-runner',
+  model: MODELS.gate,
+  label: 'records',
+  phase: 'Report',
+  schema: CHECKS,
+})
+const recordChecks = (recorded && recorded.checks) || []
+const missingRecords =
+  recordChecks.length === records.length ? records.filter((r, i) => !recordChecks[i].ok) : records
+for (const r of missingRecords) log(`[report] RECORD NOT ON DISK: ${r}`)
+
 return {
   inputs: sources,
   extracts: extractPorts.map((e) => e.path),
@@ -982,6 +999,7 @@ return {
   unresolved: open.length ? UNRESOLVED_PATH : null,
   remarks: ledger.length ? REMARKS_PATH : null,
   report: REPORT_PATH,
+  records_missing: missingRecords,
   orphans,
   warnings,
 }

@@ -37,6 +37,13 @@ import toollog
 
 QUOTE = re.compile(r"“([^”]+)”")
 ATTRIBUTED = re.compile(r"“([^”]+)”\s*\(([^)]{1,60})\)")
+# The same with straight quotes. Only when an attribution follows, so a quoted field name or a
+# JSON key is never taken for the client's words; one live voice sheet quoted this way had every
+# one of its quotes skipped and passed with zero checked.
+ATTRIBUTED_STRAIGHT = re.compile(r'"([^"\n]{3,})"\s*\(([^)]{1,60})\)')
+# Words read off an image (a frame of a shared screen, a photo of a drawing) are in no text
+# source; a quote located in an image is not checkable here and is not checked.
+IMAGE_REF = re.compile(r"\.(?:png|jpe?g|gif|webp)\b", re.IGNORECASE)
 QUOTE_HEADER = re.compile(r"words|quote|source|цитат|слова", re.IGNORECASE)
 SPLIT = re.compile(r"\[[^\]]*\]|…|\.\.\.")
 
@@ -65,7 +72,7 @@ def table_quotes(document: str) -> list[str]:
         if re.fullmatch(r"\|?\s*:?-{3,}.*", line.strip()):
             continue
         for j in columns:
-            if j < len(cells):
+            if j < len(cells) and not IMAGE_REF.search(cells[j]):
                 found.extend(QUOTE.findall(cells[j]))
     return found
 
@@ -74,7 +81,13 @@ def quotes_to_check(document: str, check_all: bool) -> list[str]:
     if check_all:
         return QUOTE.findall(document)
     seen: list[str] = []
-    for q in table_quotes(document) + [m.group(1) for m in ATTRIBUTED.finditer(document)]:
+    attributed = [
+        m.group(1)
+        for rx in (ATTRIBUTED, ATTRIBUTED_STRAIGHT)
+        for m in rx.finditer(document)
+        if not IMAGE_REF.search(m.group(2))
+    ]
+    for q in table_quotes(document) + attributed:
         if q not in seen:
             seen.append(q)
     return seen
