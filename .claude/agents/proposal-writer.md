@@ -23,7 +23,7 @@ from it the shape and the tone, never its content.
 - Section 1 (overview): the client's situation in their terms from the voice sheet, what one
   use of the product gives each party, the proposed start.
 - Section 2 (what was said): one row for every pain of the pain map's section 1 and every
-  worry of its section 2, in that order, and nothing else; eight to ten rows. The client's
+  worry of its section 2, in that order, and nothing else; worries one answer covers share a row, so the table stays near ten rows. The client's
   words on the left, verbatim, copied from the extracts, short enough to read at a glance;
   what the product does about them on the right, in the client's terms. A detail of how a
   feature works belongs in section 3, not here: on one run section 2 filled with twenty rows

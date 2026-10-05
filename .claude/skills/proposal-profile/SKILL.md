@@ -34,8 +34,8 @@ is absent from the sources, never to shorten.
 1. Overview: the client's situation in their terms, what one use of the product gives each
    party, the product as the client's own, the proposed start, and the preliminary note.
 2. What was said: a table, the client's verbatim words on the left, what the product does about
-   them on the right; one row per pain and worry of the pain map, eight to ten rows, no detail
-   of how a feature works. The words quoted are what the client wants or fears, never their
+   them on the right; every pain and worry of the pain map has its row, and worries that one
+   answer covers share it, so the table stays near ten rows; no detail of how a feature works. The words quoted are what the client wants or fears, never their
    hesitations ("still in talks", "I don't remember if"): a doubt quoted back reads as an
    internal note. A quote from the client's document says so ("their scope document").
 3. A day with the product: the main scenario step by step with its screens, the secondary
