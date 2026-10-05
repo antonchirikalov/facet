@@ -516,8 +516,8 @@ if (cfg.continue) {
     pending = [
       ...(last.gate || []).map((text) => ({ kind: 'GATE', text })),
       ...(last.remarks || [])
-        .filter((r) => !/^\[LOW\]/.test(r) && !/^Gate: /.test(r))
-        .map((r) => ({ kind: /^\[(HIGH|MEDIUM)\]/.test(r) ? r.slice(1, r.indexOf(']')) : 'CARRIED', text: r.replace(/^\[(HIGH|MEDIUM)\]\s*/, '').replace(/^Carried: /, '') })),
+        .filter((r) => (SEND_LOW || !/^\[LOW\]/.test(r)) && !/^Gate: /.test(r))
+        .map((r) => ({ kind: /^\[(HIGH|MEDIUM|LOW)\]/.test(r) ? r.slice(1, r.indexOf(']')) : 'CARRIED', text: r.replace(/^\[(HIGH|MEDIUM|LOW)\]\s*/, '').replace(/^Carried: /, '') })),
     ]
     log(`[prop/continue] rounds judged ${recorded.report.measures.rounds}, continuing from ${startRound} with ${pending.length} items`)
   } else {
