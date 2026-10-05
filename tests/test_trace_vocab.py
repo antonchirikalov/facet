@@ -60,8 +60,25 @@ def test_substitutes_outside_quotes_are_found() -> None:
     assert any("appointment" in f for f in found)
 
 
-def test_an_english_plural_of_a_listed_word_is_flagged() -> None:
+def test_a_trailing_star_matches_any_ending_in_any_language() -> None:
     vocab = load("vocab")
-    pairs = [("the front desk", ["receptionist"])]
-    found = vocab.substitutes_in("Two receptionists answer the phone.", pairs)
-    assert found and "receptionist" in found[0]
+    pairs = [("the front desk", ["receptionist*"]), ("визит", ["приём*"])]
+    found = vocab.substitutes_in("Two receptionists answer. Запись на приёмы идёт.", pairs)
+    assert len(found) == 2
+
+
+def test_without_a_star_only_the_listed_form_counts() -> None:
+    vocab = load("vocab")
+    assert (
+        vocab.substitutes_in("Two receptionists answer.", [("the front desk", ["receptionist"])])
+        == []
+    )
+
+
+def test_the_header_row_is_known_by_its_separator_not_its_words() -> None:
+    vocab = load("vocab")
+    sheet = (
+        "## 3. Their vocabulary\n| Любое название | Смысл | Заменять нельзя |\n| --- | --- | --- |\n"
+        "| визит | приход пациента | приём* |\n"
+    )
+    assert vocab.vocabulary(sheet) == [("визит", ["приём*"])]

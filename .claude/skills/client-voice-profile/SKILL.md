@@ -64,8 +64,10 @@ table: # | In their words | Who, where | What it commits us to | Weight
 table: Their term | What they mean by it | Do not replace with
 the right column lists only words a draft would use for the same thing ("appointment" for
 their "visit"); never a word that is a legitimate name of something else in their trade, and
-never a generic word ("area", "case", "solution") that a sentence may need for its own
-meaning: a gate flags every listed word, and a false alarm costs a round
+never a generic word ("area", "case", "solution", "object") that a sentence may need for its
+own meaning: a gate flags every listed word, and a false alarm costs a round. Where a word has
+other forms (a plural, a case ending), end it with * to flag them all ("receptionist*"); the
+gate knows no language, so the forms are yours to list. A cell with nothing to list holds a dash
 the words they use for their people, their work, their documents and their money; the right
 column holds the words our drafts tend to substitute
 

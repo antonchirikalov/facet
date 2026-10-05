@@ -7,7 +7,10 @@ as a text about someone else's business, even when it is correct English. This f
 substitute outside quotes and code, and names the client's term to use instead.
 
 The table is read from the sheet itself, so the check follows the client, not a fixed list. The
-third column may hold several substitutes separated by commas, slashes or semicolons.
+third column may hold several substitutes separated by commas, slashes or semicolons. The tool
+knows no language: a substitute ending in * matches the word with any ending ("technician*", or
+a stem in any other language), so whoever writes the sheet decides which forms count. A table's header row is the
+row above its separator line, whatever it says.
 
 The output envelope matches gate.py's.
 """
@@ -23,6 +26,7 @@ from pathlib import Path
 import toollog
 
 SECTION = re.compile(r"^##\s+3\.")
+SEPARATOR = re.compile(r"^\|?\s*:?-{3,}")
 QUOTED = re.compile(r"“[^”]*”|\"[^\"\n]*\"|`[^`\n]*`|«[^»]*»")
 FENCE = re.compile(r"```.*?```", re.DOTALL)
 
@@ -31,7 +35,8 @@ def vocabulary(sheet: str) -> list[tuple[str, list[str]]]:
     """(client term, substitutes) from the vocabulary table of a client voice sheet."""
     pairs: list[tuple[str, list[str]]] = []
     inside = False
-    for line in sheet.splitlines():
+    lines = sheet.splitlines()
+    for i, line in enumerate(lines):
         if line.startswith("## "):
             inside = bool(SECTION.match(line))
             continue
@@ -40,14 +45,22 @@ def vocabulary(sheet: str) -> list[tuple[str, list[str]]]:
         cells = [c.strip() for c in line.strip().strip("|").split("|")]
         if len(cells) < 3 or set(cells[0]) <= set("-: "):
             continue
+        following = lines[i + 1].strip() if i + 1 < len(lines) else ""
+        if SEPARATOR.match(following):
+            continue  # the header row of a table
         term, subs = cells[0], cells[2]
-        if term.lower() in {"their term", "term", "термин", "их термин", "party", "сторона"}:
-            continue
         words = [w.strip(" .“”\"'") for w in re.split(r"[,/;]", subs)]
-        words = [w for w in words if w and w.lower() not in {"—", "-", "none", "нет"}]
+        words = [w for w in words if w and set(w) - set("-—– ")]
         if words:
             pairs.append((term.strip("“”\"'"), words))
     return pairs
+
+
+def pattern_of(word: str) -> str:
+    """The listed form, or with a trailing * the word with any ending."""
+    if word.endswith("*"):
+        return rf"(?<!\w){re.escape(word[:-1])}\w*"
+    return rf"(?<!\w){re.escape(word)}(?!\w)"
 
 
 def substitutes_in(text: str, pairs: list[tuple[str, list[str]]]) -> list[str]:
@@ -55,8 +68,7 @@ def substitutes_in(text: str, pairs: list[tuple[str, list[str]]]) -> list[str]:
     found: list[str] = []
     for term, words in pairs:
         for word in words:
-            # An English plural is the same word: "technicians" slipped past a listed "technician".
-            n = len(re.findall(rf"(?<!\w){re.escape(word)}(?:e?s)?(?!\w)", prose, re.IGNORECASE))
+            n = len(re.findall(pattern_of(word), prose, re.IGNORECASE))
             if n:
                 found.append(f"“{word}” {n}x where the client says “{term}”")
     return found
