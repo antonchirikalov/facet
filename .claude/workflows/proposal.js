@@ -602,10 +602,18 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
       inputs: critic.inputs,
       noFile: true,
       brief: ORDER_BLOCK || undefined,
-      extra: declinedNotes.length
-        ? `DECLINED LAST ROUND, with the reason. Raise one again only if the reason is wrong, and say why.\n` +
-          declinedNotes.map((d, i) => `${i + 1}. ${d}`).join('\n')
-        : undefined,
+      extra: [
+        // The figures are drawn after the text is accepted; their absence now is the plan, and a
+        // note about it scored as a MEDIUM once kept an otherwise finished draft from passing.
+        `THE FIGURES are drawn after this stage, from the placeholders. Do not report that their ` +
+          `files are missing; judge only what the placeholders and captions say.`,
+        declinedNotes.length
+          ? `DECLINED LAST ROUND, with the reason. Raise one again only if the reason is wrong, and say why.\n` +
+            declinedNotes.map((d, i) => `${i + 1}. ${d}`).join('\n')
+          : '',
+      ]
+        .filter(Boolean)
+        .join('\n\n'),
     }),
     { agentType: critic.agentType, model: critic.model, label: `prop:${STAGE}:critic:${round}`, phase: PHASE, schema: VERDICT },
   )
