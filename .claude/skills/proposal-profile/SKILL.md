@@ -71,9 +71,9 @@ References between sections are "section N" and must name an existing "## N." he
 - Plain words. A term keeps one meaning in the whole document; when a second meaning appears,
   one of them is renamed (a "job" was a customer order and a queue entry at once).
 - One name per party. The client, their partners and the users are named once, as the client
-  voice sheet names them, and keep that name in every section; "salespeople, also called
-  technicians" and a partner described three ways in three sections leave the reader unsure
-  who holds the license.
+  voice sheet names them, and keep that name in every section; "the front desk, also called
+  reception" and a partner described three ways in three sections leave the reader unsure who
+  does what and who holds the license.
 - One thought per table cell. A cell of four clauses is a paragraph in the wrong place. The
   owner reads no jargon ("point-in-time restore", "staging"); technical words live in the one
   technology line for their IT advisers.
@@ -152,8 +152,8 @@ MEDIUM (three force revise)
 5a. A question the client asked, or a part of the delivery the design gives a default for,
     deferred to discovery instead of answered with a proposal.
 5b. A worked example without numbers, or with numbers a specialist of the client's trade would
-    find implausible for the case described (a light load for a heavy house); a client's
-    hesitation quoted in section 2.
+    find implausible for the case described (a visit price far below what a clinic of that size
+    charges); a client's hesitation quoted in section 2.
 5c. A party named differently in two sections; a delivery route without its stages or the
     store review missing from the plan and the risks; a team without its technologies.
 5d. A table cell carrying several thoughts; jargon outside the technology line.
@@ -169,14 +169,24 @@ Prefer a remark that closes by cutting or moving a sentence over one that asks f
 
 ## Gate rules
 
+```gate
+# the profile's mechanical rules; the script adds only its own length floor
+--no-empty-sections --figures-numbered --section-refs
+--no-empty-cells --empty-cells-allow "cost|rate|price"
+--forbid-outside-quotes "\byou\b" --forbid-outside-quotes "\byour\b"
+--forbid-file library/style/forbid/no-bold.txt
+--forbid-file library/style/forbid/en-slop.txt --forbid-file library/style/forbid/ru-slop.txt
+--forbid "\x60"
+```
+
 Deterministic, run by the script before the reviewer sees the draft:
 
 - no "you" or "your" outside quotes (--forbid-outside-quotes);
 - no bold (--forbid-file library/style/forbid/no-bold.txt);
 - no empty table cell, except columns the commercial part leaves for a manager (--no-empty-cells);
 - every "section N" names a "## N." heading (--section-refs);
-- the preliminary notes of sections 1, 5 and 6 are there, each as a blockquote line
-  (--require-in-section);
+- a wording pass keeps the structure: no heading, blockquote line, table row or figure
+  placeholder lost against the draft it started from (tools/structure_kept.py, text stage);
 - every figure followed by its numbered caption (--figures-numbered);
 - no heading with nothing under it (--no-empty-sections);
 - every quote found in the sources (tools/check_quotes.py);

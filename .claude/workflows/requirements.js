@@ -105,49 +105,13 @@ const MODELS = {
 }
 const tool = (name) => `python -X utf8 tools/${name}.py`
 
-// The extract shape, from the source-processor prompt: six tables, every row sourced and numbered.
-const ROW_IDS = '\\b(?:R|DE|CO|RO|F|Q)-\\d{2,3}\\b'
-const EXTRACT_FLAGS = [
-  ...['Requirements', 'Decisions', 'Constraints', 'Roles', 'Facts', 'Open questions'].map(
-    (h) => `--require-heading "^##\\s+${h}\\b"`,
-  ),
-  '--rows-have-source',
-  '--min-sourced-rows 1',
-  `--unique-ids "${ROW_IDS}"`,
-  `--sequential-ids "${ROW_IDS}"`,
-  // Extracts are written by the one agent that reads the client's raw material; an instruction
-  // planted in a document must not travel downstream inside an extract.
-  '--forbid-file library/style/forbid/injection.txt',
-  '--forbid "\\x60"',
-].join(' ')
-// The requirements profile's gate rules (.claude/skills/requirements-profile/SKILL.md). Headings by
-// number, because the names translate with the document's language.
-const REQ_FLAGS = [
-  ...[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => `--require-heading "^##\\s+${n}\\."`),
-  ...['8\\.1', '8\\.2', '8\\.3'].map((n) => `--require-heading "^###\\s+${n}"`),
-  '--no-empty-sections',
-  '--rows-have-source',
-  '--unique-ids "\\b(?:FR|NFR|BR|C|G|A)-\\d{3}\\b"',
-  '--cell-forbid-file library/style/forbid/req-weak-ru.txt',
-  '--cell-forbid-file library/style/forbid/req-weak-en.txt',
-  '--forbid "\\x60"',
-  `--min-length ${REQ_MIN_LENGTH}`,
-].join(' ')
-// The pain-map profile's gate rules (.claude/skills/pain-map-profile/SKILL.md).
-const PAIN_IDS = '\\b(?:P|WR)-\\d{2}\\b'
-const PAIN_FLAGS = [
-  ...[1, 2, 3, 4].map((n) => `--require-heading "^##\\s+${n}\\."`),
-  '--no-empty-sections',
-  `--unique-ids "${PAIN_IDS}"`,
-  `--sequential-ids "${PAIN_IDS}"`,
-  '--forbid "\\x60"',
-].join(' ')
-// The client-voice profile's gate rules (.claude/skills/client-voice-profile/SKILL.md).
-const VOICE_FLAGS = [
-  ...[1, 2, 3, 4, 5, 6].map((n) => `--require-heading "^##\\s+${n}\\."`),
-  '--no-empty-sections',
-  '--forbid "\\x60"',
-].join(' ')
+// A document type's gate rules live in its profile (the ```gate block); the script names the
+// profile and adds only what is its own, such as a length floor from the run's config.
+const profileFlags = (type) => `--profile .claude/skills/${type}-profile/SKILL.md`
+const EXTRACT_FLAGS = profileFlags('extract')
+const REQ_FLAGS = `${profileFlags('requirements')} --min-length ${REQ_MIN_LENGTH}`
+const PAIN_FLAGS = profileFlags('pain-map')
+const VOICE_FLAGS = profileFlags('client-voice')
 
 // --- Records of the run -----------------------------------------------------------------------
 

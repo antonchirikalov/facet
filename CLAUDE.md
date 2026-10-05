@@ -87,7 +87,9 @@ never here.
 - `.claude/skills/<type>-profile/SKILL.md` — document-type profiles (SPEC §6). **The document
   contract lives in the profile, not in prompts**: writer, corrector and critic read one text,
   a prompt describes a role. A missing profile is skipped silently by the runtime, so the
-  build checks it exists;
+  build checks it exists. Its gate rules are its ```gate block, read by `gate.py --profile`:
+  a script names the profile and never spells out a document's rules (held by
+  `tests/test_profile_gates.py`);
 - `.claude/workflows/*.js` — level-3 pipelines; `tools/` — rulers; `library/style/` — voice
   profile and pattern lists; `exemplars/` — anonymised skeletons only, full documents via
   `exemplars.local.yaml` under `.gitignore` (SPEC R8);

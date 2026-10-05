@@ -10,5 +10,7 @@ consumes:
 produces:
   - { port: extract, type: extract@v1 }
 needs: [read, edit, vision, "mcp:pdf-reader"]
+# The extract's shape: one contract for the processor that writes it and the auditor that reads it.
+skills: [extract-profile]
 defaults:
   timeout_s: 1800

@@ -23,6 +23,7 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import shlex
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -524,8 +525,38 @@ def figure_caption_problems(text: str) -> list[str]:
     return problems
 
 
+GATE_BLOCK = re.compile(r"^```gate[ \t]*\n(.*?)^```", re.MULTILINE | re.DOTALL)
+
+
+def profile_flags(profile: Path) -> tuple[list[str], list[str]]:
+    """The flags of a profile's gate block, and the problems of reading it.
+
+    A document type's gate rules belong to its profile, next to the rules the writer and the
+    critic read; a script that spelled them out held one document's contract in code meant for
+    every document. The block is fenced as ```gate, one or more flags per line written as on a
+    command line; blank lines and lines starting with # are ignored.
+    """
+    if not profile.is_file():
+        return [], [f"profile missing: {profile.as_posix()}"]
+    text = profile.read_text(encoding="utf-8").replace("\r\n", "\n")
+    m = GATE_BLOCK.search(text)
+    if not m:
+        return [], [f"profile has no gate block: {profile.as_posix()}"]
+    flags: list[str] = []
+    for line in m.group(1).splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            flags.extend(shlex.split(line))
+    return flags, []
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="Deterministic content gates.")
+    p.add_argument(
+        "--profile",
+        type=Path,
+        help="a document profile whose gate block supplies flags; flags given here add to them",
+    )
     p.add_argument("--file", type=Path, help="document to check")
     p.add_argument("--dir", type=Path, help="directory to check for entry count")
     p.add_argument("--max-length", type=int, help="ceiling on file characters, with spaces")
@@ -642,9 +673,15 @@ def main() -> int:
     p.add_argument("--min-entries", type=int, help="floor on entries directly inside --dir")
     p.add_argument("--strict", action="store_true", help="also exit 1 when the gate fails")
     toollog.add_argument(p)
-    args = p.parse_args()
+    argv = sys.argv[1:]
+    known, _ = p.parse_known_args(argv)
+    profile_problems: list[str] = []
+    if known.profile is not None:
+        extra, profile_problems = profile_flags(known.profile)
+        argv = extra + argv
+    args = p.parse_args(argv)
 
-    problems: list[str] = []
+    problems: list[str] = list(profile_problems)
     measures: dict[str, object] = {}
 
     if args.file is not None:

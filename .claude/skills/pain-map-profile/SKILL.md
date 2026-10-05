@@ -70,6 +70,13 @@ is answered when none is left
 
 ## Gate rules
 
+```gate
+--require-heading "^##\s+1\." --require-heading "^##\s+2\." --require-heading "^##\s+3\." --require-heading "^##\s+4\."
+--no-empty-sections
+--unique-ids "\b(?:P|WR)-\d{2}\b" --sequential-ids "\b(?:P|WR)-\d{2}\b"
+--forbid "\x60"
+```
+
 - headings ## 1. to ## 4. present; no empty section except section 4 when every pain is
   answered (it then says so in one line);
 - P- and WR- ids unique and without gaps (--unique-ids, --sequential-ids);

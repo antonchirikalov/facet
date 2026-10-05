@@ -262,6 +262,20 @@ or with the document's words transliterated, is unusable by the reader who has t
 
 ## Gate rules
 
+```gate
+# headings by number: the names translate with the document's language
+--require-heading "^##\s+1\." --require-heading "^##\s+2\." --require-heading "^##\s+3\."
+--require-heading "^##\s+4\." --require-heading "^##\s+5\." --require-heading "^##\s+6\."
+--require-heading "^##\s+7\." --require-heading "^##\s+8\." --require-heading "^##\s+9\."
+--require-heading "^##\s+10\."
+--require-heading "^###\s+8\.1" --require-heading "^###\s+8\.2" --require-heading "^###\s+8\.3"
+--no-empty-sections --rows-have-source
+--unique-ids "\b(?:FR|NFR|BR|C|G|A)-\d{3}\b"
+# weak words in the statement cell, both languages: the other language's list matches nothing
+--cell-forbid-file library/style/forbid/req-weak-ru.txt --cell-forbid-file library/style/forbid/req-weak-en.txt
+--forbid "\x60"
+```
+
 Deterministic, run by the script before the critic sees the draft; what the gate settles never
 costs a round:
 

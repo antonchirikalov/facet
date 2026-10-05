@@ -827,3 +827,28 @@ def test_require_in_section_names_a_missing_section() -> None:
     assert gate.missing_in_sections("## 1. A\nx\n", [r"^##\s+9\.::x"]) == [
         r"^##\s+9\.::x (no such section)"
     ]
+
+
+def test_a_profile_gate_block_supplies_the_flags(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    profile = write(
+        tmp_path,
+        "# Profile\n\n## Gate rules\n\n```gate\n# headings by number\n"
+        r'--require-heading "^##\s+1\." --require-heading "^##\s+2\."' "\n"
+        r'--forbid "\x60"' "\n```\n",
+        name="SKILL.md",
+    )
+    doc = write(tmp_path, "## 1. One\ntext\n")
+    report, _ = run(capsys, monkeypatch, "--file", str(doc), "--profile", str(profile))
+    assert not report["ok"]
+    assert report["measures"]["missing_headings"] == [r"^##\s+2\."]
+
+
+def test_a_profile_without_a_gate_block_is_a_problem(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    profile = write(tmp_path, "# Profile\nno block\n", name="SKILL.md")
+    doc = write(tmp_path, "## 1. One\n")
+    report, _ = run(capsys, monkeypatch, "--file", str(doc), "--profile", str(profile))
+    assert any("no gate block" in p for p in report["problems"])

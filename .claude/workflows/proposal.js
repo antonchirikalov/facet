@@ -73,6 +73,8 @@ const REMARKS_PATH = `${run}/prop-${STAGE}-remarks.md`
 const UNRESOLVED_PATH = `${run}/prop-${STAGE}-unresolved.md`
 const CONTENT_OUTCOME = `${run}/prop-content-outcome.md`
 const roundPathOf = (n) => `${ROUNDS_DIR}/round-${n}.md`
+// The text stage's starting point: a wording pass is measured against it.
+const BEFORE_TEXT = `${run}/rounds/prop-text/before.md`
 const draftPathOf = (n) => `${ROUNDS_DIR}/draft-${n}.md`
 const editsPathOf = (n) => `${ROUNDS_DIR}/edits-${n}.json`
 
@@ -93,33 +95,11 @@ const MODELS = {
 }
 const tool = (name) => `python -X utf8 tools/${name}.py`
 
-// The proposal profile's gate rules (.claude/skills/proposal-profile/SKILL.md, "Gate rules"). The
-// slop lists belong to the text stage's gate as well as the content's: a phrase no context makes
-// informative is a measurement, not a judgement.
-const PROP_FLAGS = [
-  '--no-empty-sections',
-  '--figures-numbered',
-  '--section-refs',
-  '--no-empty-cells --empty-cells-allow "cost|rate|price"',
-  '--forbid-outside-quotes "\\byou\\b" --forbid-outside-quotes "\\byour\\b"',
-  '--forbid-file library/style/forbid/no-bold.txt',
-  '--forbid-file library/style/forbid/en-slop.txt',
-  '--forbid-file library/style/forbid/ru-slop.txt',
-  '--forbid "\\x60"',
-  `--min-length ${MIN_ARTIFACT_CHARS}`,
-  // The three preliminary notes of the profile (sections 1, 5, 6), each a blockquote line: a
-  // wording pass once took two of them out as repetition. The Russian stem is spelled in
-  // escapes because command arguments are ASCII.
-  ...[1, 5, 6].map(
-    (n) => `--require-in-section "^##\\s+${n}\\.::^>.*(?i:preliminary|\\u043f\\u0440\\u0435\\u0434\\u0432\\u0430\\u0440\\u0438\\u0442)"`,
-  ),
-].join(' ')
-const PAIN_IDS = '\\b(?:P|WR)-\\d{2}\\b'
-const PAIN_FLAGS = [
-  ...[1, 2, 3, 4].map((n) => `--require-heading "^##\\s+${n}\\."`),
-  `--unique-ids "${PAIN_IDS}"`,
-  `--sequential-ids "${PAIN_IDS}"`,
-].join(' ')
+// A document type's gate rules live in its profile (the ```gate block); the script names the
+// profile and adds only its own length floor.
+const profileFlags = (type) => `--profile .claude/skills/${type}-profile/SKILL.md`
+const PROP_FLAGS = `${profileFlags('proposal')} --min-length ${MIN_ARTIFACT_CHARS}`
+const PAIN_FLAGS = profileFlags('pain-map')
 
 // --- Records of the run -----------------------------------------------------------------------
 
@@ -417,6 +397,9 @@ const checksOf = (round) => [
   `${tool('check_quotes')} --file "${PROP_PATH}" --source ${INPUTS_DIR} --source ${EXTRACTS_DIR} ${noted(`proposal quotes round ${round}`)}`,
   `${tool('vocab')} --file "${PROP_PATH}" --voice "${VOICE_PATH}" ${noted(`client vocabulary round ${round}`)}`,
   `${tool('pain_coverage')} --pains "${PAINS_PATH}" --file "${PROP_PATH}" ${noted(`pains answered round ${round}`)}`,
+  ...(STAGE === 'text'
+    ? [`${tool('structure_kept')} --before "${BEFORE_TEXT}" --file "${PROP_PATH}" ${noted(`structure kept round ${round}`)}`]
+    : []),
 ]
 
 // A HIGH remark sends the proposal back, so before it does, independent checkers vote on it; one
@@ -486,6 +469,17 @@ const critics = {
 
 const PHASE = STAGE === 'content' ? 'Content' : 'Text'
 phase(PHASE)
+// A wording pass changes words, not structure: the proposal as the text stage found it is kept,
+// once, and every round's gate compares against it. A continued text stage keeps the first one.
+if (STAGE === 'text') {
+  touched.add(BEFORE_TEXT)
+  if (!cfg.continue) {
+    await call(
+      commands([`${tool('snapshot')} --file ${PROP_PATH} --to ${BEFORE_TEXT} ${noted('the proposal before the text stage')}`]),
+      { agentType: 'file-copier', model: MODELS.copy, label: 'prop:before-text', phase: PHASE, schema: GATE },
+    )
+  }
+}
 const critic = critics[STAGE]()
 const ledger = []
 let pending = []

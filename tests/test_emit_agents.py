@@ -36,6 +36,7 @@ STYLE_SKILLS = {"frontend-design"}
 
 PROFILE_AGENTS = {
     "animated-scene-profile": {"scene_animator"},
+    "extract-profile": {"source_processor", "extract_auditor"},
     "frontend-design": {"scene_animator"},
     "client-edition-profile": {"client_editor"},
     "client-voice-profile": {"client_voice"},

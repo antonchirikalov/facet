@@ -97,6 +97,13 @@ assumptions.
 
 ## Gate rules
 
+```gate
+--require-heading "^##\s+1\." --require-heading "^##\s+2\." --require-heading "^##\s+3\."
+--require-heading "^##\s+4\." --require-heading "^##\s+5\." --require-heading "^##\s+6\."
+--no-empty-sections
+--forbid "\x60"
+```
+
 - headings ## 1. … ## 6. present (--require-heading);
 - no heading with nothing under it (--no-empty-sections);
 - no backtick;

@@ -15,5 +15,7 @@ produces:
 # Read only: an auditor that could edit the extract would fix it instead of reporting, and the
 # point is an independent count of what the first reader missed.
 needs: [read, vision, "mcp:pdf-reader"]
+# The extract's shape: one contract for the processor that writes it and the auditor that reads it.
+skills: [extract-profile]
 defaults:
   timeout_s: 1800
