@@ -492,7 +492,11 @@ const perRound = []
 // The proposal profile's verdict rule: any HIGH, or three MEDIUM, send the draft back. A client
 // document accepted with seven MEDIUM remarks left a worked example without numbers and the
 // owner's main question deferred, which is what the comparison with the sent proposal found.
-const MEDIUM_LIMIT = cfg.mediumLimit ?? 3
+// In the text stage every remark is a wording fix the writer makes in one edits file, so any
+// MEDIUM sends it back and LOW remarks travel with it: one live text stage accepted a draft
+// with two MEDIUM and three LOW remarks and changed nothing.
+const MEDIUM_LIMIT = cfg.mediumLimit ?? (STAGE === 'text' ? 1 : 3)
+const SEND_LOW = STAGE === 'text'
 
 // Continuing: the rounds already judged are read back, so a continued launch numbers its rounds
 // after them instead of writing over round 1 of the earlier launch.
@@ -629,7 +633,7 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
     sendBack.push({ kind: 'GATE', text: p, entry })
   }
   for (const r of remarks) {
-    const low = r.severity === 'LOW'
+    const low = r.severity === 'LOW' && !SEND_LOW
     const entry = { round, kind: r.severity, text: r.text, answer: low ? 'recorded, not sent back' : null }
     ledger.push(entry)
     if (!low) sendBack.push({ kind: r.severity, text: r.text, entry })
