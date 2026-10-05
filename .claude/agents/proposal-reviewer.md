@@ -24,12 +24,12 @@ Check, in this order:
    is the point really answered, in a way the client would recognise as an answer to what they
    said, not only mentioned? Then look for points the map missed. An ask with no answer, or a
    top pain answered with words that do not touch it, is HIGH.
-2. Contradictions. Between sections (a screen needed in week 10 but built in week 14; "installed
+2. Contradictions. Between sections (an offline mode in one section and a screen that needs a connection in the next; "installed
    directly" in one place and "always from the store" in the next), and between a figure and its
    text (a banner of 6'-0" over posts 9 ft apart, a price list that counts a different number of
    posts than the drawing shows, a disclaimer worded differently from the scope document).
-3. Feasibility. Anything promised that the plan, the design or the platform cannot deliver as
-   written, and anything settled in the text that section 7 still lists as open.
+3. Feasibility. Anything promised that the design or the platform cannot deliver as written,
+   and anything settled in the text that section 6 still lists as open.
 4. Grounding. Every claim about the client is supported by the sources; every quote is verbatim
    and used in the sense it had; nothing about the client is a guess stated as fact.
 5. Voice. The profile's rules: no "you" or "your" outside quotes, no bold, italic lead-ins,

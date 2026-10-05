@@ -12,8 +12,8 @@ it read as being about the client's business, not about our system:
   professionally responsible for), with a worked example and the rules that keep control with
   them. It answered the worry they voiced most, which was not a feature request.
 - Technology comes fifth, in plain words, with one line for their IT advisers.
-- What is not decided is said as such, in one place (section 7), and the plan is marked
-  preliminary.
+- What is not decided is said as such, in one place (section 6). The plan and the team are a
+  separate document.
 
 The full document is a client document and is not in the repository; exemplars.local.yaml points
 to it on a machine that has it.

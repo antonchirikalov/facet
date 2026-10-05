@@ -78,18 +78,14 @@ about <duration>, with a working build to try every two weeks.
 
 ### Standard cloud services
 
-## 6. Plan and team
-
-> <the one preliminary note on the plan>
-
-## 7. What we will decide together in discovery
+## 6. What we will decide together in discovery
 
 | Decision | Why it matters |
 | --- | --- |
 
-## 8. Assumptions and risks
+## 7. Assumptions and risks
 
-## 9. What comes next
+## 8. What comes next
 
 ### <The next step the client already asked for>
 

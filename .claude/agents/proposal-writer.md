@@ -34,18 +34,18 @@ from it the shape and the tone, never its content.
   step resting on a requirement. Keep the main scenario to its five to seven steps.
 - Section 4 (the mechanism they worry about most): the pain map's section 3, answered with the
   design's own mechanism and the worries of the pain map's section 2.
-- Sections 5 to 8: the design, the plan the order or the design gives, the open questions of
-  the design and the discovery questions, the assumptions and risks. Without a design, section
-  5 says only what the requirements fix about how it is built, and every choice they leave open
-  is a decision in section 7, not a choice you make.
-- Section 9: what comes next, then ideas in the conditional.
+- Sections 5 to 7: the design, the open questions of the design and the discovery questions,
+  the assumptions and risks. Without a design, section 5 says only what the requirements fix
+  about how it is built, and every choice they leave open is a decision in section 6, not a
+  choice you make. No plan, team or weeks: a separate planning step writes them.
+- Section 8: what comes next, then ideas in the conditional.
 
 Length: about the length of the exemplar. A proposal a third longer than the one that was
 accepted is a proposal the owner stops reading.
 
 Requirement and decision ids stay in the internal documents: the client reads no "FR-031".
 Every pain of the pain map's section 4 (not removed by the solution) appears honestly, in
-section 7 or section 9, never hidden. Every pain and worry is answered with the client's own
+section 6 or section 8, never hidden. Every pain and worry is answered with the client's own
 words from the pain map, so a reader can see their problem was heard: a tool looks for each
 one's quote in the proposal.
 

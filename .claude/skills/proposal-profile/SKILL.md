@@ -29,7 +29,9 @@ appears once, in one line addressed to their IT advisers.
 ## Sections
 
 Numbered "## N." in this order; a document may merge or drop a section only when its material
-is absent from the sources, never to shorten.
+is absent from the sources, never to shorten. The plan, the team, the weeks and what the project
+needs from the client on which date are not part of this document: a separate planning step
+writes them. The full exemplar has a plan section; this document type does not.
 
 1. Overview: the client's situation in their terms, what one use of the product gives each
    party, the product as the client's own, the proposed start, and the preliminary note.
@@ -43,23 +45,18 @@ is absent from the sources, never to shorten.
    onboarding, training). For an app, the route in stages: test builds during development, how
    the pilot build reaches the first devices, the release (public store, unlisted, or managed
    devices), who uploads builds, how updates are forced; the store review time appears in the
-   plan and in the risks.
+   risks.
 4. The core mechanism the client worries about most (for Acme Clinics, the price quote), with
    a worked example in numbers and who controls it. Where the sources give no figure, the
    example uses illustrative numbers and says so in its preliminary note; an example of X and Y
    persuades nobody.
 5. How it is built: the parts on the device, the backend service by service, the standard
    cloud services, where it runs, backup and restore, environments, one technology line.
-6. Plan and team: stages with weeks, milestones, what the project needs from the client with
-   dates (accounts, store and developer registrations with their lead time, terms of use and
-   privacy policy where the product publishes an app), the team by role with its technology
-   (a mobile developer in the framework the design names, not "app engineers") and phase, and
-   who supports the users day to day after the release.
-7. What we will decide together: the decisions only the client can take, and why each matters;
+6. What we will decide together: the decisions only the client can take, and why each matters;
    about eight. A choice the design or the sources allow us to make is not listed here: it is
    proposed in its section as a default, with its preliminary note.
-8. Assumptions and risks.
-9. What comes next: the next step the client already asked for, then ideas for the client to
+7. Assumptions and risks.
+8. What comes next: the next step the client already asked for, then ideas for the client to
    consider.
 
 References between sections are "section N" and must name an existing "## N." heading.
@@ -80,13 +77,13 @@ References between sections are "section N" and must name an existing "## N." he
   technology line for their IT advisers.
 - No bold anywhere. A lead-in that names an idea is set in italics.
 - A proposal says what is proposed, not what is settled. Anything the sources leave open
-  carries its decision in section 7 and points there.
+  carries its decision in section 6 and points there.
 - Propose rather than defer. Where the design or common practice gives a sound default
-  (how the app reaches its users, backups, environments, the team), state it as our proposal,
+  (how the app reaches its users, backups, environments), state it as our proposal,
   preliminary, instead of moving it to discovery. The client asked "how will it reach the
   installers" as their main question on one call; a draft that answered "to be decided" lost the
   section a human had filled. A proposal of fourteen open decisions reads as uncertainty.
-- The future is conditional: the ideas of section 9 and anything outside the plan are written
+- The future is conditional: the ideas of section 8 and anything outside the scope are written
   with "would" and "could" and are introduced as ideas to discuss, each with what the client
   gains and what it would need from them.
 - No competitor product names, no people's names of the client (roles only), no costs in the
@@ -101,9 +98,9 @@ reacts to our own idea is not a requirement and does not go in section 2.
 
 ## Preliminary
 
-Every statement that the scope, design or plan is preliminary is a note of its own: a
+Every statement that the scope or the design is preliminary is a note of its own: a
 blockquote line directly under the paragraph it qualifies, never a clause inside it. There are
-at most three: the whole proposal (section 1), the design (section 5), the plan (section 6).
+at most two: the whole proposal (section 1) and the design (section 5).
 The publisher turns them into info panels, the Word build into shaded paragraphs.
 
 ## Coverage
@@ -144,8 +141,8 @@ it, never its content.
 HIGH (any one forces revise)
 1. A client ask, worry or question from the coverage map with no place in the document.
 2. Two sections that contradict each other, or a figure that contradicts its text.
-3. A promise the plan does not deliver (a screen needed in week 10 built in week 14, a feature
-   in the text and in no sprint).
+3. A promise the design does not deliver: a feature in the text that no part of the design
+   carries, or a design part the text relies on and never describes.
 4. A claim about the client not supported by the sources; a quote used out of context.
 5. A cost, a competitor name or a person's name of the client.
 
@@ -157,7 +154,7 @@ MEDIUM (three force revise)
     what practice gives) (a visit price far below what a clinic of that size
     charges); a client's hesitation quoted in section 2.
 5c. A party named differently in two sections; a delivery route without its stages or the
-    store review missing from the plan and the risks; a team without its technologies.
+    store review missing from the risks.
 5d. A table cell carrying several thoughts; jargon outside the technology line.
 6. An idea or next step written as a commitment.
 7. A preliminary statement inside a paragraph instead of its own note.
