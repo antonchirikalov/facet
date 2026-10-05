@@ -55,7 +55,8 @@ def substitutes_in(text: str, pairs: list[tuple[str, list[str]]]) -> list[str]:
     found: list[str] = []
     for term, words in pairs:
         for word in words:
-            n = len(re.findall(rf"(?<!\w){re.escape(word)}(?!\w)", prose, re.IGNORECASE))
+            # An English plural is the same word: "technicians" slipped past a listed "technician".
+            n = len(re.findall(rf"(?<!\w){re.escape(word)}(?:e?s)?(?!\w)", prose, re.IGNORECASE))
             if n:
                 found.append(f"“{word}” {n}x where the client says “{term}”")
     return found

@@ -58,3 +58,10 @@ def test_substitutes_outside_quotes_are_found() -> None:
     found = vocab.substitutes_in(text, vocab.vocabulary(SHEET))
     assert any("receptionist" in f and "1x" in f for f in found)
     assert any("appointment" in f for f in found)
+
+
+def test_an_english_plural_of_a_listed_word_is_flagged() -> None:
+    vocab = load("vocab")
+    pairs = [("the front desk", ["receptionist"])]
+    found = vocab.substitutes_in("Two receptionists answer the phone.", pairs)
+    assert found and "receptionist" in found[0]

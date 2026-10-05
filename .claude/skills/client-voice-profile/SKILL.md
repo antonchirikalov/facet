@@ -72,9 +72,11 @@ column holds the words our drafts tend to substitute
 table: Party | Who they are | Do not call them
 the second table of section 3: every party the sources name (the client, their partners, their
 customers, the users of the product), each with one name, the one every later document uses,
-and who they are in one line from the sources. The right column holds the other names the
-sources or our drafts use for the same party ("reception" where the party is "the front desk"),
-so the gate flags them. Where the sources leave unclear who a party is, the row says so in its
+and who they are in one line from the sources. The right column holds every other name for
+the same party, the client's own included: where the client says both "front desk" and
+"reception", one becomes the name and the other goes to the right column, so the gate flags it
+("reception" where the party is "the front desk"). A document chooses one name even among the
+client's words. Where the sources leave unclear who a party is, the row says so in its
 second column and section 6 asks; the uncertainty never becomes a second name. A document that
 calls one party three things in three sections leaves its reader unsure who does what
 

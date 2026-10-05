@@ -653,6 +653,9 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
     // note about it scored as a MEDIUM once kept an otherwise finished draft from passing.
     `THE FIGURES are drawn after this stage, from the placeholders. Do not report that their ` +
       `files are missing; judge only what the placeholders and captions say.`,
+    // A note that coverage is complete, returned as a remark, once counted as a MEDIUM.
+    `THE REMARKS are defects only. What you checked and found right is not a remark: leave it ` +
+      `out, or every confirmation is read as a defect and sends the draft back.`,
     declinedNotes.length
       ? `DECLINED LAST ROUND, with the reason. Raise one again only if the reason is wrong, and say why.\n` +
         declinedNotes.map((d, i) => `${i + 1}. ${d}`).join('\n')
