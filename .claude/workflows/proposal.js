@@ -107,6 +107,12 @@ const PROP_FLAGS = [
   '--forbid-file library/style/forbid/ru-slop.txt',
   '--forbid "\\x60"',
   `--min-length ${MIN_ARTIFACT_CHARS}`,
+  // The three preliminary notes of the profile (sections 1, 5, 6), each a blockquote line: a
+  // wording pass once took two of them out as repetition. The Russian stem is spelled in
+  // escapes because command arguments are ASCII.
+  ...[1, 5, 6].map(
+    (n) => `--require-in-section "^##\\s+${n}\\.::^>.*(?i:preliminary|\\u043f\\u0440\\u0435\\u0434\\u0432\\u0430\\u0440\\u0438\\u0442)"`,
+  ),
 ].join(' ')
 const PAIN_IDS = '\\b(?:P|WR)-\\d{2}\\b'
 const PAIN_FLAGS = [

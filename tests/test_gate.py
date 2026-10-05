@@ -799,3 +799,31 @@ def test_require_line_found_and_missing(
     assert report["ok"] and report["measures"]["missing_lines"] == []
     report, _ = run(capsys, monkeypatch, "--file", str(target), "--require-line", r"Accepted: no")
     assert not report["ok"] and "required line missing" in report["problems"][0]
+
+
+def test_require_in_section_finds_the_note_in_its_own_section(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    doc = (
+        "## 1. Overview\ntext\n> Everything here is preliminary.\n"
+        "## 5. How it is built\n### 5.1 Parts\nparts\n"
+        "## 6. Plan\n> The plan is preliminary.\n"
+    )
+    target = write(tmp_path, doc)
+    rules = [
+        r"^##\s+1\.::^>.*[Pp]reliminary",
+        r"^##\s+5\.::^>.*[Pp]reliminary",
+        r"^##\s+6\.::^>.*[Pp]reliminary",
+    ]
+    argv = ["--file", str(target)]
+    for r in rules:
+        argv += ["--require-in-section", r]
+    report, _ = run(capsys, monkeypatch, *argv)
+    assert not report["ok"]
+    assert report["measures"]["missing_in_sections"] == [rules[1]]
+
+
+def test_require_in_section_names_a_missing_section() -> None:
+    assert gate.missing_in_sections("## 1. A\nx\n", [r"^##\s+9\.::x"]) == [
+        r"^##\s+9\.::x (no such section)"
+    ]

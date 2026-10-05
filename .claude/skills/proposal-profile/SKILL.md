@@ -40,7 +40,10 @@ is absent from the sources, never to shorten.
    internal note. A quote from the client's document says so ("their scope document").
 3. A day with the product: the main scenario step by step with its screens, the secondary
    scenarios, every role in one table, how the product reaches its users (distribution,
-   onboarding, training).
+   onboarding, training). For an app, the route in stages: test builds during development, how
+   the pilot build reaches the first devices, the release (public store, unlisted, or managed
+   devices), who uploads builds, how updates are forced; the store review time appears in the
+   plan and in the risks.
 4. The core mechanism the client worries about most (for Acme Clinics, the price quote), with
    a worked example in numbers and who controls it. Where the sources give no figure, the
    example uses illustrative numbers and says so in its preliminary note; an example of X and Y
@@ -48,8 +51,10 @@ is absent from the sources, never to shorten.
 5. How it is built: the parts on the device, the backend service by service, the standard
    cloud services, where it runs, backup and restore, environments, one technology line.
 6. Plan and team: stages with weeks, milestones, what the project needs from the client with
-   dates (accounts, store and developer registrations, terms of use and privacy policy where
-   the product publishes an app), the team by role, skill and phase.
+   dates (accounts, store and developer registrations with their lead time, terms of use and
+   privacy policy where the product publishes an app), the team by role with its technology
+   (a mobile developer in the framework the design names, not "app engineers") and phase, and
+   who supports the users day to day after the release.
 7. What we will decide together: the decisions only the client can take, and why each matters;
    about eight. A choice the design or the sources allow us to make is not listed here: it is
    proposed in its section as a default, with its preliminary note.
@@ -65,6 +70,13 @@ References between sections are "section N" and must name an existing "## N." he
   "Acme Clinics' engineer", not "your engineer"; no "you" or "your" outside a quote.
 - Plain words. A term keeps one meaning in the whole document; when a second meaning appears,
   one of them is renamed (a "job" was a customer order and a queue entry at once).
+- One name per party. The client, their partners and the users are named once, as the client
+  voice sheet names them, and keep that name in every section; "salespeople, also called
+  technicians" and a partner described three ways in three sections leave the reader unsure
+  who holds the license.
+- One thought per table cell. A cell of four clauses is a paragraph in the wrong place. The
+  owner reads no jargon ("point-in-time restore", "staging"); technical words live in the one
+  technology line for their IT advisers.
 - No bold anywhere. A lead-in that names an idea is set in italics.
 - A proposal says what is proposed, not what is settled. Anything the sources leave open
   carries its decision in section 7 and points there.
@@ -139,7 +151,12 @@ HIGH (any one forces revise)
 MEDIUM (three force revise)
 5a. A question the client asked, or a part of the delivery the design gives a default for,
     deferred to discovery instead of answered with a proposal.
-5b. A worked example without numbers; a client's hesitation quoted in section 2.
+5b. A worked example without numbers, or with numbers a specialist of the client's trade would
+    find implausible for the case described (a light load for a heavy house); a client's
+    hesitation quoted in section 2.
+5c. A party named differently in two sections; a delivery route without its stages or the
+    store review missing from the plan and the risks; a team without its technologies.
+5d. A table cell carrying several thoughts; jargon outside the technology line.
 6. An idea or next step written as a commitment.
 7. A preliminary statement inside a paragraph instead of its own note.
 8. A term with two meanings; jargon a non-technical reader cannot follow without help.
@@ -158,6 +175,8 @@ Deterministic, run by the script before the reviewer sees the draft:
 - no bold (--forbid-file library/style/forbid/no-bold.txt);
 - no empty table cell, except columns the commercial part leaves for a manager (--no-empty-cells);
 - every "section N" names a "## N." heading (--section-refs);
+- the preliminary notes of sections 1, 5 and 6 are there, each as a blockquote line
+  (--require-in-section);
 - every figure followed by its numbered caption (--figures-numbered);
 - no heading with nothing under it (--no-empty-sections);
 - every quote found in the sources (tools/check_quotes.py);

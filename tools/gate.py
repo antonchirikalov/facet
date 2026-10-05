@@ -357,6 +357,37 @@ def duplicate_ids(text: str, pattern: str) -> list[str]:
     return dupes
 
 
+def missing_in_sections(text: str, rules: list[str]) -> list[str]:
+    """Rules of the form HEADING_REGEX::LINE_REGEX whose section has no matching line.
+
+    A section runs from the heading that matches to the next heading of the same or a higher
+    level. The rule is how a document keeps an element its profile requires in a given place:
+    on one live run a wording pass took the "preliminary" notes out of the design and plan
+    sections, and nothing measured that they had to be there.
+    """
+    lines = text.splitlines()
+    failed: list[str] = []
+    for rule in rules:
+        heading_rx, sep, line_rx = rule.partition("::")
+        if not sep:
+            failed.append(f"{rule} (not HEADING::LINE)")
+            continue
+        start = next((i for i, ln in enumerate(lines) if re.search(heading_rx, ln)), None)
+        if start is None:
+            failed.append(f"{rule} (no such section)")
+            continue
+        level = len(lines[start]) - len(lines[start].lstrip("#"))
+        body: list[str] = []
+        for ln in lines[start + 1 :]:
+            hashes = len(ln) - len(ln.lstrip("#"))
+            if 0 < hashes <= level and ln[hashes : hashes + 1] == " ":
+                break
+            body.append(ln)
+        if not any(re.search(line_rx, ln) for ln in body):
+            failed.append(rule)
+    return failed
+
+
 def id_gaps(text: str, pattern: str) -> list[str]:
     """Declared ids that break the 1, 2, 3 order of their prefix, as "FR-008 after FR-006".
 
@@ -556,6 +587,13 @@ def main() -> int:
         help="some line of the file must match; repeatable (a status a later stage relies on)",
     )
     p.add_argument(
+        "--require-in-section",
+        action="append",
+        default=[],
+        metavar="HEADING::LINE",
+        help="the section whose heading matches HEADING holds a line matching LINE; repeatable",
+    )
+    p.add_argument(
         "--sequential-ids",
         metavar="REGEX",
         help="declared ids of each prefix must run 1, 2, 3 without gaps, in document order",
@@ -677,6 +715,15 @@ def main() -> int:
                 measures["missing_lines"] = absent
                 if absent:
                     problems.append(f"required line missing ({len(absent)}): " + "; ".join(absent))
+
+            if args.require_in_section:
+                absent = missing_in_sections(text, args.require_in_section)
+                measures["missing_in_sections"] = absent
+                if absent:
+                    problems.append(
+                        f"required line missing from its section ({len(absent)}): "
+                        + "; ".join(absent)
+                    )
 
             if args.sequential_ids:
                 gaps = id_gaps(text, args.sequential_ids)
