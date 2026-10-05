@@ -69,6 +69,15 @@ meaning: a gate flags every listed word, and a false alarm costs a round
 the words they use for their people, their work, their documents and their money; the right
 column holds the words our drafts tend to substitute
 
+table: Party | Who they are | Do not call them
+the second table of section 3: every party the sources name (the client, their partners, their
+customers, the users of the product), each with one name, the one every later document uses,
+and who they are in one line from the sources. The right column holds the other names the
+sources or our drafts use for the same party ("reception" where the party is "the front desk"),
+so the gate flags them. Where the sources leave unclear who a party is, the row says so in its
+second column and section 6 asks; the uncertainty never becomes a second name. A document that
+calls one party three things in three sections leaves its reader unsure who does what
+
 ## 4. Who wants what
 table: Role | What they want | What worries them | In their words
 

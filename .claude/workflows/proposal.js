@@ -72,6 +72,7 @@ const OUTCOME_PATH = `${run}/prop-${STAGE}-outcome.md`
 const REMARKS_PATH = `${run}/prop-${STAGE}-remarks.md`
 const UNRESOLVED_PATH = `${run}/prop-${STAGE}-unresolved.md`
 const CONTENT_OUTCOME = `${run}/prop-content-outcome.md`
+const NUMBER_CHECKS = `${run}/number-checks.md`
 const roundPathOf = (n) => `${ROUNDS_DIR}/round-${n}.md`
 // The text stage's starting point: a wording pass is measured against it.
 const BEFORE_TEXT = `${run}/rounds/prop-text/before.md`
@@ -87,6 +88,8 @@ const MODELS = {
   write: 'opus',
   review: 'opus',
   slop: 'sonnet',
+  numbers: 'opus',
+  reader: 'sonnet',
   vote: 'sonnet',
   gate: 'sonnet',
   record: 'sonnet',
@@ -277,6 +280,18 @@ const VERDICT = {
     remarks: { type: 'array', items: { type: 'string', description: '[HIGH|MEDIUM|LOW] place — what is wrong — evidence — fix' } },
   },
 }
+// The domain checker writes its findings to a file; the schema carries only the implausible ones.
+const FOUND = {
+  type: 'object',
+  required: ['implausible'],
+  properties: {
+    implausible: {
+      type: 'array',
+      items: { type: 'string' },
+      description: 'one line per implausible number: what the document says, what practice gives, a value that fits',
+    },
+  },
+}
 const CHECKED = {
   type: 'object',
   required: ['results'],
@@ -448,19 +463,44 @@ const severityOf = (text) => {
   const m = /^\s*(?:\d{1,2}[.)]\s+)?\[(HIGH|MEDIUM|LOW)\]/.exec(text)
   return m ? m[1] : 'MEDIUM'
 }
+// Each stage has its critics, run in parallel and read into one numbered list.
+//   content: the reviewer judges coverage and truth; the domain checker looks the document's
+//            typical and illustrative numbers up in open sources, because a writer told "this load
+//            is implausible" three rounds running did not fix it without knowing what is plausible
+//   text:    the slop critic judges the tells of generated text; the client reader reads as the
+//            client's decision-maker and says where they stop
 const critics = {
-  content: () => ({
-    agentType: 'proposal-reviewer',
-    model: MODELS.review,
-    inputs: [{ port: 'draft', path: PROP_PATH }, { port: 'pain_map', path: PAINS_PATH }, ...sourcePorts, { port: 'client_voice', path: VOICE_PATH }],
-    vote: true,
-  }),
-  text: () => ({
-    agentType: 'slop-critic',
-    model: MODELS.slop,
-    inputs: [{ port: 'draft', path: PROP_PATH }, { port: 'client_voice', path: VOICE_PATH }],
-    vote: false,
-  }),
+  content: () => [
+    {
+      tag: 'REVIEW',
+      agentType: 'proposal-reviewer',
+      model: MODELS.review,
+      inputs: [{ port: 'draft', path: PROP_PATH }, { port: 'pain_map', path: PAINS_PATH }, ...sourcePorts, { port: 'client_voice', path: VOICE_PATH }],
+      vote: true,
+    },
+    {
+      tag: 'NUMBERS',
+      agentType: 'domain-checker',
+      model: MODELS.numbers,
+      inputs: [{ port: 'draft', path: PROP_PATH }, { port: 'client_voice', path: VOICE_PATH }],
+      output: NUMBER_CHECKS,
+      schema: FOUND,
+    },
+  ],
+  text: () => [
+    {
+      tag: 'SLOP',
+      agentType: 'slop-critic',
+      model: MODELS.slop,
+      inputs: [{ port: 'draft', path: PROP_PATH }, { port: 'client_voice', path: VOICE_PATH }],
+    },
+    {
+      tag: 'READER',
+      agentType: 'client-reader',
+      model: MODELS.reader,
+      inputs: [{ port: 'draft', path: PROP_PATH }, { port: 'client_voice', path: VOICE_PATH }],
+    },
+  ],
 }
 
 // =============================================================================================
@@ -480,7 +520,9 @@ if (STAGE === 'text') {
     )
   }
 }
-const critic = critics[STAGE]()
+const stageCritics = critics[STAGE]()
+// The domain checker's file, once written, goes to the writer with the remarks it backs.
+let numbersChecked = false
 const ledger = []
 let pending = []
 let declinedNotes = []
@@ -556,7 +598,16 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
       `was not found once.`
     const drafted = must(
       await call(
-        task({ inputs: [{ port: 'draft', path: PROP_PATH }, ...basePorts], output: editsPath, extra: remarks, brief: ORDER_BLOCK || undefined }),
+        task({
+          inputs: [
+            { port: 'draft', path: PROP_PATH },
+            ...basePorts,
+            ...(numbersChecked ? [{ port: 'number_checks', path: NUMBER_CHECKS }] : []),
+          ],
+          output: editsPath,
+          extra: remarks,
+          brief: ORDER_BLOCK || undefined,
+        }),
         { agentType: 'proposal-writer', model: MODELS.write, label: `prop:write:${round}`, phase: PHASE, schema: DRAFT },
       ),
       `prop:write:${round}`,
@@ -596,35 +647,52 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
   lastCoverage = (checks[3] && checks[3].measures) || {}
   log(`[prop/${round}/gate] problems ${gateProblems.length}${gateProblems.length ? ': ' + gateProblems.join('; ') : ''}`)
 
-  // --- The critic of the stage
-  const said = await call(
-    task({
-      inputs: critic.inputs,
-      noFile: true,
-      brief: ORDER_BLOCK || undefined,
-      extra: [
-        // The figures are drawn after the text is accepted; their absence now is the plan, and a
-        // note about it scored as a MEDIUM once kept an otherwise finished draft from passing.
-        `THE FIGURES are drawn after this stage, from the placeholders. Do not report that their ` +
-          `files are missing; judge only what the placeholders and captions say.`,
-        declinedNotes.length
-          ? `DECLINED LAST ROUND, with the reason. Raise one again only if the reason is wrong, and say why.\n` +
-            declinedNotes.map((d, i) => `${i + 1}. ${d}`).join('\n')
-          : '',
-      ]
-        .filter(Boolean)
-        .join('\n\n'),
-    }),
-    { agentType: critic.agentType, model: critic.model, label: `prop:${STAGE}:critic:${round}`, phase: PHASE, schema: VERDICT },
+  // --- The critics of the stage, in parallel
+  const criticExtra = [
+    // The figures are drawn after the text is accepted; their absence now is the plan, and a
+    // note about it scored as a MEDIUM once kept an otherwise finished draft from passing.
+    `THE FIGURES are drawn after this stage, from the placeholders. Do not report that their ` +
+      `files are missing; judge only what the placeholders and captions say.`,
+    declinedNotes.length
+      ? `DECLINED LAST ROUND, with the reason. Raise one again only if the reason is wrong, and say why.\n` +
+        declinedNotes.map((d, i) => `${i + 1}. ${d}`).join('\n')
+      : '',
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+  const said = await parallel(
+    stageCritics.map((c) => () =>
+      call(
+        c.output
+          ? task({ inputs: c.inputs, output: c.output, brief: ORDER_BLOCK || undefined })
+          : task({ inputs: c.inputs, noFile: true, brief: ORDER_BLOCK || undefined, extra: criticExtra }),
+        { agentType: c.agentType, model: c.model, label: `prop:${STAGE}:${c.tag.toLowerCase()}:${round}`, phase: PHASE, schema: c.schema || VERDICT },
+      ),
+    ),
   )
-  const remarks = said
-    ? (said.remarks || []).map((r) => ({
-        severity: severityOf(r),
-        // The severity travels in its own field; left in the text it was printed twice.
-        text: String(r).replace(/^\s*\d{1,2}[.)]\s+/, '').replace(/^\[(?:HIGH|MEDIUM|LOW)\]\s*/, ''),
-      }))
-    : [{ severity: 'HIGH', text: `the ${critic.agentType} returned no verdict: that is an open item, not agreement` }]
-  const refuted = said && critic.vote ? await voteOnHigh(round, remarks) : 0
+  const remarks = []
+  let refuted = 0
+  for (const [k, c] of stageCritics.entries()) {
+    const got = said[k]
+    if (!got) {
+      remarks.push({ severity: 'HIGH', text: `[${c.tag}] the ${c.agentType} returned nothing: that is an open item, not agreement` })
+      continue
+    }
+    if (c.output) {
+      numbersChecked = true
+      for (const x of got.implausible || []) {
+        remarks.push({ severity: 'MEDIUM', text: `[${c.tag}] ${x} (what practice gives, with sources: ${c.output})` })
+      }
+      continue
+    }
+    const mine = (got.remarks || []).map((r) => ({
+      severity: severityOf(r),
+      // The severity travels in its own field; left in the text it was printed twice.
+      text: `[${c.tag}] ` + String(r).replace(/^\s*\d{1,2}[.)]\s+/, '').replace(/^\[(?:HIGH|MEDIUM|LOW)\]\s*/, ''),
+    }))
+    if (c.vote) refuted += await voteOnHigh(round, mine)
+    remarks.push(...mine)
+  }
   const count = (s) => remarks.filter((r) => r.severity === s).length
   perRound.push(
     `Round ${round}: HIGH ${count('HIGH')}, MEDIUM ${count('MEDIUM')}, LOW ${count('LOW')}, ` +

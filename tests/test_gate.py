@@ -835,8 +835,10 @@ def test_a_profile_gate_block_supplies_the_flags(
     profile = write(
         tmp_path,
         "# Profile\n\n## Gate rules\n\n```gate\n# headings by number\n"
-        r'--require-heading "^##\s+1\." --require-heading "^##\s+2\."' "\n"
-        r'--forbid "\x60"' "\n```\n",
+        r'--require-heading "^##\s+1\." --require-heading "^##\s+2\."'
+        "\n"
+        r'--forbid "\x60"'
+        "\n```\n",
         name="SKILL.md",
     )
     doc = write(tmp_path, "## 1. One\ntext\n")

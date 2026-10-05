@@ -1,0 +1,16 @@
+name: client_reader
+version: 1
+description: >
+  Reads a client-facing document as one named person of the client would, usually
+  the decision-maker without a technical background, and reports where that reader
+  stops: a sentence they cannot follow, jargon, a table cell carrying several
+  thoughts, a party they cannot place, a question the document leaves them with.
+  Judges readability only; never edits.
+consumes:
+  - { port: draft, type: document@v1, about: "the document to read as the client would; you never edit it" }
+  - { port: client_voice, type: client_voice@v1, about: "the client voice sheet: section 4 says who wants what, so who the reader is; section 3 their words and the names of the parties" }
+produces:
+  - { port: verdict, type: verdict@v1 }
+needs: [read]
+defaults:
+  timeout_s: 1800

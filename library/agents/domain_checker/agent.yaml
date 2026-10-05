@@ -1,0 +1,18 @@
+name: domain_checker
+version: 1
+description: >
+  Checks the numbers a document presents as typical, illustrative or as facts about
+  the client's trade (a worked example, loads, volumes, durations, prices) against
+  open sources, and writes what practice gives for each: a plausible range, the
+  sources with a short quote, and a value the document could use. Numbers the
+  client gave are not its business; it judges plausibility, not arithmetic.
+consumes:
+  - { port: draft, type: document@v1, about: "the document whose numbers you check; you never edit it" }
+  - { port: client_voice, type: client_voice@v1, optional: true, about: "the client voice sheet: the client's own numbers are in it and are not yours to check" }
+produces:
+  - { port: checks, type: number_checks@v1 }
+# Web search and fetch: the point is evidence from outside the client's material. No edit
+# tool on the document: the writer acts on the findings.
+needs: [read, edit, webfetch, "mcp:tavily-remote", "mcp:pdf-reader"]
+defaults:
+  timeout_s: 2400

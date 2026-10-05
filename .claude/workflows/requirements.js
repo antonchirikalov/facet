@@ -688,7 +688,8 @@ let voicePort = []
     `${tool('gate')} --file "${VOICE_PATH}" --min-length ${MIN_ARTIFACT_CHARS} ${VOICE_FLAGS} ${noted('client voice gate')}`,
     `${tool('check_quotes')} --file "${VOICE_PATH}" --source ${INPUTS_DIR} --source ${EXTRACTS_DIR} ${noted('client voice quotes')}`,
   ]
-  if (voicePresent && cfg.continue) {
+  // config.redoVoice writes the sheet again on a continued run, when its profile changed since.
+  if (voicePresent && cfg.continue && !cfg.redoVoice) {
     log('[voice] the sheet is already on disk, kept')
   } else {
     await call(

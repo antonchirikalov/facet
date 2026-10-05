@@ -41,7 +41,7 @@ def vocabulary(sheet: str) -> list[tuple[str, list[str]]]:
         if len(cells) < 3 or set(cells[0]) <= set("-: "):
             continue
         term, subs = cells[0], cells[2]
-        if term.lower() in {"their term", "term", "термин", "их термин"}:
+        if term.lower() in {"their term", "term", "термин", "их термин", "party", "сторона"}:
             continue
         words = [w.strip(" .“”\"'") for w in re.split(r"[,/;]", subs)]
         words = [w for w in words if w and w.lower() not in {"—", "-", "none", "нет"}]

@@ -45,7 +45,12 @@ def shape(text: str) -> dict[str, object]:
         if line.lstrip().startswith("|") and not SEPARATOR.match(line):
             rows += 1
         figures += len(FIGURE.findall(line))
-    return {"headings": headings, "blockquote_lines": quotes, "table_rows": rows, "figures": figures}
+    return {
+        "headings": headings,
+        "blockquote_lines": quotes,
+        "table_rows": rows,
+        "figures": figures,
+    }
 
 
 def check(before: str, after: str) -> tuple[list[str], dict[str, object]]:

@@ -70,8 +70,9 @@ References between sections are "section N" and must name an existing "## N." he
   "Acme Clinics' engineer", not "your engineer"; no "you" or "your" outside a quote.
 - Plain words. A term keeps one meaning in the whole document; when a second meaning appears,
   one of them is renamed (a "job" was a customer order and a queue entry at once).
-- One name per party. The client, their partners and the users are named once, as the client
-  voice sheet names them, and keep that name in every section; "the front desk, also called
+- One name per party. The client, their partners and the users are named once, with the names
+  of the parties table in section 3 of the client voice sheet, and keep that name in every
+  section; the gate flags the names that table says not to use; "the front desk, also called
   reception" and a partner described three ways in three sections leave the reader unsure who
   does what and who holds the license.
 - One thought per table cell. A cell of four clauses is a paragraph in the wrong place. The
@@ -152,7 +153,8 @@ MEDIUM (three force revise)
 5a. A question the client asked, or a part of the delivery the design gives a default for,
     deferred to discovery instead of answered with a proposal.
 5b. A worked example without numbers, or with numbers a specialist of the client's trade would
-    find implausible for the case described (a visit price far below what a clinic of that size
+    find implausible for the case described (the domain checker's findings, with sources, say
+    what practice gives) (a visit price far below what a clinic of that size
     charges); a client's hesitation quoted in section 2.
 5c. A party named differently in two sections; a delivery route without its stages or the
     store review missing from the plan and the risks; a team without its technologies.
