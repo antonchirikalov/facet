@@ -1165,7 +1165,11 @@ const onDisk = (audit && audit.files) || []
 if (!onDisk.length || (typeof audit.count === 'number' && audit.count !== onDisk.length)) {
   warnings.push('the directory audit was not done: the listing did not arrive whole')
 } else {
-  orphans = onDisk.filter((f) => !touched.has(f) && f !== REPORT_PATH)
+  // Only this pipeline's files are audited: the proposal and the scenes of a later stage live in
+  // the same directory, and their files are another audit's business.
+  const otherStage = (f) =>
+    f.startsWith(`${run}/prop`) || f.startsWith(`${run}/rounds/prop-`) || f.startsWith(`${run}/scenes/`) || f === `${run}/number-checks.md`
+  orphans = onDisk.filter((f) => !touched.has(f) && f !== REPORT_PATH && !otherStage(f))
   for (const f of orphans) log(`[audit/orphan] ${f}`)
 }
 
