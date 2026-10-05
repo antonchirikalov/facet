@@ -681,9 +681,12 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
 
 phase('Report')
 const open = pending.map((it) => `[${it.kind}] ${it.text}`)
-if (open.length) {
+// A continued launch writes the list even when nothing is open: a list an earlier launch left
+// would otherwise stay on disk and read as open items.
+const writeOpen = open.length > 0 || !!cfg.continue
+if (writeOpen) {
   await call(
-    record(UNRESOLVED_PATH, accepted ? `The ${STAGE} was accepted; these items were left open` : 'The rounds ran out; these items are still open', open),
+    record(UNRESOLVED_PATH, accepted ? `The ${STAGE} was accepted; these items were left open` : 'The rounds ran out; these items are still open', open.length ? open : ['Nothing is open']),
     { agentType: 'verbatim-writer', model: MODELS.record, label: 'unresolved', phase: 'Report', schema: WROTE },
   )
 }
@@ -727,7 +730,7 @@ await call(record(OUTCOME_PATH, `Proposal ${STAGE}: ${run}`, outcome), {
   phase: 'Report',
   schema: WROTE,
 })
-const records = [OUTCOME_PATH, ...(ledger.length ? [REMARKS_PATH] : []), ...(open.length ? [UNRESOLVED_PATH] : [])]
+const records = [OUTCOME_PATH, ...(ledger.length ? [REMARKS_PATH] : []), ...(writeOpen ? [UNRESOLVED_PATH] : [])]
 const recordList = records.map((r) => `${tool('gate')} --file "${r}" --min-length 50 ${noted('record on disk')}`)
 const recorded = await call(commands(recordList), { agentType: 'gate-runner', model: MODELS.gate, label: 'records', phase: 'Report', schema: CHECKS })
 const recordChecks = (recorded && recorded.checks) || []
