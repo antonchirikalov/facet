@@ -193,6 +193,16 @@ The critic writes its remarks in the language of the document.
 
 ## Gate rules
 
+```gate
+--require-heading "^##\s+1\." --require-heading "^##\s+2\." --require-heading "^##\s+3\."
+--require-heading "^##\s+4\." --require-heading "^##\s+5\." --require-heading "^##\s+6\."
+--require-heading "^##\s+7\."
+--require-heading "^###\s+1\.1" --require-heading "^###\s+1\.2" --require-heading "^###\s+1\.3" --require-heading "^###\s+1\.4"
+--no-empty-sections --figures-numbered
+--forbid-file library/style/forbid/no-bold.txt
+--forbid "\x60"
+```
+
 Deterministic, run by the script before the critic sees the draft:
 
 - headings ## 1. … ## 7. and ### 1.1 … ### 1.4 present (--require-heading);

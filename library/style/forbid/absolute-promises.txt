@@ -1,0 +1,20 @@
+# Absolute promises of quality or safety. One regex per line, "#" starts a comment. Matched
+# outside code, case-insensitive.
+#
+# A system that uses a model is sometimes wrong. "100% accurate", "always correct", "fully secure"
+# promise what no measurement can show and what the first error disproves; the design states a
+# measured rate, the sample it is measured on and what catches a miss instead. Narrow on purpose:
+# "accurate" alone is a fine word, "always accurate" is the promise.
+#
+# This is DATA: edit it by hand, no code change needed.
+
+100\s?% (?:accura|correct|reliab|safe|secure|uptime)
+(?:always|never wrong|guaranteed to be) (?:accurate|correct|right)
+(?:fully|completely|totally|perfectly) (?:secure|safe|accurate|reliable|error-free)
+error-free|zero errors|eliminates? (?:all )?errors|no hallucinations?|hallucination-free
+never (?:makes? mistakes|fails|hallucinates?)
+# the same in Russian
+100\s?% (?:точн|надёжн|надежн|безопасн)
+(?:всегда|гарантированно) (?:точн|правильн|верн)
+(?:полностью|абсолютно) (?:безопасн|надёжн|надежн|точн)
+без ошибок|исключает (?:любые |все )?ошибки|никогда не ошибается|без галлюцинаций

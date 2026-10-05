@@ -8,6 +8,8 @@ description: >
 consumes:
   - { port: requirements, type: requirements@v1, about: "the requirements document the design is built from; cite its ids (FR-012, NFR-003) for every decision" }
   - { port: draft, type: design_doc@v1, optional: true, about: "the previous design to improve; absent when you design from scratch" }
+  - { port: profile, type: document@v1, optional: true, about: "the profile of the document type this run designs (an AI solution, for example); when given, it replaces the preloaded solution-design profile as the contract you work to" }
+  - { port: number_checks, type: number_checks@v1, optional: true, about: "the domain checker's findings: for each typical or illustrative number of the draft (a price, a context size, a latency), what practice gives, with sources; where a number is implausible, use what the findings support" }
 produces:
   - { port: design_doc, type: design_doc@v1 }
 needs: [read, edit, "mcp:tavily-remote"]

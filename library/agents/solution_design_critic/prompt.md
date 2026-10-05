@@ -22,7 +22,9 @@ Assess the draft on:
 - **Buildability** — a competent team could implement from this without having to
   re-derive the core decisions.
 
-The contract you judge against is the solution-design profile preloaded in your context:
+When the task gives a profile port, that profile is the contract you judge against and replaces
+the preloaded one. Otherwise, the contract you judge against is the solution-design profile
+preloaded in your context:
 its section contract, its three overriding rules, its critic checklist with severities and
 its verdict rule. Judge against that and nothing else; do not require a structural element
 the profile does not name, and do not report wording you would merely phrase differently.

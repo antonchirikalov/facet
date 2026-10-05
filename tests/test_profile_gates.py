@@ -16,7 +16,7 @@ import gate
 ROOT = Path(__file__).resolve().parent.parent
 WORKFLOWS = ROOT / ".claude" / "workflows"
 # The scripts built on the rule; the older ones are kept for history and not held to it.
-PROFILE_DRIVEN = ["requirements.js", "proposal.js", "scene.js"]
+PROFILE_DRIVEN = ["requirements.js", "proposal.js", "scene.js", "design.js"]
 DOCUMENT_RULES = (
     "--require-heading",
     "--unique-ids",

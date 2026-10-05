@@ -112,6 +112,16 @@ SCENARIOS: tuple[Scenario, ...] = (
         {"runDir": "r", "now": NOW, "config": {"stages": ["text"]}},
     ),
     Scenario(
+        "design-ai",
+        "design.js",
+        {"runDir": "r", "now": NOW, "type": "ai-solution", "config": {"fresh": True}},
+    ),
+    Scenario(
+        "design-plain-continue",
+        "design.js",
+        {"runDir": "r", "now": NOW, "config": {"continue": True}},
+    ),
+    Scenario(
         "scene",
         "scene.js",
         {
