@@ -12,7 +12,9 @@ consumes:
   - { port: coverage, type: coverage_map@v1, about: "the coverage map; update the Answered in cell of every row a fix answers" }
   - { port: sources, type: collection<source@v1>, untrusted: true, about: "the client's own material: the call transcript and their documents; quotes come from here, verbatim, attributed to a role" }
 produces:
-  - { port: doc, type: proposal@v1 }
+  # The draft is edited in place through its port; the file the task names as OUTPUT is the
+  # answers file, which the next reviewer reads.
+  - { port: answers, type: answers@v1 }
 needs: [read, edit]
 # The proposal profile holds the document contract the edits must keep.
 skills: [proposal-profile]

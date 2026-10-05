@@ -16,7 +16,12 @@ texts the stubs were handed, and compares:
   ``:<stem>`` or ``_<n>`` suffix: ``extract:call`` and ``source_1`` are members of ``extracts``
   and ``sources``;
 - every OUTPUT is read by a later call or returned by the script. A file nobody reads and nobody
-  is told about is an artifact lost at the moment it is written.
+  is told about is an artifact lost at the moment it is written;
+- a file a call wrote reaches the next agent through a port of the same type: the producer's
+  ``produces`` type against the consumer's port type, a member of ``collection<X>`` against
+  ``X``. A pain map handed to a ``requirements`` port is a wrong connection that every other check
+  passes. ``document@v1`` and ``source@v1`` take any file;
+- a single (not collection) port receives one file, never several.
 
 The registry is the same data turned into the README table, so the table cannot fall behind.
 """
@@ -250,6 +255,59 @@ def port_problems(call: Call, spec: AgentSpec) -> list[str]:
     return problems
 
 
+# Port types that take any file: a critic of "the document", an input document of the client.
+GENERIC_TYPES = {"document@v1", "source@v1"}
+
+
+def resolve_port(spec: AgentSpec, port: str) -> Port | None:
+    """The declared port a handed port name stands for: itself, or the collection it is a member of."""
+    for p in spec.consumes:
+        if p.port == port:
+            return p
+    m = MEMBER.match(port)
+    base = m.group("base") if m else port
+    collections = [p for p in spec.consumes if p.type.startswith("collection<")]
+    return next((p for p in collections if p.port == base), None) or next(
+        (p for p in collections if singular(p.port) == base), None
+    )
+
+
+def item_type(port_type: str) -> str:
+    return port_type[len("collection<") : -1] if port_type.startswith("collection<") else port_type
+
+
+def connection_problems(run: Run, specs: dict[str, AgentSpec]) -> list[str]:
+    """Files handed to a port of another type than the one they were written as; several files in a single port."""
+    produced: dict[str, tuple[str, str]] = {}
+    problems: list[str] = []
+    for call in run.calls:
+        spec = specs.get(call.agent) if call.agent else None
+        if spec is None:
+            continue
+        singles: dict[str, int] = {}
+        for port, path in call.inputs:
+            declared = resolve_port(spec, port)
+            if declared is None:
+                continue
+            if not declared.type.startswith("collection<"):
+                singles[declared.port] = singles.get(declared.port, 0) + 1
+            if path not in produced:
+                continue
+            expected = item_type(declared.type)
+            actual, by = produced[path]
+            if GENERIC_TYPES.isdisjoint({expected, actual}) and expected != actual:
+                problems.append(
+                    f"{call.label}: port '{port}' takes {expected}, but {path} was written as "
+                    f"{actual} by {by}"
+                )
+        for port, n in singles.items():
+            if n > 1:
+                problems.append(f"{call.label}: single port '{port}' handed {n} files")
+        if call.output and spec.produces:
+            produced[call.output] = (spec.produces[0].type, call.label)
+    return problems
+
+
 def lost_outputs(run: Run) -> list[str]:
     """Outputs no later call mentions and the script does not return."""
     lost: list[str] = []
@@ -301,6 +359,7 @@ def check(root: Path, runs: Iterable[Run]) -> list[str]:
                 continue
             problems.extend(f"{where} {p}" for p in port_problems(call, spec))
         problems.extend(f"{where} lost: {x}" for x in lost_outputs(run))
+        problems.extend(f"{where} {x}" for x in connection_problems(run, specs))
     return sorted(set(problems))
 
 

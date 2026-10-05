@@ -9,7 +9,9 @@ description: >
 consumes:
   - { port: brief, type: brief@v1, about: "the assignment: subject, reader, language, length, what must be covered and what must stay out; the task names the one aspect you search for" }
 produces:
-  - { port: found, type: found_sources@v1 }
+  # The file the script names is the aspect's summary, which writers and analysts read as
+  # source_summary@v1; the sources saved beside it are listed by the script, not returned.
+  - { port: found, type: source_summary@v1 }
 # pdf-reader is not an extra: official statistics, court-practice digests and agency
 # reports are published as PDF, and a finder that cannot open one records the aspect as
 # uncovered while looking at the document that covers it. A live run did exactly that

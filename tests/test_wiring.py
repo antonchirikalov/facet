@@ -102,6 +102,87 @@ def test_an_output_nobody_reads_is_lost() -> None:
     assert wiring.lost_outputs(run) == ["answer -> r/b.md"]
 
 
+def connection_run(*calls: wiring.Call) -> wiring.Run:
+    return wiring.Run(wiring.SCENARIOS[0], "ok", 0, list(calls), returned="")
+
+
+CONNECTION_SPECS = {
+    "pain-mapper": AgentSpec(
+        name="pain_mapper",
+        version=1,
+        produces=[Port(port="map", type="pain_map@v1")],
+    ),
+    "writer": AgentSpec(
+        name="writer",
+        version=1,
+        consumes=[
+            Port(port="requirements", type="requirements@v1"),
+            Port(port="pain_map", type="pain_map@v1"),
+            Port(port="extracts", type="collection<extract@v1>"),
+            Port(port="source", type="source@v1", optional=True),
+        ],
+        produces=[Port(port="proposal", type="proposal@v1")],
+    ),
+    "extractor": AgentSpec(
+        name="extractor", version=1, produces=[Port(port="extract", type="extract@v1")]
+    ),
+}
+
+
+def test_a_file_reaches_a_port_of_its_own_type() -> None:
+    run = connection_run(
+        wiring.Call("pains", "pain-mapper", [], "r/pains.md", ""),
+        wiring.Call("x", "extractor", [], "r/extracts/a.md", ""),
+        wiring.Call(
+            "write",
+            "writer",
+            [
+                ("requirements", "r/requirements.md"),
+                ("pain_map", "r/pains.md"),
+                ("extract:a", "r/extracts/a.md"),
+            ],
+            "r/prop.md",
+            "",
+        ),
+    )
+    assert wiring.connection_problems(run, CONNECTION_SPECS) == []
+
+
+def test_a_file_in_a_port_of_another_type_is_a_wrong_connection() -> None:
+    """The pain map handed as the requirements: every other check passes it."""
+    run = connection_run(
+        wiring.Call("pains", "pain-mapper", [], "r/pains.md", ""),
+        wiring.Call(
+            "write",
+            "writer",
+            [("requirements", "r/pains.md"), ("pain_map", "r/pains.md")],
+            None,
+            "",
+        ),
+    )
+    problems = wiring.connection_problems(run, CONNECTION_SPECS)
+    expected = (
+        "write: port 'requirements' takes requirements@v1, but r/pains.md was written as "
+        "pain_map@v1 by pains"
+    )
+    assert problems == [expected]
+
+
+def test_several_files_in_a_single_port_are_named() -> None:
+    run = connection_run(
+        wiring.Call(
+            "write",
+            "writer",
+            [("source", "r/a.md"), ("source", "r/b.md"), ("extract:a", "x"), ("extract:b", "y")],
+            None,
+            "",
+        )
+    )
+    assert wiring.connection_problems(run, CONNECTION_SPECS) == [
+        "write: single port 'source' handed 2 files"
+    ]
+
+
 def test_step_names_drop_round_numbers() -> None:
     assert wiring.step_of("req:write:1") == "req:write"
     assert wiring.step_of("find:x") == "find"
