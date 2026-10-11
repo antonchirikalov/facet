@@ -48,6 +48,15 @@ Instead: <a value or a case that fits; only for implausible>
 Return in the schema only the implausible ones, each in one line the writer can act on. Write
 in the language of the document. Do not edit the document.
 
+## Questions of practice
+
+The task may also list questions of practice the writer could not answer from its inputs: a
+usual figure, a typical duration, what such systems normally do. Answer each in the same file,
+one section per question, the same way: what practice gives for that case, with sources and a
+short quote each. Where the sources give nothing, say so in one line; never fill the gap with a
+figure no source supports. These answers are not implausible numbers and do not go into the
+schema.
+
 ## Your inputs
 
 The task's INPUT block lists each input as `name: path`. What each name is:

@@ -68,15 +68,13 @@ script (2→3).
 
 ## 4. Level-3 pipelines
 
-Four scripts in `.claude/workflows/`:
+The document scripts in `.claude/workflows/`:
 
 | Script | Input | Output | State |
 |---|---|---|---|
-| `requirements.js` | folder `input/` with the client's documents | `reqs/_requirements.md`, `_traceability.md`, `_open_questions.md`, `_unresolved.md` | **to be written** (modelled on `solution-design.js`) |
-| `solution-design.js`, stage `design` | `requirements.md` | `design.md` + figure placeholders, candidates from two models, `discovery-questions.md` | exists |
-| `solution-design.js`, stage `discovery` | the client's documents (with `stages: ["requirements","discovery"]`) or a finished `requirements.md` | `discovery-questions.md` — questions to the client on gaps and contradictions, with domain research and references to requirement items | exists (separate since 2026-09-21) |
-| `solution-design.js`, step `voice` of stage `requirements` | the client's documents and extracts | `client-voice.md` — the client's words verbatim with the speaker's role, ranking by the call, translation into checkable commitments with weights, vocabulary, who wants what, proposal order, what was not said | exists (since 2026-09-30) |
-| `solution-design.js`, stage `client` | accepted `requirements.md` and `design.md`, `extracts/` | `requirements.client.md`, `design.client.md`, `client-id-map.json` — client editions without sources, tags and traces of the process, with client quotes and continuous numbering | exists (since 2026-09-28) |
+| `requirements.js` | `inputs/` with the client's documents | `extracts/`, `client-voice.md`, `requirements.md`, `pains.md`, `holdout/questions.md`, `critic-remarks.md`, `UNRESOLVED.md`, `missing-input.md`, `outcome.md` | exists (since 2026-10-03; holdout and missing input since 2026-10-10) |
+| `design.js` | an accepted `requirements.md` and a design type (`solution-design`, `ai-solution`) | `design.md` with figure placeholders, `design-outcome.md`, `design-remarks.md`, `design-unresolved.md`, `design-missing-input.md`, `holdout/design/score.md` | exists (since 2026-10-05) |
+| `proposal.js` | accepted requirements, `pains.md`, `client-voice.md`, optionally `design.md` | `prop.md` in two stages, content and text, each with `holdout/prop-<stage>/score.md` | exists (since 2026-10-04) |
 | `explainer-article.js` | a one-sentence order | article, sources, round records | exists |
 | `attn-figures.js` | a document with placeholders | PNG + manifest | exists |
 
@@ -95,7 +93,7 @@ const cfg = {
 }
 ```
 
-The common part (cfg, `task()`, verdict and selector schemas, gate commands, audit) is copied
+The common part (cfg, `task()`, verdict schemas, gate commands, audit) is copied
 between scripts — `import()` is forbidden; `tests/test_workflows.py` makes sure the copies do not
 drift apart.
 

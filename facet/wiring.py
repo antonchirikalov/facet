@@ -53,45 +53,6 @@ class Scenario:
 # One per stage of every script: a stage no scenario reaches is a stage nothing checks.
 SCENARIOS: tuple[Scenario, ...] = (
     Scenario(
-        "lens+proposal",
-        "solution-design.js",
-        {"runDir": "r", "now": NOW, "config": {"stages": ["lens", "proposal"]}},
-    ),
-    Scenario(
-        "panels",
-        "solution-design.js",
-        {
-            "runDir": "r",
-            "now": NOW,
-            "config": {"fresh": True, "claimCheck": True, "rulePanel": True},
-        },
-    ),
-    Scenario(
-        "requirements",
-        "solution-design.js",
-        {"runDir": "r", "now": NOW, "config": {"fresh": True, "stages": ["requirements"]}},
-    ),
-    Scenario(
-        "requirements+design",
-        "solution-design.js",
-        {"runDir": "r", "now": NOW, "config": {"fresh": True}},
-    ),
-    Scenario(
-        "design",
-        "solution-design.js",
-        {"runDir": "r", "now": NOW, "config": {"stages": ["design"]}},
-    ),
-    Scenario(
-        "discovery",
-        "solution-design.js",
-        {"runDir": "r", "now": NOW, "config": {"stages": ["discovery"]}},
-    ),
-    Scenario(
-        "client",
-        "solution-design.js",
-        {"runDir": "r", "now": NOW, "config": {"stages": ["client"]}},
-    ),
-    Scenario(
         "req-pipeline",
         "requirements.js",
         {"runDir": "r", "now": NOW, "config": {"fresh": True}},

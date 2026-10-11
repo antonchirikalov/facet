@@ -44,6 +44,7 @@ from facet.models.agent import AgentSpec
 CAPABILITY_TOOLS: dict[str, tuple[str, ...]] = {
     "read": ("Read",),
     "edit": ("Write", "Edit"),
+    "write": ("Write",),
     "bash": ("Bash",),
     "webfetch": ("WebFetch",),
     "vision": ("Read",),

@@ -54,6 +54,19 @@ risks silently altering rows nobody remarked on; editing it one Edit call at a t
 whole context per call — a live round made 72 such calls. Keep IDs stable; a row you remove
 leaves its number vacant and a note in the open questions.
 
+## Three answers to a remark
+
+Each numbered remark gets fixed, declined or needs_context. Fixed: the draft now satisfies it.
+Declined: you disagree, and the reason fits in one sentence. Needs_context: you agree, and the
+requirements hold nothing to act on. Say whose fact it is. A fact only the client can give (their
+volumes, their system, their decision) is client: record it where the profile keeps assumptions
+to confirm or decisions to take with the client. A fact of practice (a usual load, a typical
+duration, what such systems normally integrate with) is domain: it is looked up and comes back
+to you with sources, and you then answer the remark with it. This answer exists so that a remark
+nobody can close from the requirements is not closed by inventing the data; it is not for a
+remark that is merely hard. A remark the critic contests, naming where the data is, comes back
+and cannot be answered needs_context again.
+
 ## Figures
 
 Declare the figures the design needs as placeholders of the form

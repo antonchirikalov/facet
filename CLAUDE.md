@@ -32,6 +32,8 @@ python -X utf8 tools/coverage.py --map <run>/coverage-map.md --file <doc> --sour
 python -X utf8 tools/figure_facts.py --brief <brief> --file <doc>          # exact screen: Facts hold
 python -X utf8 tools/render_html.py --html <mockup.html> --out <png>          # exact screen, headless Chrome
 python -X utf8 tools/critic_used.py --log-file <render.log>                   # who really judged the figure
+python -X utf8 tools/holdout.py --check --file <run>/holdout/draft.md --profile .claude/skills/holdout-questions-profile/SKILL.md --source <run>/inputs
+python -X utf8 tools/holdout.py --score --file <run>/holdout/questions.md --for design --document <run>/design.md --answers-dir <run>/holdout/design --out <run>/holdout/design/score.md
 ```
 
 Done means: pytest green, mypy green, ruff clean, generated files rebuilt and committed,
@@ -100,10 +102,22 @@ never here.
 Writer → correctors → gate → critics in parallel. A corrector fixes what is decidable
 (arithmetic, attribution, source references), by Edit, in batches. A critic judges what only
 judgement decides and writes its remarks in the document's language. Remarks are one numbered
-list per round; the writer answers every number `fixed` / `declined`. The loop stops on the
+list per round; the writer answers every number `fixed` / `declined` / `needs_context` (the
+inputs hold no data: the item leaves the rounds for `missing-input.md`, a measurement is never
+answered so, and a remark the critic contests with `CONTESTED-<n>` comes back). The loop stops on the
 round limit, on stagnation (the same remark set twice) or on a plateau (`plateauRounds`
 rounds without improving the best score). Anything left open goes to `UNRESOLVED.md`, never
 silently dropped.
+
+## The holdout questions
+
+A writer and its critic read one profile, so the rounds measure the contract, not the reader.
+`requirements.js` ends by writing the questions the client's people will ask
+(`client-questioner` from the client's material alone, `question-skeptic`, `tools/holdout.py`)
+into `<run>/holdout/questions.md`; `design.js` and `proposal.js` score their document against it
+after the rounds with `answer-finder`, two readers per batch, the lower outcome standing. **No writer, corrector or critic is ever handed a path under
+`holdout/`**, and the score goes to the outcome, never back into a round (held by
+`tests/test_missing_input_holdout.py`).
 
 ## What the audit checks
 

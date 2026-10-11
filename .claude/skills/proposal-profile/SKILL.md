@@ -55,7 +55,8 @@ writes them. The full exemplar has a plan section; this document type does not.
 6. What we will decide together: the decisions only the client can take, and why each matters;
    about eight. A choice the design or the sources allow us to make is not listed here: it is
    proposed in its section as a default, with its preliminary note.
-7. Assumptions and risks.
+7. Assumptions and risks. What the sources do not say (a remark answered needs_context in a
+   revision round) is named here or in section 6 as still open, never filled in.
 8. What comes next: the next step the client already asked for, then ideas for the client to
    consider.
 

@@ -1,0 +1,19 @@
+name: answer_finder
+version: 1
+description: >
+  Reads one of our documents the way the client's person holding it would, and
+  for each holdout question in its batch says whether the document answers it,
+  names it as open, or says nothing, with the exact words that answer it and
+  where they are. Knows nothing of where a question came from or what it was
+  expected to get; writes only its answers file and never edits the document.
+consumes:
+  - { port: draft, type: document@v1, about: "the document the client's person holds; you never edit it" }
+  - { port: references, type: document@v1, optional: true, about: "the document the held one cites by id (the requirements of a design); read it only to learn what an id stands for; it is not the document being judged" }
+  - { port: questions, type: holdout_blind@v1, about: "a batch of questions, each with the role of the person asking; nothing else about them" }
+produces:
+  - { port: answers, type: holdout_answers@v1 }
+# Write for its own answers file only: a tool checks every quoted answer against the document,
+# and it can only check what is on disk. No Edit: the document is not this agent's to touch.
+needs: [read, write]
+defaults:
+  timeout_s: 1800

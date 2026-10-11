@@ -1,13 +1,13 @@
 ---
 name: solution-design-profile
-description: Document-type profile for a solution design (level 3, solution-design.js design stage). Preloaded into the solution designer, the selector and the design critic so all three read one contract - sections, tables, one committed architecture, no estimates, figure placeholders, traceability to requirement ids, critic checklist and gate rules.
+description: Document-type profile for a solution design (level 3, design.js, type solution-design). Preloaded into the solution designer and the design critic so both read one contract - sections, tables, one committed architecture, no estimates, figure placeholders, traceability to requirement ids, critic checklist and gate rules.
 user-invocable: false
 ---
 
 # Profile: solution design
 
-This is the contract for one document type. The designer, the selector and the critic of a
-solution design all receive this file at spawn, so whatever it says binds all three at once.
+This is the contract for one document type. The designer and the critic of a solution design
+both receive this file at spawn, so whatever it says binds both at once.
 Where an agent's own instructions and this profile disagree about the document, the profile
 wins; the agent's instructions describe its role, this file describes the document.
 
@@ -117,7 +117,9 @@ Rules that make the shape worth having:
   risks.
 - **Section 7 is where honesty lives**: every unconfirmed proposal, every assumption about the
   client's environment, every open question of the requirements the design carried forward,
-  with what depends on it and who can confirm it.
+  with what depends on it and who can confirm it. A remark the requirements hold no data for
+  (answered needs_context in a revision round) lands here as an open question, never as a
+  figure or a fact made up to close the remark.
 
 ## Figures
 
@@ -221,10 +223,8 @@ exemplars.local.yaml (not in the repository).
 
 ## Level
 
-3 — a saved Dynamic Workflow (solution-design.js, stage design): one candidate per model
-in parallel, a selector, then designer → gate → critic in rounds up to the configured limit,
-with a plateau stop; then a discovery step that turns what the design could not close into
-questions for the client.
+3 — a saved Dynamic Workflow (design.js, type solution-design): designer → gate → critics in
+rounds up to the configured limit, with a plateau stop.
 
 ## Output language
 

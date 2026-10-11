@@ -67,7 +67,7 @@ function task(inputs, output, brief) {
 }
 
 const sourceInputs = SOURCES.map((s, i) => [`source_${i + 1}`, s])
-// The client-voice sheet of solution-design.js, when the proposal has one: their ranking, weights
+// The client-voice sheet of requirements.js, when the proposal has one: their ranking, weights
 // and vocabulary. Optional, and named by the caller, because a script cannot look for a file.
 const VOICE = (args && args.voice) || ''
 const voiceInputs = VOICE ? [['client_voice', VOICE]] : []

@@ -1,6 +1,6 @@
 ---
 name: pain-map-profile
-description: Document-type profile for the pain map (level 3, the last step of requirements.js; solution-design.js lens stage). Preloaded into the pain mapper and the lens critic. The client's main pains in their words, what each costs them, how the proposed solution removes it with requirement and decision ids, how it will show, the worries a proposal must answer, and the gate rules.
+description: Document-type profile for the pain map (level 3, the last step of requirements.js, read by proposal.js). Preloaded into the pain mapper and the lens critic. The client's main pains in their words, what each costs them, how the proposed solution removes it with requirement and decision ids, how it will show, the worries a proposal must answer, and the gate rules.
 user-invocable: false
 ---
 
@@ -35,7 +35,7 @@ table: ID | The pain in their words | Who feels it | What it costs them | How th
 - What it costs them: what they said it costs, or "not stated"; never invented
 - How the solution removes it: one or two sentences in the client's terms
 - Ids: the requirement ids (FR-, NFR-, BR-) and design decision ids (D-) that carry it
-- How it will show: the moment of the day story or the result where the client sees it gone
+- How it will show: the moment of the client's day or the result where the client sees it gone
 
 ## 2. What they worry about
 table: ID | The worry in their words | Who | Why it matters to them | Where the proposal must answer it

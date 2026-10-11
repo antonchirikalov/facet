@@ -27,6 +27,7 @@ export const meta = {
   phases: [
     { title: 'Start', detail: 'accepted requirements and the profile of the design type' },
     { title: 'Design', detail: 'designer, gate, critic with rule panel and domain checker, in rounds' },
+    { title: 'Holdout', detail: 'the questions the client will ask, put to the design by a reader with nothing else' },
     { title: 'Report', detail: 'remarks, unresolved items, outcome' },
   ],
 }
@@ -59,6 +60,14 @@ const OUTCOME_PATH = `${run}/design-outcome.md`
 const REMARKS_PATH = `${run}/design-remarks.md`
 const UNRESOLVED_PATH = `${run}/design-unresolved.md`
 const NUMBER_CHECKS = `${run}/design-number-checks.md`
+// The holdout questions requirements.js wrote before this design existed, and where this
+// design's answers to them go. No writer or critic of the design is ever handed either.
+const HOLDOUT_QUESTIONS = `${run}/holdout/questions.md`
+const HOLDOUT_OUT = `${run}/holdout/design`
+const HOLDOUT_PROFILE = '.claude/skills/holdout-questions-profile/SKILL.md'
+// Two readers per batch: one reader moves between answered and acknowledged on the same text
+// (one live run: 0.60 and 0.65 for one design); the lower of two outcomes stands, as in doubt.
+const HOLDOUT_READERS = 2
 const roundPathOf = (n) => `${ROUNDS_DIR}/round-${n}.md`
 const draftPathOf = (n) => `${ROUNDS_DIR}/draft-${n}.md`
 const editsPathOf = (n) => `${ROUNDS_DIR}/edits-${n}.json`
@@ -81,6 +90,8 @@ const MODELS = {
   gate: 'sonnet',
   record: 'sonnet',
   copy: 'sonnet',
+  // Another model than the designer's: a reader who thinks like the writer finds what the writer meant.
+  finder: 'sonnet',
   ...(cfg.models || {}),
 }
 const tool = (name) => `python -X utf8 tools/${name}.py`
@@ -209,8 +220,15 @@ const DRAFT = {
         required: ['item', 'status', 'note'],
         properties: {
           item: { type: 'number', description: 'the number of the remark, as given' },
-          status: { type: 'string', enum: ['fixed', 'declined'] },
+          status: { type: 'string', enum: ['fixed', 'needs_context', 'declined'] },
           note: { type: 'string', description: 'what you did, or why you deliberately did not' },
+          missing: { type: 'string', description: 'needs_context only: the fact the inputs do not hold, in one line' },
+          searched: { type: 'string', description: 'needs_context only: which inputs you searched for it' },
+          owner: {
+            type: 'string',
+            enum: ['client', 'domain'],
+            description: 'needs_context only: client when only the client can know it, domain when practice gives it',
+          },
         },
       },
     },
@@ -281,6 +299,43 @@ const CHECKED = {
       },
     },
   },
+}
+
+// --- Missing input ----------------------------------------------------------------------------
+//
+// A remark the inputs hold no data for has a third answer besides fixed and declined. The designer
+// reads the requirements, not the client's material, so what is missing is either a fact only the
+// client knows, which goes on its own record of what to ask, or a fact of practice (a usual load, a
+// typical duration), which the domain checker looks up in the same round and hands back. The
+// critic may show where the inputs do hold it; the remark then comes back and cannot be answered so
+// again.
+const MISSING_ITEMS_RULE =
+  `needs_context when the inputs hold no data to act on the remark: name in missing the fact that is ` +
+  `absent, in searched which inputs you looked in, and in owner whose fact it is: client when only the ` +
+  `client can know it (record it where the profile keeps assumptions to confirm or decisions to take ` +
+  `with the client), domain when practice gives it (a usual figure, a typical duration; it is looked up ` +
+  `and comes back to you). It is not an answer to a remark that is hard, or one you disagree with.`
+function refusalOf(item, answer) {
+  if (item.measured || item.kind === 'GATE') return 'a measurement is answered by a fix, not by missing input'
+  if (item.contested) return 'the critic named where the inputs hold it'
+  if (!String(answer.missing || '').trim()) return 'what is missing was not named'
+  if (!String(answer.searched || '').trim()) return 'where it was looked for was not named'
+  if (answer.owner !== 'client' && answer.owner !== 'domain') return 'whose fact it is was not named'
+  if (answer.owner === 'domain' && item.practiceAsked) return 'practice was already looked up for it'
+  return ''
+}
+const CONTESTED = /^\s*CONTESTED-(\d+)\s*[:.-]?\s*/
+function contestedOf(text) {
+  const m = CONTESTED.exec(String(text))
+  return m ? { n: Number(m[1]), text: String(text).slice(m[0].length) } : null
+}
+function contextBlock(notes) {
+  return notes.length
+    ? `NO DATA IN THE INPUTS, the designer says, for these remarks of the last round; each left the rounds. ` +
+        `If the inputs do hold what the designer names as missing, raise the remark again and open it with ` +
+        `CONTESTED-<n>: followed by where the data is (the document and the place). Otherwise do not raise it again.\n` +
+        notes.map((d, i) => `${i + 1}. ${d.text}\n    -> missing: ${d.missing}; searched: ${d.searched}`).join('\n')
+    : ''
 }
 
 // =============================================================================================
@@ -414,11 +469,18 @@ async function rulePanel(round) {
     for (const f of got.flags || []) lines.push(`rule ${r.id} [${r.severity}] — ${f.where} — "${f.quote}" — ${f.why}`)
   })
   if (!lines.length) return []
+  // A gap the designer declared for want of data is not a defect while the design records it: a
+  // checker that flags it again every round would hold the loop on a remark nobody can close.
+  const gaps = contextNotes.length
+    ? `\n\nGAPS THE DESIGNER DECLARED, no data in the inputs. A flag that only says one of these is missing ` +
+      `is not a defect while the design records the gap as an assumption to confirm or a decision to take; drop it.\n` +
+      contextNotes.map((d, i) => `${i + 1}. ${d.text} -> missing: ${d.missing}`).join('\n')
+    : ''
   const kept = await call(
     task({
       inputs: [{ port: 'draft', path: DESIGN_PATH }, ...evidence],
       noFile: true,
-      extra: `FLAGS\n` + lines.map((l, i) => `${i + 1}. ${l}`).join('\n') + `\n\n${CRITIC_EXTRA}`,
+      extra: `FLAGS\n` + lines.map((l, i) => `${i + 1}. ${l}`).join('\n') + `\n\n${CRITIC_EXTRA}` + gaps,
     }),
     { agentType: 'rule-skeptic', model: MODELS.rules, label: `design:skeptic:${round}`, phase: 'Design', schema: VERDICT },
   )
@@ -434,6 +496,12 @@ phase('Design')
 const ledger = []
 let pending = []
 let declinedNotes = []
+// The remarks answered needs_context and accepted as the client's facts, for the record.
+const missingInput = []
+// Those of the last round, shown to the critic so it can contest them and to the rule skeptic.
+let contextNotes = []
+// Facts of practice the designer asked for this round: the domain checker looks them up.
+let practiceAsked = []
 let accepted = false
 let rounds = 0
 let previousSignature = null
@@ -441,6 +509,8 @@ let numbersChecked = false
 let best = Infinity
 let sinceBest = 0
 let lastMust = {}
+// Whether the last round found a design on disk: the holdout reader needs one to read.
+let designOnDisk = false
 const perRound = []
 
 let startRound = 1
@@ -494,7 +564,8 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
       `REMARKS ON THE PREVIOUS DRAFT. GATE items are measurements and are not open to argument; everything ` +
       `else you may decline with a reason.\n\n` +
       pending.map((it, i) => `${i + 1}. [${it.kind}] ${it.text}`).join('\n') +
-      `\n\nHOW TO ANSWER. One entry per number from 1 to ${pending.length}: fixed or declined with the reason.` +
+      `\n\nHOW TO ANSWER. One entry per number from 1 to ${pending.length}: fixed, declined with the reason, or ` +
+      `${MISSING_ITEMS_RULE}` +
       `\n\nHOW TO DELIVER THIS ROUND. Do not edit ${DESIGN_PATH} yourself. Write your changes as a JSON array to ` +
       `${editsPath}: [{"old": "<text copied verbatim from the draft, occurring exactly once>", "new": "<the ` +
       `replacement>"}]. To delete, new is empty. A tool applies the list and reports every pair whose old text ` +
@@ -518,15 +589,45 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
     for (const a of drafted.addressed || []) if (a.item >= 1 && a.item <= pending.length) answers.set(a.item, a)
     const carried = []
     declinedNotes = []
+    contextNotes = []
+    practiceAsked = []
     pending.forEach((it, i) => {
       const a = answers.get(i + 1)
       if (it.entry) it.entry.answer = a ? `${a.status}: ${a.note}` : 'not answered'
-      if (!a) carried.push(it.text)
+      if (!a) carried.push(it)
       else if (a.status === 'declined') declinedNotes.push(`${it.text}\n    -> declined: ${a.note}`)
+      else if (a.status === 'needs_context') {
+        const refused = refusalOf(it, a)
+        if (it.entry) {
+          it.entry.answer += refused ? ` [needs_context refused: ${refused}]` : ` [${a.owner} fact missing: ${a.missing}; searched: ${a.searched}]`
+        }
+        const note = { round, text: it.text, missing: a.missing, searched: a.searched }
+        if (refused) {
+          log(`[design/${round}/needs_context] refused for ${i + 1}: ${refused}`)
+          carried.push({ ...it, text: `${it.text} [answered needs_context, refused: ${refused}]` })
+        } else if (a.owner === 'domain') {
+          practiceAsked.push(note)
+        } else {
+          missingInput.push(note)
+          contextNotes.push(note)
+        }
+      }
     })
     const unapplied = (report.problems || []).map((p) => `EDIT NOT APPLIED, quote the draft exactly: ${p}`)
-    log(`[design/${round}] answered ${answers.size} of ${pending.length}; edits not applied ${unapplied.length}`)
-    pending = [...carried, ...unapplied].map((text) => ({ kind: 'CARRIED', text }))
+    log(
+      `[design/${round}] answered ${answers.size} of ${pending.length}; client facts missing ${contextNotes.length}; ` +
+        `practice to look up ${practiceAsked.length}; edits not applied ${unapplied.length}`,
+    )
+    pending = [
+      ...carried.map((it) => ({
+        kind: 'CARRIED',
+        text: it.text,
+        measured: it.measured || it.kind === 'GATE',
+        contested: it.contested,
+        practiceAsked: it.practiceAsked,
+      })),
+      ...unapplied.map((text) => ({ kind: 'CARRIED', text, measured: true })),
+    ]
   } else {
     log(`[design/${round}] the design on disk has not been judged: straight to the checks`)
   }
@@ -540,6 +641,7 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
   const sized = (checks[0] && checks[0].measures) || {}
   const exists = typeof sized.chars === 'number' && sized.chars >= MIN_ARTIFACT_CHARS
   lastMust = (checks[2] && checks[2].measures) || {}
+  designOnDisk = exists
 
   // --- The critics, in parallel
   const extra = [
@@ -548,9 +650,17 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
       ? `DECLINED LAST ROUND, with the reason. Raise one again only if the reason is wrong, and say why.\n` +
         declinedNotes.map((d, i) => `${i + 1}. ${d}`).join('\n')
       : '',
+    contextBlock(contextNotes),
   ]
     .filter(Boolean)
     .join('\n\n')
+  // What the designer could not answer without practice is looked up by the checker of numbers,
+  // in the same file and the same way, and goes back to the designer next round.
+  const practice = practiceAsked.length
+    ? `QUESTIONS OF PRACTICE the designer could not answer from the requirements. Answer each in the same ` +
+      `file and the same way, one section per question, with sources:\n` +
+      practiceAsked.map((d, i) => `P${i + 1}. ${d.missing} (for the remark: ${d.text})`).join('\n')
+    : undefined
   const [criticSaid, ruleRemarks, numbers] = await parallel([
     () =>
       call(
@@ -563,7 +673,7 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
       ),
     () => (RULE_PANEL ? rulePanel(round) : Promise.resolve([])),
     () =>
-      call(task({ inputs: [{ port: 'draft', path: DESIGN_PATH }], output: NUMBER_CHECKS }), {
+      call(task({ inputs: [{ port: 'draft', path: DESIGN_PATH }], output: NUMBER_CHECKS, extra: practice }), {
         agentType: 'domain-checker',
         model: MODELS.numbers,
         label: `design:numbers:${round}`,
@@ -572,7 +682,16 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
       }),
   ])
   const criticRemarks = criticSaid
-    ? (criticSaid.remarks || []).map((r) => ({ severity: severityOf(r), text: `[DESIGN] ${plain(r)}` }))
+    ? (criticSaid.remarks || []).map((r) => {
+        // CONTESTED-<n> says the inputs do hold what the designer called missing: the item leaves the
+        // missing-input record and comes back, never to be answered so again.
+        const c = contestedOf(plain(r))
+        const note = c && contextNotes[c.n - 1]
+        if (!note) return { severity: severityOf(r), text: `[DESIGN] ${plain(r)}` }
+        if (missingInput.includes(note)) missingInput.splice(missingInput.indexOf(note), 1)
+        log(`[design/${round}/critic] contested ${c.n}: ${note.text}`)
+        return { severity: severityOf(r), text: `[DESIGN] ${c.text} [contested: the critic says the inputs hold it]`, contested: true }
+      })
     : [{ severity: 'HIGH', text: '[DESIGN] the design critic returned nothing: that is an open item, not agreement' }]
   const refuted = criticSaid ? await voteOnHigh(round, criticRemarks) : 0
   if (numbers) numbersChecked = true
@@ -599,7 +718,16 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
     const low = r.severity === 'LOW'
     const entry = { round, kind: r.severity, text: r.text, answer: low ? 'recorded, not sent back' : null }
     ledger.push(entry)
-    if (!low) sendBack.push({ kind: r.severity, text: r.text, entry })
+    if (!low) sendBack.push({ kind: r.severity, text: r.text, entry, contested: r.contested })
+  }
+  // The facts of practice come back to the designer with what the checker found for them.
+  for (const d of practiceAsked) {
+    const text = numbers
+      ? `${d.text} — practice for "${d.missing}" is in ${NUMBER_CHECKS}`
+      : `${d.text} — practice for "${d.missing}" was not looked up: the domain checker returned nothing`
+    const entry = { round, kind: 'PRACTICE', text, answer: null }
+    ledger.push(entry)
+    sendBack.push({ kind: 'PRACTICE', text, entry, practiceAsked: true })
   }
   const mediums = remarks.filter((r) => r.severity === 'MEDIUM')
   const blocking = [
@@ -613,6 +741,7 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
       ...remarks.map((r) => `[${r.severity}] ${r.text}`),
       ...gateProblems.map((p) => `Gate: ${p}`),
       ...pending.map((it) => `Carried: ${it.text}`),
+      ...sendBack.filter((it) => it.kind === 'PRACTICE').map((it) => `Carried: ${it.text}`),
     ]),
     { agentType: 'verbatim-writer', model: MODELS.record, label: `design:record:${round}`, phase: 'Design', schema: WROTE },
   )
@@ -650,6 +779,75 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
 }
 
 // =============================================================================================
+// Holdout: the client's questions put to the design by a reader holding nothing else
+// =============================================================================================
+
+// After the rounds and outside them: the score goes to the outcome for a person, never to the
+// designer, and it does not decide acceptance. A score fed back as remarks would hand the writer
+// the questions, and the next score would measure them, not the design.
+const holdoutOutcome = []
+const holdoutAnswers = []
+let holdoutScore = null
+if (cfg.holdout === false) {
+  holdoutOutcome.push('Holdout: not scored (config.holdout=false)')
+} else if (!designOnDisk) {
+  holdoutOutcome.push('Holdout: not scored, the design is not on disk')
+} else {
+  phase('Holdout')
+  const checked = await call(
+    commands([`${tool('holdout')} --check --final --file "${HOLDOUT_QUESTIONS}" --profile ${HOLDOUT_PROFILE} ${noted('holdout questions for the design')}`]),
+    { agentType: 'gate-runner', model: MODELS.gate, label: 'holdout:questions', phase: 'Holdout', schema: CHECKS },
+  )
+  const ready = checked && checked.checks && checked.checks.length === 1 && checked.checks[0].ok
+  if (!ready) {
+    holdoutOutcome.push(`Holdout: not scored, no usable questions in ${HOLDOUT_QUESTIONS} (requirements.js writes them)`)
+  } else {
+    touched.add(HOLDOUT_QUESTIONS)
+    const blinded = await call(
+      commands([`${tool('holdout')} --blind --file "${HOLDOUT_QUESTIONS}" --for design --out-dir "${HOLDOUT_OUT}" --profile ${HOLDOUT_PROFILE} ${noted('holdout batches for the design')}`]),
+      { agentType: 'file-copier', model: MODELS.copy, label: 'holdout:blind', phase: 'Holdout', schema: GATE },
+    )
+    const batches = Number((blinded && blinded.report && blinded.report.measures && blinded.report.measures.batches) || 0)
+    const answers = await parallel(
+      Array.from({ length: Math.min(batches, 10) * HOLDOUT_READERS }, (_, i) => () => {
+        const batch = Math.floor(i / HOLDOUT_READERS) + 1
+        const out = `${HOLDOUT_OUT}/answers-${batch}-${(i % HOLDOUT_READERS) + 1}.json`
+        holdoutAnswers.push(out)
+        return call(task({ inputs: [{ port: 'draft', path: DESIGN_PATH }, { port: 'references', path: REQ_PATH }, { port: 'questions', path: `${HOLDOUT_OUT}/blind-${batch}.md` }], output: out }), {
+          agentType: 'answer-finder',
+          model: MODELS.finder,
+          label: `holdout:find:${batch}:${(i % HOLDOUT_READERS) + 1}`,
+          phase: 'Holdout',
+          schema: WROTE,
+        })
+      }),
+    )
+    const dead = answers.filter((a) => !a).length
+    if (dead) warnings.push(`holdout: ${dead} of ${answers.length} readers returned nothing; the other reader of their batch stands alone`)
+    const SCORE = `${HOLDOUT_OUT}/score.md`
+    const scored = await call(
+      commands([
+        `${tool('holdout')} --score --file "${HOLDOUT_QUESTIONS}" --for design --document "${DESIGN_PATH}" --answers-dir "${HOLDOUT_OUT}" --out "${SCORE}" ${noted('holdout score of the design')}`,
+      ]),
+      { agentType: 'file-copier', model: MODELS.copy, label: 'holdout:score', phase: 'Holdout', schema: GATE },
+    )
+    const m = (scored && scored.report && scored.report.measures) || {}
+    touched.add(SCORE)
+    touched.add(SCORE.replace(/\.md$/, '.json'))
+    if (typeof m.score === 'number') {
+      holdoutScore = m.score
+      const list = (x) => (Array.isArray(x) && x.length ? x.join(', ') : 'none')
+      holdoutOutcome.push(
+        `Holdout: score ${m.score}; met ${m.met} of ${m.expected}; blocking not met: ${list(m.absent_blocking)}; ` +
+          `answers whose quote is not in the design: ${list(m.downgraded_quote_not_found)}; readers disagreed, the lower stands: ${list(m.readers_disagreed)} (${SCORE})`,
+      )
+    } else {
+      warnings.push('holdout: the score did not come back')
+    }
+  }
+}
+
+// =============================================================================================
 // Report
 // =============================================================================================
 
@@ -660,6 +858,21 @@ if (writeOpen) {
   await call(
     record(UNRESOLVED_PATH, accepted ? 'The design was accepted; these items were left open' : 'These items are still open', open.length ? open : ['Nothing is open']),
     { agentType: 'verbatim-writer', model: MODELS.record, label: 'unresolved', phase: 'Report', schema: WROTE },
+  )
+}
+// The client's facts the requirements did not hold, on their own record: they are for the client,
+// not for another round. A continued launch names its own file and never writes over an earlier one.
+const MISSING_INPUT_PATH =
+  startRound > 1 ? `${run}/design-missing-input-from-round-${startRound}.md` : `${run}/design-missing-input.md`
+if (startRound > 1) touched.add(`${run}/design-missing-input.md`)
+if (missingInput.length) {
+  await call(
+    record(
+      MISSING_INPUT_PATH,
+      'Remarks the requirements hold no data for: what to ask the client',
+      missingInput.map((d) => `Round ${d.round}: ${d.text} — missing: ${d.missing} — searched: ${d.searched}`),
+    ),
+    { agentType: 'verbatim-writer', model: MODELS.record, label: 'missing-input', phase: 'Report', schema: WROTE },
   )
 }
 if (ledger.length) {
@@ -673,7 +886,8 @@ const audit = await call(
   { agentType: 'gate-runner', model: MODELS.gate, label: 'audit', phase: 'Report', schema: LISTING },
 )
 const onDisk = (audit && audit.files) || []
-const mine = (f) => f === DESIGN_PATH || f.startsWith(`${ROUNDS_DIR}/`) || f.startsWith(`${run}/design-`)
+const mine = (f) =>
+  f === DESIGN_PATH || f.startsWith(`${ROUNDS_DIR}/`) || f.startsWith(`${run}/design-`) || f.startsWith(`${HOLDOUT_OUT}/`)
 const orphans = onDisk.filter((f) => mine(f) && !touched.has(f) && f !== OUTCOME_PATH)
 if (!onDisk.length) warnings.push('the directory audit was not done: the listing did not come back')
 const missingMust = Array.isArray(lastMust.missing) ? lastMust.missing : []
@@ -682,7 +896,9 @@ const outcome = [
   `Type: ${type}; profile: ${PROFILE}`,
   `Binding requirements cited: ${lastMust.cited ?? '?'} of ${lastMust.binding ?? '?'}` + (missingMust.length ? `; not cited: ${missingMust.join(', ')}` : ''),
   ...perRound,
+  ...holdoutOutcome,
   `Open items: ${open.length}; all remarks: ${REMARKS_PATH}`,
+  `No data in the requirements, the client's to give: ${missingInput.length}${missingInput.length ? ` (${MISSING_INPUT_PATH})` : ''}`,
   `Audit of this stage: read by nobody ${orphans.length}` + (orphans.length ? ` (${orphans.join(', ')})` : ''),
   ...warnings.map((w) => `WARNING: ${w}`),
   ...handoff.map((h) => `Call: ${h}`),
@@ -703,8 +919,10 @@ return {
   binding_not_cited: missingMust,
   open_items: open.length,
   unresolved: writeOpen ? UNRESOLVED_PATH : null,
+  missing_input: missingInput.length ? MISSING_INPUT_PATH : null,
   remarks: ledger.length ? REMARKS_PATH : null,
   number_checks: numbersChecked ? NUMBER_CHECKS : null,
+  holdout: { score: holdoutScore, answers: holdoutAnswers },
   outcome: OUTCOME_PATH,
   orphans,
   warnings,

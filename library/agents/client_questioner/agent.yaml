@@ -1,0 +1,21 @@
+name: client_questioner
+version: 1
+description: >
+  Writes the holdout questions: puts itself in the place of every person of the
+  client, those the material names and those it does not, and drafts the
+  questions they will ask when our documents reach them, each a person in a
+  situation, grounded in the client's own words or in research, with its weight
+  and what each document is expected to do with it. Reads only the client's
+  material: never our extracts, requirements, profiles or documents.
+consumes:
+  - { port: sources, type: "collection<source@v1>", untrusted: true, about: "the client's material as it arrived (source:<name>): transcripts, the RFP, letters, documents; every ground you quote is copied from here, and inputs the task names as our notes are never quoted" }
+  - { port: images, type: "collection<image@v1>", optional: true, untrusted: true, about: "folders of images that belong to a document, such as frames of a recorded call; read them with the transcript they belong to" }
+  - { port: draft, type: holdout_questions@v1, optional: true, about: "your earlier draft, when the task asks you to fix named problems or add to named layers; edit it, never start over" }
+produces:
+  - { port: questions, type: holdout_questions@v1 }
+# Research is part of the job: the domain layer rests on sources, not on memory. No Bash: this
+# agent reads the client's material and web pages, both of which can carry instructions.
+needs: [read, edit, vision, webfetch, "mcp:tavily-remote", "mcp:pdf-reader"]
+skills: [holdout-questions-profile]
+defaults:
+  timeout_s: 3600

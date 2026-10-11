@@ -1,6 +1,6 @@
 ---
 name: client-voice-profile
-description: Document-type profile for the client voice sheet (level 3, solution-design.js requirements stage, read by proposal-review.js). Preloaded into the client-voice agent. What the client said, in their words, ranked by what matters to them; each phrase translated into a checkable commitment with its weight; their vocabulary and the words not to replace it with; who wants what; a proposed proposal structure in their order; and what they never mentioned.
+description: Document-type profile for the client voice sheet (level 3, requirements.js voice step, read by proposal.js and proposal-review.js). Preloaded into the client-voice agent. What the client said, in their words, ranked by what matters to them; each phrase translated into a checkable commitment with its weight; their vocabulary and the words not to replace it with; who wants what; a proposed proposal structure in their order; and what they never mentioned.
 user-invocable: false
 ---
 

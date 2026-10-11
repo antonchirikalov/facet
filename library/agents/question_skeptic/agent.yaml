@@ -1,0 +1,18 @@
+name: question_skeptic
+version: 1
+description: >
+  The skeptic over the holdout questioner: reads every drafted question against
+  the client's material and the profile's criteria, keeps the ones a real
+  person of the client would ask and a document can be fairly held to, drops
+  the generic, the ungrounded, the curious and the duplicated with a reason
+  each, and keeps the layers within their quotas. Selects only; never rewrites a
+  question.
+consumes:
+  - { port: draft, type: holdout_questions@v1, about: "the questioner's draft; you never edit it, you return the ids you keep" }
+  - { port: sources, type: "collection<source@v1>", untrusted: true, about: "the same client material the questioner read (source:<name>), to judge whether a question is grounded, specific to this client and not already answered in plain words" }
+produces:
+  - { port: selection, type: holdout_selection@v1 }
+needs: [read, "mcp:pdf-reader"]
+skills: [holdout-questions-profile]
+defaults:
+  timeout_s: 1800

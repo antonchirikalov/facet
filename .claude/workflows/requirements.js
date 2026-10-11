@@ -28,6 +28,7 @@ export const meta = {
     { title: 'Voice', detail: 'the client in their own words: ranking, weights, vocabulary' },
     { title: 'Requirements', detail: 'writer, fact-checker, gate, critic, in rounds' },
     { title: 'Pains', detail: 'the client pains, each tied to the requirements that answer it' },
+    { title: 'Holdout', detail: 'the questions the client will ask, from their material, kept from every writer' },
     { title: 'Report', detail: 'remarks, unresolved items, audit, report' },
   ],
 }
@@ -55,6 +56,12 @@ const CLIENT_BLOCK = client
     `are still named by role only.`
   : ''
 if (cfg.continue && cfg.fresh) throw new Error('config.continue and config.fresh exclude each other')
+// The design type the holdout questions will be put to, when it is known: whether a model does
+// part of the work changes what the client's people ask ("what happens when it is wrong?").
+const designType = (args && args.designType) || ''
+if (designType && !/^[a-z-]+$/.test(designType)) {
+  throw new Error(`args.designType is a design profile name such as "solution-design" or "ai-solution"; got ${designType}`)
+}
 
 // --- Paths: named here and nowhere else -------------------------------------------------------
 
@@ -73,6 +80,11 @@ const PAINS_PATH = `${run}/pains.md`
 // requirements rounds' record with an empty one.
 const PAIN_REMARKS_PATH = `${run}/pains-remarks.md`
 const TOOLS_LOG = `${run}/tools.jsonl`
+// The holdout questions: written here, from the client's material, before any design or
+// proposal exists, and scored by those stages after their rounds. No writer is ever handed them.
+const HOLDOUT_DIR = `${run}/holdout`
+const HOLDOUT_DRAFT = `${HOLDOUT_DIR}/draft.md`
+const HOLDOUT_QUESTIONS = `${HOLDOUT_DIR}/questions.md`
 const extractPathOf = (stem) => `${EXTRACTS_DIR}/${stem}.md`
 const roundPathOf = (n) => `${ROUNDS_DIR}/round-${n}.md`
 const draftPathOf = (n) => `${ROUNDS_DIR}/draft-${n}.md`
@@ -96,6 +108,9 @@ const MODELS = {
   // The checkers that vote on a CRITICAL remark: several fresh readings, each cheap.
   vote: 'sonnet',
   pains: 'opus',
+  // The holdout questioner is the hardest reader of the run: it has to be every person of the client.
+  questions: 'opus',
+  skeptic: 'opus',
   // Carriers stay on sonnet: a haiku carrier once read the relayed user request as its own task
   // and returned an invented report the script trusted.
   gate: 'sonnet',
@@ -112,6 +127,8 @@ const EXTRACT_FLAGS = profileFlags('extract')
 const REQ_FLAGS = `${profileFlags('requirements')} --min-length ${REQ_MIN_LENGTH}`
 const PAIN_FLAGS = profileFlags('pain-map')
 const VOICE_FLAGS = profileFlags('client-voice')
+const HOLDOUT_FLAGS = profileFlags('holdout-questions')
+const HOLDOUT_PROFILE = '.claude/skills/holdout-questions-profile/SKILL.md'
 
 // --- Records of the run -----------------------------------------------------------------------
 
@@ -333,8 +350,10 @@ const DRAFT = {
         required: ['item', 'status', 'note'],
         properties: {
           item: { type: 'number', description: 'the number of the remark, as given' },
-          status: { type: 'string', enum: ['fixed', 'declined'] },
+          status: { type: 'string', enum: ['fixed', 'needs_context', 'declined'] },
           note: { type: 'string', description: 'what you did, or why you deliberately did not' },
+          missing: { type: 'string', description: 'needs_context only: the fact the inputs do not hold, in one line' },
+          searched: { type: 'string', description: 'needs_context only: which inputs you searched for it' },
         },
       },
     },
@@ -366,6 +385,38 @@ const VERDICT = {
       },
     },
   },
+}
+
+// --- Missing input ----------------------------------------------------------------------------
+//
+// A remark the inputs hold no data for has a third answer besides fixed and declined. Without it
+// a writer either invents what is missing (on live runs: a placeholder for the client's name, a
+// figure copied from a neighbouring panel) or declines a remark it agrees with. needs_context takes
+// the item out of the rounds onto its own record, which is what to ask the client. The critic may
+// show where the inputs do hold it; the remark then comes back and cannot be answered so again.
+const MISSING_ITEMS_RULE =
+  `needs_context when the inputs hold no data to act on the remark: name in missing the fact that is ` +
+  `absent and in searched which inputs you looked in, and record the gap where the profile keeps ` +
+  `open questions. It is not an answer to a remark that is hard, or one you disagree with.`
+function refusalOf(item, answer) {
+  if (item.measured || item.kind === 'GATE') return 'a measurement is answered by a fix, not by missing input'
+  if (item.contested) return 'the critic named where the inputs hold it'
+  if (!String(answer.missing || '').trim()) return 'what is missing was not named'
+  if (!String(answer.searched || '').trim()) return 'where it was looked for was not named'
+  return ''
+}
+const CONTESTED = /^\s*CONTESTED-(\d+)\s*[:.-]?\s*/
+function contestedOf(text) {
+  const m = CONTESTED.exec(String(text))
+  return m ? { n: Number(m[1]), text: String(text).slice(m[0].length) } : null
+}
+function contextBlock(notes) {
+  return notes.length
+    ? `NO DATA IN THE INPUTS, the writer says, for these remarks of the last round; each left the rounds. ` +
+        `If the inputs do hold what the writer names as missing, raise the remark again and open it with ` +
+        `CONTESTED-<n>: followed by where the data is (the document and the place). Otherwise do not raise it again.\n` +
+        notes.map((d, i) => `${i + 1}. ${d.text}\n    -> missing: ${d.missing}; searched: ${d.searched}`).join('\n')
+    : ''
 }
 
 // =============================================================================================
@@ -740,9 +791,13 @@ const reqChecks = (round) => [
 
 // Every remark of every round, with the writer's answer: critic-remarks.md at the end.
 const ledger = []
-// What goes to the writer next round: { kind, text, entry }.
+// What goes to the writer next round: { kind, text, entry, measured, contested }.
 let pending = []
 let declinedNotes = []
+// The remarks answered needs_context and accepted as such, for the record and the client.
+const missingInput = []
+// Those of the last round, shown to the critic so it can contest them.
+let contextNotes = []
 let startRound = 1
 let rounds = 0
 let accepted = false
@@ -881,7 +936,7 @@ for (let round = startRound; round <= MAX_ROUNDS && !accepted; round++) {
       `else you may decline with a reason.\n\n` +
       pending.map((it, i) => `${i + 1}. [${it.kind}] ${it.text}`).join('\n') +
       `\n\nHOW TO ANSWER. One entry per number from 1 to ${pending.length}: fixed when the draft now satisfies ` +
-      `it, declined with the reason in one sentence when you deliberately did not act.` +
+      `it, declined with the reason in one sentence when you deliberately did not act, ${MISSING_ITEMS_RULE}` +
       `\n\nHOW TO DELIVER THIS ROUND. Do not edit ${REQ_PATH} yourself. Write your changes as a JSON array to ` +
       `${editsPath}: [{"old": "<text copied verbatim from the draft, occurring exactly once>", "new": "<the ` +
       `replacement>"}]. To add a row, old is the row before it and new is that row plus the new one; to delete, ` +
@@ -903,15 +958,34 @@ for (let round = startRound; round <= MAX_ROUNDS && !accepted; round++) {
     for (const a of drafted.addressed || []) if (a.item >= 1 && a.item <= pending.length) answers.set(a.item, a)
     const carried = []
     declinedNotes = []
+    contextNotes = []
     pending.forEach((it, i) => {
       const a = answers.get(i + 1)
       if (it.entry) it.entry.answer = a ? `${a.status}: ${a.note}` : 'not answered'
-      if (!a) carried.push(it.text)
+      if (!a) carried.push(it)
       else if (a.status === 'declined') declinedNotes.push(`${it.text}\n    -> declined: ${a.note}`)
+      else if (a.status === 'needs_context') {
+        const refused = refusalOf(it, a)
+        if (it.entry) it.entry.answer += refused ? ` [needs_context refused: ${refused}]` : ` [missing: ${a.missing}; searched: ${a.searched}]`
+        if (refused) {
+          log(`[req/${round}/needs_context] refused for ${i + 1}: ${refused}`)
+          carried.push({ ...it, text: `${it.text} [answered needs_context, refused: ${refused}]` })
+        } else {
+          const note = { round, text: it.text, missing: a.missing, searched: a.searched }
+          missingInput.push(note)
+          contextNotes.push(note)
+        }
+      }
     })
     const unapplied = (report.problems || []).map((p) => `EDIT NOT APPLIED, quote the draft exactly: ${p}`)
-    log(`[req/${round}] answered ${answers.size} of ${pending.length}; edits not applied ${unapplied.length}`)
-    pending = [...carried, ...unapplied].map((text) => ({ kind: 'CARRIED', text }))
+    log(
+      `[req/${round}] answered ${answers.size} of ${pending.length}; no data in the inputs ${contextNotes.length}; ` +
+        `edits not applied ${unapplied.length}`,
+    )
+    pending = [
+      ...carried.map((it) => ({ kind: 'CARRIED', text: it.text, measured: it.measured || it.kind === 'GATE', contested: it.contested })),
+      ...unapplied.map((text) => ({ kind: 'CARRIED', text, measured: true })),
+    ]
   } else {
     log(`[req/${round}] the draft on disk has not been judged: straight to the checks`)
     pending = []
@@ -945,10 +1019,16 @@ for (let round = startRound; round <= MAX_ROUNDS && !accepted; round++) {
       inputs: [{ port: 'draft', path: REQ_PATH }, ...extractPorts, ...voicePort],
       noFile: true,
       brief: writerBrief,
-      extra: declinedNotes.length
-        ? `DECLINED LAST ROUND, with the reason. Raise one again only if the reason is wrong, and say why.\n` +
-          declinedNotes.map((d, i) => `${i + 1}. ${d}`).join('\n')
-        : undefined,
+      extra:
+        [
+          declinedNotes.length
+            ? `DECLINED LAST ROUND, with the reason. Raise one again only if the reason is wrong, and say why.\n` +
+              declinedNotes.map((d, i) => `${i + 1}. ${d}`).join('\n')
+            : '',
+          contextBlock(contextNotes),
+        ]
+          .filter(Boolean)
+          .join('\n\n') || undefined,
     }),
     { agentType: 'requirements-critic', model: MODELS.critic, label: `req:critic:${round}`, phase: 'Requirements', schema: VERDICT },
   )
@@ -958,6 +1038,17 @@ for (let round = startRound; round <= MAX_ROUNDS && !accepted; round++) {
     remarks: [{ severity: 'CRITICAL', text: 'the critic returned no verdict: that is an open item, not agreement' }],
   }
   const remarks = (verdict.remarks || []).map((r) => ({ severity: r.severity, text: String(r.text).replace(/^\s*\d{1,2}[.)]\s+/, '') }))
+  // A remark the critic opened with CONTESTED-<n> says the inputs do hold what the writer called
+  // missing: the item leaves the missing-input record and comes back, never to be answered so again.
+  for (const r of remarks) {
+    const c = contestedOf(r.text)
+    const note = c && contextNotes[c.n - 1]
+    if (!note) continue
+    if (missingInput.includes(note)) missingInput.splice(missingInput.indexOf(note), 1)
+    r.contested = true
+    r.text = `${c.text} [contested: the critic says the inputs hold it]`
+    log(`[req/${round}/critic] contested ${c.n}: ${note.text}`)
+  }
   const refuted = criticSaid ? await voteOnCritical(round, remarks) : 0
   const count = (s) => remarks.filter((r) => r.severity === s).length
   perRound.push(
@@ -982,7 +1073,7 @@ for (let round = startRound; round <= MAX_ROUNDS && !accepted; round++) {
     const minor = r.severity === 'MINOR'
     const entry = { round, kind: r.severity, text: r.text, answer: minor ? 'recorded, not sent back' : null }
     ledger.push(entry)
-    if (!minor) sendBack.push({ kind: r.severity, text: r.text, entry })
+    if (!minor) sendBack.push({ kind: r.severity, text: r.text, entry, contested: r.contested })
   }
   const blocking = [...gateProblems, ...remarks.filter((r) => r.severity === 'CRITICAL').map((r) => r.text)]
   const passed = exists && blocking.length === 0
@@ -1118,6 +1209,143 @@ if (!accepted && !cfg.acceptOpen) {
 }
 
 // =============================================================================================
+// Holdout: the questions the client's people will ask of our documents
+// =============================================================================================
+
+// Written here because only here the client's material is all there and no design or proposal
+// exists yet: the questions provably come before the documents they measure. The questioner reads
+// the material alone, never the extracts or the requirements; a skeptic keeps what passes the
+// profile; a tool assembles the file. The design and proposal stages score their documents
+// against it after their rounds, and no writer, corrector or critic is ever handed it.
+const DESIGN_LINES = {
+  'solution-design':
+    'a technical design of an ordinary product, read by the client\'s engineers: one architecture, every decision ' +
+    'traced to a requirement, infrastructure, risks, assumptions to confirm; it carries no estimate of money or time',
+  'ai-solution':
+    'a technical design of a solution in which a model does part of the work, read by the client\'s engineers: where ' +
+    'a model is used and where code, its guardrails, knowledge, the shape of the cost per request, people in the loop, ' +
+    'data and trust, how quality is measured, failure modes, decisions to take with the client; it carries no estimate ' +
+    'of money or time',
+}
+const HOLDOUT_DOCUMENTS =
+  `DOCUMENTS THE QUESTIONS WILL BE PUT TO\n` +
+  `design: ${DESIGN_LINES[designType] || 'a technical design, read by the client\'s engineers; whether a model does part of the work, judge from the material; it carries no estimate of money or time'}\n` +
+  `proposal: the client proposal, read by the owner and partners, who are not technical: what was heard, a day with ` +
+  `the product, the mechanism they worry about most, how it is built in one section, what to decide together, what is ` +
+  `still open; it carries no plan, team or weeks`
+const SELECTION = {
+  type: 'object',
+  required: ['keep', 'dropped'],
+  properties: {
+    keep: { type: 'array', items: { type: 'string' }, description: 'the ids you keep, as Q-01' },
+    dropped: {
+      type: 'array',
+      items: { type: 'object', required: ['id', 'why'], properties: { id: { type: 'string' }, why: { type: 'string' } } },
+    },
+  },
+}
+let holdoutWritten = false
+if (cfg.holdout === false) {
+  facts.push('Holdout: not written (config.holdout=false)')
+} else {
+  phase('Holdout')
+  const holdoutSources = sources.filter((s) => !ourNotes.includes(s))
+  const sourcePorts = [
+    ...holdoutSources.map((s) => ({ port: `source:${stemOf(s)}`, path: s })),
+    ...holdoutSources.flatMap((s) => (imagesOf.get(s) || []).map((d) => ({ port: 'images', path: d }))),
+  ]
+  const checkQuestions = async (file, final, label) => {
+    const list = [
+      `${tool('gate')} --file "${file}" --min-length ${MIN_ARTIFACT_CHARS} ${HOLDOUT_FLAGS} ${noted(`${label}: shape`)}`,
+      `${tool('holdout')} --check ${final ? '--final ' : ''}--file "${file}" --profile ${HOLDOUT_PROFILE} --source ${INPUTS_DIR} --source ${EXTRACTS_DIR} ${noted(`${label}: questions and grounds`)}`,
+    ]
+    const res = await call(commands(list), { agentType: 'gate-runner', model: MODELS.gate, label, phase: 'Holdout', schema: CHECKS })
+    const checks = (res && res.checks) || []
+    const m = (checks[0] && checks[0].measures) || {}
+    return {
+      exists: checks.length === list.length && typeof m.chars === 'number' && m.chars >= MIN_ARTIFACT_CHARS,
+      problems: checks.length === list.length ? checks.flatMap((c) => c.problems || []) : ['the check did not return one report per command'],
+      measures: (checks[1] && checks[1].measures) || {},
+    }
+  }
+  const kept = cfg.continue && !cfg.holdoutFresh ? await checkQuestions(HOLDOUT_QUESTIONS, true, 'holdout:continue') : null
+  if (kept && kept.exists && !kept.problems.length) {
+    // Frozen: questions rewritten after a design exists would no longer come before it.
+    touched.add(HOLDOUT_QUESTIONS)
+    touched.add(HOLDOUT_DRAFT)
+    holdoutWritten = true
+    log('[holdout] the questions on disk pass their checks, kept as they are')
+    facts.push(`Holdout: kept from the earlier run, ${kept.measures.questions ?? '?'} questions (${HOLDOUT_QUESTIONS})`)
+  } else {
+    const ask = (label, extra, withDraft) =>
+      call(
+        task({
+          inputs: [...sourcePorts, ...(withDraft ? [{ port: 'draft', path: HOLDOUT_DRAFT }] : [])],
+          output: HOLDOUT_DRAFT,
+          extra: [HOLDOUT_DOCUMENTS, extra].filter(Boolean).join('\n\n'),
+        }),
+        { agentType: 'client-questioner', model: MODELS.questions, label, phase: 'Holdout', schema: WROTE },
+      )
+    const select = async (round) => {
+      const inputs = [{ port: 'draft', path: HOLDOUT_DRAFT }, ...holdoutSources.map((s) => ({ port: `source:${stemOf(s)}`, path: s }))]
+      const said = await call(task({ inputs, noFile: true, extra: HOLDOUT_DOCUMENTS }), {
+        agentType: 'question-skeptic',
+        model: MODELS.skeptic,
+        label: `holdout:skeptic:${round}`,
+        phase: 'Holdout',
+        schema: SELECTION,
+      })
+      if (!said) return null
+      const ids = (said.keep || []).filter((id) => /^Q-\d{2}$/.test(String(id)))
+      for (const d of said.dropped || []) log(`[holdout/skeptic] dropped ${d.id}: ${d.why}`)
+      const res = await call(
+        commands([
+          `${tool('holdout')} --select --file "${HOLDOUT_DRAFT}" --keep "${ids.join(',')}" --out "${HOLDOUT_QUESTIONS}" --profile ${HOLDOUT_PROFILE} ${noted(`holdout selection ${round}`)}`,
+        ]),
+        { agentType: 'file-copier', model: MODELS.copy, label: `holdout:select:${round}`, phase: 'Holdout', schema: GATE },
+      )
+      const report = (res && res.report) || { ok: false, problems: ['the selection did not report'], measures: {} }
+      return { kept: ids.length, dropped: (said.dropped || []).length, report }
+    }
+
+    await ask('holdout:write', '', false)
+    let draft = await checkQuestions(HOLDOUT_DRAFT, false, 'holdout:gate')
+    if (draft.exists && draft.problems.length) {
+      await ask('holdout:fix', `PROBLEMS IN YOUR DRAFT, found by the checks; fix each:\n` + draft.problems.map((p, i) => `${i + 1}. ${p}`).join('\n'), true)
+      draft = await checkQuestions(HOLDOUT_DRAFT, false, 'holdout:regate')
+    }
+    for (const p of draft.problems) warnings.push(`holdout draft: ${p}`)
+    let selected = draft.exists ? await select(1) : null
+    const short = (selected && selected.report.measures && selected.report.measures.short_layers) || []
+    if (selected && short.length) {
+      // A layer the skeptic could not fill is added to once, then selected again; never padded.
+      await ask(
+        'holdout:add',
+        `LAYERS THAT CAME UP SHORT after selection: ${short.join(', ')}. Add new questions to each, with new ids after ` +
+          `the last one, to the draft; leave every question already there as it is.`,
+        true,
+      )
+      draft = await checkQuestions(HOLDOUT_DRAFT, false, 'holdout:add-gate')
+      if (draft.exists) selected = await select(2)
+    }
+    if (!draft.exists) warnings.push('the holdout draft did not reach the disk: no questions for the design and proposal')
+    else if (!selected) warnings.push('the question skeptic returned nothing: the holdout questions were not selected')
+    else {
+      const final = await checkQuestions(HOLDOUT_QUESTIONS, true, 'holdout:final')
+      holdoutWritten = final.exists
+      for (const p of [...(selected.report.problems || []), ...final.problems]) warnings.push(`holdout questions: ${p}`)
+      const layers = final.measures.by_layer || {}
+      facts.push(
+        `Holdout: ${final.measures.questions ?? '?'} questions (` +
+          Object.entries(layers).map(([k, v]) => `${k} ${v}`).join(', ') +
+          `), blocking ${final.measures.blocking_share ?? '?'}; the skeptic kept ${selected.kept} and dropped ${selected.dropped} (${HOLDOUT_QUESTIONS})`,
+      )
+    }
+    touched.add(HOLDOUT_QUESTIONS)
+  }
+}
+
+// =============================================================================================
 // Report: remarks, unresolved items, audit, report
 // =============================================================================================
 
@@ -1134,6 +1362,20 @@ if (writeOpen) {
       open.length ? open : ['Nothing is open'],
     ),
     { agentType: 'verbatim-writer', model: MODELS.record, label: 'unresolved', phase: 'Report', schema: WROTE },
+  )
+}
+// What the inputs did not hold, on its own record: it is for the client, not for another round. A
+// continued launch names its own file, so the record of an earlier launch is never written over.
+const MISSING_INPUT_PATH = startRound > 1 ? `${run}/missing-input-from-round-${startRound}.md` : `${run}/missing-input.md`
+if (startRound > 1) touched.add(`${run}/missing-input.md`)
+if (missingInput.length) {
+  await call(
+    record(
+      MISSING_INPUT_PATH,
+      'Remarks the inputs hold no data for: what to ask the client',
+      missingInput.map((d) => `Round ${d.round}: ${d.text} — missing: ${d.missing} — searched: ${d.searched}`),
+    ),
+    { agentType: 'verbatim-writer', model: MODELS.record, label: 'missing-input', phase: 'Report', schema: WROTE },
   )
 }
 if (ledger.length) {
@@ -1168,7 +1410,15 @@ if (!onDisk.length || (typeof audit.count === 'number' && audit.count !== onDisk
   // Only this pipeline's files are audited: the proposal and the scenes of a later stage live in
   // the same directory, and their files are another audit's business.
   const otherStage = (f) =>
-    f.startsWith(`${run}/prop`) || f.startsWith(`${run}/rounds/prop-`) || f.startsWith(`${run}/scenes/`) || f === `${run}/number-checks.md`
+    f.startsWith(`${run}/prop`) ||
+    f.startsWith(`${run}/rounds/prop-`) ||
+    f.startsWith(`${run}/scenes/`) ||
+    f === `${run}/number-checks.md` ||
+    f === `${run}/design.md` ||
+    f.startsWith(`${run}/design-`) ||
+    f.startsWith(`${run}/rounds/design/`) ||
+    // The scoring of the design and the proposal against the questions written here.
+    (f.startsWith(`${HOLDOUT_DIR}/`) && f !== HOLDOUT_DRAFT && f !== HOLDOUT_QUESTIONS)
   orphans = onDisk.filter((f) => !touched.has(f) && f !== REPORT_PATH && !otherStage(f))
   for (const f of orphans) log(`[audit/orphan] ${f}`)
 }
@@ -1183,6 +1433,7 @@ const reportItems = [
   `Quotes in the requirements: checked ${lastQuotes.quotes ?? '?'}, not found ${lastQuotes.not_found ?? '?'}`,
   ...perRound,
   `Open items: ${open.length}${open.length ? ` (${UNRESOLVED_PATH})` : ''}; all remarks: ${REMARKS_PATH}`,
+  `No data in the inputs: ${missingInput.length}${missingInput.length ? ` (${MISSING_INPUT_PATH})` : ''}`,
   `Audit: files on disk ${onDisk.length}, read by nobody ${orphans.length}` + (orphans.length ? ` (${orphans.join(', ')})` : ''),
   ...warnings.map((w) => `WARNING: ${w}`),
   ...handoff.map((h) => `Call: ${h}`),
@@ -1201,6 +1452,7 @@ const records = [
   ...(ledger.length ? [REMARKS_PATH] : []),
   ...(painLedger.length ? [PAIN_REMARKS_PATH] : []),
   ...(writeOpen ? [UNRESOLVED_PATH] : []),
+  ...(missingInput.length ? [MISSING_INPUT_PATH] : []),
 ]
 const recordList = records.map((r) => `${tool('gate')} --file "${r}" --min-length 50 ${noted('record on disk')}`)
 const recorded = await call(commands(recordList), {
@@ -1225,8 +1477,10 @@ return {
   lost_rows: lost,
   open_items: open.length,
   unresolved: open.length ? UNRESOLVED_PATH : null,
+  missing_input: missingInput.length ? MISSING_INPUT_PATH : null,
   remarks: ledger.length ? REMARKS_PATH : null,
   pains: painsWritten ? PAINS_PATH : null,
+  holdout: holdoutWritten ? HOLDOUT_QUESTIONS : null,
   report: REPORT_PATH,
   records_missing: missingRecords,
   orphans,

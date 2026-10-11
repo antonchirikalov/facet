@@ -1067,7 +1067,8 @@ if (cfg.fresh) {
   })
   // A record that does not parse is not trusted into the loop: continuing from a guessed round
   // number would skip a revision the brief paid for. Broken records are announced and ignored.
-  // Trusted only when it has the shape rounds.py prints (see solution-design.js for the incident).
+  // Trusted only when it has the shape rounds.py prints: a carrier once returned an invented record
+  // of finished rounds and the loop was skipped.
   const roundsShape =
     recorded &&
     recorded.report &&

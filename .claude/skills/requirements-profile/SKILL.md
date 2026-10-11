@@ -1,6 +1,6 @@
 ---
 name: requirements-profile
-description: Document-type profile for a requirements document (level 3, solution-design.js requirements stage). Preloaded into the requirements writer, corrector and critic so all three read one contract - sections, tables, IDs, source cells, priorities, conflict rules, critic checklist and gate rules.
+description: Document-type profile for a requirements document (level 3, requirements.js). Preloaded into the requirements writer, corrector and critic so all three read one contract - sections, tables, IDs, source cells, priorities, conflict rules, critic checklist and gate rules.
 user-invocable: false
 ---
 
@@ -209,6 +209,8 @@ is not a requirement — it is a conclusion, and it moves to 8.3. The cell is bu
 - **Quantitative conflict** (two figures for one thing): the row takes the more constraining
   figure, names both in the Source cell, and 8.1 holds the conflict. Never average.
 - **Gap is not conflict.** Missing from all sources → 8.2. Different in two sources → 8.1.
+- **A remark the sources cannot answer** (answered needs_context in a revision round) is a gap
+  in 8.2 with what it blocks, never a figure or a statement made up to close the remark.
 - **Forced choice** — the document cannot be finished without picking a value nobody gave —
   is an assumption in 8.3 with its basis, and the row carries [A-NNN].
 - **Wishes stay wishes.** "It would be great if", "just a thought": a COULD row if a

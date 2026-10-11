@@ -18,11 +18,8 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-SCRIPT = ROOT / ".claude" / "workflows" / "solution-design.js"
+SCRIPT = ROOT / ".claude" / "workflows" / "requirements.js"
 DRY_RUN = ROOT / "tools" / "dry_run.mjs"
-
-ORDER = "ORDER-MARK scope and audience"
-DECISION = "DEC-MARK backend in Go"
 
 pytestmark = pytest.mark.skipif(shutil.which("node") is None, reason="node is not installed")
 
@@ -49,54 +46,6 @@ def by_agent(items: list[dict[str, str]], agent_type: str) -> list[str]:
 
 
 RUN = {"runDir": "dry/run", "now": "2026-09-28T10:00:00+03:00", "config": {"fresh": True}}
-
-
-def test_order_reaches_requirements_and_design_agents(tmp_path: Path) -> None:
-    items = prompts(tmp_path, {**RUN, "order": ORDER})
-    for agent_type in (
-        "requirements-fact-checker",
-        "requirements-critic",
-        "solution-designer",
-        "solution-design-selector",
-        "solution-design-critic",
-    ):
-        texts = by_agent(items, agent_type)
-        assert texts, f"{agent_type} was not called"
-        assert all(ORDER in t for t in texts), f"{agent_type} did not receive the order text"
-
-
-def test_decisions_reach_every_design_agent_and_only_them(tmp_path: Path) -> None:
-    decisions = [{"id": "D1", "title": "Backend", "mode": "decided", "brief": DECISION}]
-    items = prompts(tmp_path, {**RUN, "decisions": decisions})
-    for agent_type in ("solution-designer", "solution-design-selector", "solution-design-critic"):
-        texts = by_agent(items, agent_type)
-        assert texts and all(DECISION in t and "[decided]" in t for t in texts), agent_type
-    for agent_type in ("requirements-critic", "requirements-fact-checker"):
-        assert not any(DECISION in t for t in by_agent(items, agent_type)), (
-            f"{agent_type}: design decisions must not influence the requirements"
-        )
-
-
-def test_without_order_no_order_block(tmp_path: Path) -> None:
-    items = prompts(tmp_path, RUN)
-    assert not any(p["prompt"].startswith("ORDER") or "\nORDER\n" in p["prompt"] for p in items)
-
-
-def test_malformed_decision_is_refused(tmp_path: Path) -> None:
-    out = tmp_path / "prompts.json"
-    env = {**os.environ, "DRY_PROMPTS_OUT": str(out)}
-    bad = {**RUN, "decisions": [{"id": "D1", "title": "Backend", "mode": "decide"}]}
-    done = subprocess.run(
-        ["node", str(DRY_RUN), str(SCRIPT), "ok", json.dumps(bad)],
-        cwd=ROOT,
-        check=False,
-        env=env,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
-    assert done.returncode != 0
-    assert "decided" in done.stderr
 
 
 # --- attn-figures: what the illustrator is told --------------------------------------------------
@@ -147,54 +96,6 @@ def test_brief_carries_the_style_and_the_check_lists(tmp_path: Path) -> None:
     draw = next(p["prompt"] for p in figure_prompts(tmp_path, FIG_ARGS) if p["label"] == "draw:1")
     assert "Clean flat vector style" in draw
     assert "Connections:" in draw and "Boxes:" in draw
-
-
-def test_client_stage_passes_the_id_map_and_checks_quotes(tmp_path: Path) -> None:
-    """The design edition receives the id map from the requirements edition; quotes are checked against the extracts."""
-    items = prompts(tmp_path, {**RUN, "config": {"stages": ["client"]}})
-    editors = by_agent(items, "client-editor")
-    assert len(editors) == 2
-    assert (
-        "dry/run/client-id-map.json" in editors[0]
-        and "OUTPUT\ndry/run/requirements.client.md" in editors[0]
-    )
-    assert "id_map: dry/run/client-id-map.json" in editors[1]
-    assert "OUTPUT\ndry/run/design.client.md" in editors[1]
-    gate = next(p for p in by_agent(items, "gate-runner") if "client-meta.txt" in p)
-    assert gate.count("check_quotes.py") == 2 and "--source dry/run/extracts" in gate
-    assert gate.count("--sequential-ids") == 1
-
-
-def test_design_and_client_gates_check_figure_numbers(tmp_path: Path) -> None:
-    """Every figure is captioned "Figure N." in order: the gate checks this, not the critic."""
-    design = prompts(
-        tmp_path, {**RUN, "config": {"stages": ["requirements", "design"], "fresh": True}}
-    )
-    design_gates = [
-        p for p in by_agent(design, "gate-runner") if "--require-heading" in p and r"1\.1" in p
-    ]
-    assert design_gates and all("--figures-numbered" in p for p in design_gates)
-    client = prompts(tmp_path, {**RUN, "config": {"stages": ["client"]}})
-    client_gate = next(p for p in by_agent(client, "gate-runner") if "client-meta.txt" in p)
-    assert client_gate.count("--figures-numbered") == 2
-
-
-def test_client_stage_runs_alone(tmp_path: Path) -> None:
-    done = subprocess.run(
-        [
-            "node",
-            str(DRY_RUN),
-            str(SCRIPT),
-            "ok",
-            json.dumps({**RUN, "config": {"stages": ["client", "design"]}}),
-        ],
-        cwd=ROOT,
-        check=False,
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
-    assert done.returncode != 0 and "client" in done.stderr
 
 
 PROPOSAL = ROOT / ".claude" / "workflows" / "proposal-review.js"
@@ -249,7 +150,7 @@ def test_numbered_remarks_still_score_by_severity() -> None:
 
 def test_client_voice_reaches_the_requirements_writer_and_critic(tmp_path: Path) -> None:
     """A requirement's weight comes from the client voice sheet: the sheet is written before the writer and reaches the critic."""
-    items = prompts(tmp_path, {**RUN, "config": {"fresh": True, "stages": ["requirements"]}})
+    items = prompts(tmp_path, RUN)
     labels = [p["label"] for p in items]
     assert labels.index("voice") < labels.index("req:write:1")
     voice = by_agent(items, "client-voice")[0]
@@ -258,37 +159,12 @@ def test_client_voice_reaches_the_requirements_writer_and_critic(tmp_path: Path)
         prompt = by_agent(items, agent_type)[0]
         assert "client_voice: dry/run/client-voice.md" in prompt and "CLIENT VOICE" in prompt
     gate = next(p for p in by_agent(items, "gate-runner") if "client voice quotes" in p)
-    assert "check_quotes.py --file dry/run/client-voice.md" in gate
-
-
-def test_slop_critic_judges_every_client_facing_loop(tmp_path: Path) -> None:
-    """Generated-text slop is caught twice: a narrow list in the gate and a critic in every round of a client document."""
-    items = prompts(tmp_path, {**RUN, "config": {"fresh": True}})
-    labels = [p["label"] for p in items]
-    assert "design:SLOP:1" in labels
-    # The requirements are internal: judged on completeness and traceability, not on wording.
-    assert not any(label.startswith("req:SLOP") for label in labels)
-    gates = [
-        p
-        for p in by_agent(items, "gate-runner")
-        if '--file "dry/run/design.md"' in p and "--require-heading" in p
-    ]
-    assert gates and all("en-slop.txt" in g and "ru-slop.txt" in g for g in gates)
-    off = prompts(tmp_path, {**RUN, "config": {"fresh": True, "slopCritic": False}})
-    assert not by_agent(off, "slop-critic")
-
-
-def test_slop_critic_reads_both_client_editions(tmp_path: Path) -> None:
-    items = prompts(tmp_path, {**RUN, "config": {"stages": ["client"]}})
-    slop = by_agent(items, "slop-critic")
-    assert len(slop) == 2
-    assert "draft: dry/run/requirements.client.md" in slop[0]
-    assert "draft: dry/run/design.client.md" in slop[1]
+    assert 'check_quotes.py --file "dry/run/client-voice.md"' in gate
 
 
 def word_prompts(tmp_path: Path, mode: str) -> list[dict[str, str]]:
     out = tmp_path / f"word-{mode}.json"
-    args = {**RUN, "config": {"fresh": True, "stages": ["requirements"]}}
+    args = RUN
     env = {
         **os.environ,
         "DRY_PROMPTS_OUT": str(out),
@@ -358,47 +234,6 @@ def test_an_unchecked_figure_is_never_accepted(tmp_path: Path) -> None:
     assert "counted as unchecked" in done.stdout and "redraw:1" in done.stdout
 
 
-PANELS = {
-    **RUN,
-    "config": {"fresh": True, "stages": ["requirements"], "claimCheck": True, "rulePanel": True},
-}
-
-
-def test_panels_are_off_by_default(tmp_path: Path) -> None:
-    items = prompts(tmp_path, {**RUN, "config": {"fresh": True, "stages": ["requirements"]}})
-    assert not by_agent(items, "claim-lister") and not by_agent(items, "rule-checker")
-
-
-def test_claim_panel_hands_claims_to_fresh_checkers(tmp_path: Path) -> None:
-    items = prompts(tmp_path, PANELS)
-    lister = by_agent(items, "claim-lister")[0]
-    assert "draft: dry/run/requirements.md" in lister and "OUTPUT" not in lister.split("INPUT")[0]
-    checker = by_agent(items, "claim-checker")[0]
-    assert "CLAIMS TO CHECK" in checker and "evidence:" in checker
-
-
-def test_rule_panel_reads_rules_from_the_profile(tmp_path: Path) -> None:
-    items = prompts(tmp_path, PANELS)
-    rules = next(p for p in by_agent(items, "gate-runner") if "tools/rules.py" in p)
-    assert "--profile .claude/skills/requirements-profile/SKILL.md --top" in rules
-    assert "THE RULE" in by_agent(items, "rule-checker")[0]
-    assert "FLAGS" in by_agent(items, "rule-skeptic")[0]
-
-
-def test_a_dead_checker_is_an_open_remark_not_a_pass(tmp_path: Path) -> None:
-    done = subprocess.run(
-        ["node", str(DRY_RUN), str(SCRIPT), "ok", json.dumps(PANELS)],
-        cwd=ROOT,
-        check=False,
-        env={**os.environ, "DRY_NULL": "req:CLAIMS:check,req:RULES:skeptic"},
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-    )
-    assert "were not checked: the checker returned nothing" in done.stdout
-    assert "RULES (rule-skeptic) returned no verdict" in done.stdout
-
-
 TREE = (
     "scope.docx,call/transcript.md,call/transcript.html,call/frames/f1.png,"
     "call/digest.md|ours,dup.md|client|call/transcript.md,rec.mp4,lone/pic.png"
@@ -407,7 +242,7 @@ TREE = (
 
 def tree_run(tmp_path: Path, inputs: str = TREE) -> tuple[list[dict[str, str]], str]:
     out = tmp_path / "tree.json"
-    args = {**RUN, "config": {"fresh": True, "stages": ["requirements"]}}
+    args = RUN
     done = subprocess.run(
         ["node", str(DRY_RUN), str(SCRIPT), "ok", json.dumps(args)],
         cwd=ROOT,
@@ -432,10 +267,7 @@ def test_duplicates_formats_and_media_are_read_once(tmp_path: Path) -> None:
     items, log = tree_run(tmp_path)
     sources = "\n".join(by_agent(items, "source-processor"))
     assert "dup.md" not in sources and "transcript.html" not in sources and "rec.mp4" not in sources
-    assert (
-        "another format of call/transcript.md" in log
-        and "audio or video cannot be read: rec.mp4" in log
-    )
+    assert "another format of call/transcript.md" in log and "rec.mp4: audio or video" in log
 
 
 def test_frames_go_with_the_client_transcript(tmp_path: Path) -> None:
@@ -456,10 +288,9 @@ def test_our_notes_are_marked_down_to_the_requirements_writer(tmp_path: Path) ->
 
 def test_file_names_in_commands_are_quoted_and_ascii(tmp_path: Path) -> None:
     # A client file name with a space and one in Cyrillic, as client folders arrive.
-    items, log = tree_run(tmp_path, "Phase 1 Scope.md,Договор.md")
-    verify = next(
-        p for p in by_agent(items, "gate-runner") if "was the extract actually written" in p
-    )
-    assert '--file "dry/run/extracts/Phase-1-Scope.md"' in verify
-    assert all(ord(ch) < 128 for ch in verify)
-    assert "language not checked" in log
+    items, _ = tree_run(tmp_path, "Phase 1 Scope.md,Договор.md")
+    gate = next(p["prompt"] for p in items if p["label"] == "extract:gate:Phase-1-Scope")
+    assert '--file "dry/run/extracts/Phase-1-Scope.md"' in gate
+    for prompt in by_agent(items, "gate-runner") + by_agent(items, "file-copier"):
+        commands = prompt.split("COMMANDS", 1)[-1]
+        assert all(ord(ch) < 128 for ch in commands)

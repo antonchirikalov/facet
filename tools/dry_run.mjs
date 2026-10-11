@@ -67,6 +67,11 @@ function roundsHistory() {
 function fill(schema, prompt) {
   if (!schema || typeof schema !== 'object') return 'x'
   if (Array.isArray(schema.enum)) {
+    // DRY_ENUM="needs_context" answers with that value wherever an enum offers it: a third answer
+    // status is neither the happy first value nor the failing last one, and a branch no mode
+    // reaches is a branch nothing checks.
+    const forced = (process.env.DRY_ENUM || '').split(',').find((v) => schema.enum.includes(v))
+    if (forced) return forced
     return happy ? schema.enum[0] : schema.enum[schema.enum.length - 1]
   }
   switch (schema.type) {
@@ -109,6 +114,14 @@ function fill(schema, prompt) {
         // One number per round, all rounds. DRY_PLATEAU=1 hands back a history that already sits
         // on a plateau — best on round 2, two rounds since without beating it — so the branch
         // that declines to buy another round is exercised rather than assumed.
+        // DRY_ANSWER_ALL=1 answers every numbered remark of the task, not only the first: with
+        // DRY_ENUM=needs_context a measurement is refused that answer and a judged remark takes it,
+        // and both branches run in one invocation.
+        if (key === 'addressed' && sub && sub.type === 'array' && process.env.DRY_ANSWER_ALL) {
+          const n = [...prompt.matchAll(/^\d+\.\s+\[/gm)].length
+          out[key] = Array.from({ length: n }, (_, i) => ({ ...fill(sub.items ?? {}, prompt), item: i + 1 }))
+          continue
+        }
         if (key === 'counts' && sub && sub.type === 'array') {
           out[key] = roundsHistory()
           continue
@@ -197,6 +210,30 @@ function fill(schema, prompt) {
         if (key === 'measures' && /tools\/rounds\.py/.test(prompt)) {
           const counts = roundsHistory()
           out[key] = { rounds: counts.length, last_round: counts.length, counts }
+          continue
+        }
+        // The holdout ruler's measures, in the shape it prints: a selection with a short layer on the
+        // bad path (so the branch that asks the questioner to add runs), the reader's batches, a score.
+        if (key === 'measures' && /tools\/holdout\.py --select/.test(prompt)) {
+          out[key] = { kept: 24, asked_kept: 3, short_layers: happy ? [] : ['domain'], blocking_share: 0.25 }
+          continue
+        }
+        if (key === 'measures' && /tools\/holdout\.py --blind/.test(prompt)) {
+          out[key] = { batches: 2, questions: 18, removed: 0 }
+          continue
+        }
+        if (key === 'measures' && /tools\/holdout\.py --score/.test(prompt)) {
+          out[key] = {
+            score: happy ? 0.82 : 0.41,
+            met: happy ? 15 : 7,
+            expected: 18,
+            by_layer: { asked: { met: 3, of: 3 } },
+            absent_blocking: happy ? [] : ['Q-02'],
+            acknowledged_instead_of_answered: [],
+            downgraded_quote_not_found: happy ? [] : ['Q-07'],
+            answered_not_plain: [],
+            lost_since_compared: happy ? [] : ['Q-04'],
+          }
           continue
         }
         if (key === 'rounds' && sub && sub.type === 'array' && /tools\/rounds\.py/.test(prompt)) {

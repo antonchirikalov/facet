@@ -94,6 +94,16 @@ risks silently altering rows nobody remarked on; editing it one Edit call at a t
 whole context per call — a live round made 72 such calls. Keep IDs stable; a row you remove
 leaves its number vacant and a note in the open questions.
 
+## Three answers to a remark
+
+Each numbered remark gets fixed, declined or needs_context. Fixed: the draft now satisfies it.
+Declined: you disagree, and the reason fits in one sentence. Needs_context: you agree, and the
+extracts hold nothing to act on — no figure, no decision, no statement of the client's. Name the
+missing fact and the extracts you searched, and put the gap in 8.2. This answer exists so that a
+remark nobody can close from the sources is not closed by inventing the data; it is not for a
+remark that is merely hard. A remark the critic contests, naming where the data is, comes back
+and cannot be answered needs_context again.
+
 ## No backticks
 
 Do not use the backtick character anywhere in the document — not around ids, not around

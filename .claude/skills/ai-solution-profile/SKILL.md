@@ -93,6 +93,9 @@ requirement that decided it, in the requirements' ids (FR-012, NFR-003).
   the cheap lane. Each named, controlled, or explained as not applying.
 - **Section 13**: decisions only the client can take; a choice the requirements let us make is
   proposed in its section, not listed here.
+- **Section 14** holds every fact the design rests on that nobody confirmed, including each
+  remark the requirements hold no data for (answered needs_context in a revision round): an
+  assumption with who confirms it, never a figure or a fact made up to close the remark.
 
 ## Critic checklist
 

@@ -18,7 +18,9 @@ _PORT_RE = re.compile(r"^[a-z_][a-z0-9_]*$")
 # A skill is named by its directory under `.claude/skills/`, and Claude Code spells those
 # with hyphens, like agent slugs.
 _SKILL_RE = re.compile(r"^[a-z][a-z0-9-]*$")
-_BASE_CAPABILITIES = frozenset({"read", "edit", "vision", "bash", "webfetch"})
+# `write` without `edit`: an agent that puts its own result file on disk and must not touch
+# the document it judges (the holdout answer finder).
+_BASE_CAPABILITIES = frozenset({"read", "edit", "write", "vision", "bash", "webfetch"})
 
 
 class Port(BaseModel):
