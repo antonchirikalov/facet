@@ -1,6 +1,6 @@
 ---
 name: requirements-writer
-description: 'Synthesizes a single requirements document from the collection of per-source extracts. The body agent of the Extract pipeline''s refine loop: it drafts the document, a critic reviews it, and on ''revise'' it drafts again (loop is Phase 1; the contract is stable now).'
+description: 'Synthesizes a single requirements document from the collection of per-source extracts. The writer of the requirements rounds in requirements.js: it drafts the document, and on each revise it answers every numbered remark fixed, declined or needs_context.'
 tools: Read, Write, Edit
 omitClaudeMd: true
 skills:

@@ -178,9 +178,9 @@ facet/
 | 0 | Copy of collimator with history into `facet`; renaming in `pyproject.toml`, README; refract marked frozen | 1 h | `uv run pytest` green in facet |
 | 1 | One home for agents: reconcile `library/agents` with the copies in refract, rebuild `.claude/agents`, add `skills:` to writers and critics | 0.5 d | `emit_agents` with no manual edits in `.claude/agents` |
 | 2 | Documentation: README, `workflow-conventions.md`, `decisions/` (done 2026-09-21); `document-types.md`, `run-layout.md` | 1 d | a new session finds from the README how to make any type |
-| 3 | Profiles `requirements` (2026-09-19), `solution-design` (2026-09-20), `discovery-questions` (2026-09-21), `gap-analysis` | 1 d | the critic and the writer of one type read one profile |
+| 3 | Profiles `requirements` (2026-09-19), `solution-design` (2026-09-20), `discovery-questions` (2026-09-21, removed 2026-10-10 with `solution-design.js`), `gap-analysis` | 1 d | the critic and the writer of one type read one profile |
 | 4 | Exemplars for three types + `exemplars.local.yaml` (`requirements` 2026-09-19, `solution-design` skeleton 2026-09-20) | 0.5 d | no client data in the repository |
-| 5 | `requirements.js` modelled on `solution-design.js`; a run on the control input, comparison with three refract runs | 1–2 d | the document is no worse than refract's; carriers in the log — counted |
+| 5 | `requirements.js` modelled on `solution-design.js` (removed 2026-10-10); a run on the control input, comparison with three refract runs | 1–2 d | the document is no worse than refract's; carriers in the log — counted |
 | 6 | Skill `/doc` for levels 1–2; trial on a gap analysis or a memo | 0.5 d | the result compared with a hand-made document of the same type |
 
 The first visible result is step 5.

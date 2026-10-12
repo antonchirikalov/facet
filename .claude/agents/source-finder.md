@@ -1,6 +1,6 @@
 ---
 name: source-finder
-description: 'Finds and captures source material for a research brief: searches the web, reads what it finds, and saves each worthwhile source as its own file. The agent of a `discover` node (SPEC §20) — it writes ONE directory and the engine turns that directory into the source collection, so the agent never produces a collection itself (I6).'
+description: 'Finds and captures source material for a research brief: searches the web, reads what it finds, and saves each worthwhile source as its own file. It writes one directory per aspect; the script lists that directory, so the agent never produces a collection itself.'
 tools: Read, Write, Edit, WebFetch, mcp__pdf-reader, mcp__tavily-remote
 mcpServers:
 - pdf-reader

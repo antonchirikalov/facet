@@ -1,9 +1,9 @@
 name: solution_design_critic
 version: 1
 description: >
-  Reviews a solution design draft and emits a verdict@v1. The critic of the
-  Solution Design pipeline's refine loop: it judges whether the design satisfies
-  its requirements and is technically sound, and returns approved or revise.
+  Reviews a solution design draft and emits a verdict@v1. The critic of the rounds in
+  design.js: it judges whether the design satisfies its requirements and is technically sound
+  against the profile of its type, and returns approved or revise.
 consumes:
   - { port: draft, type: design_doc@v1, about: "the design draft to judge; you never edit it" }
   - { port: requirements, type: requirements@v1, about: "the requirements document the design is built from; cite its ids (FR-012, NFR-003) for every decision" }

@@ -1,6 +1,6 @@
 ---
 name: proposal-writer
-description: 'Writes the client proposal from the accepted requirements and design, the client voice sheet and the pain map, in the order and the words that answer the client: what was said, a day with the product, the mechanism they worry about most, then how it is built, the plan and what stays open. The ids of the internal documents are dropped; the figures are declared as placeholders.'
+description: 'Writes the client proposal from the accepted requirements and design, the client voice sheet and the pain map, in the order and the words that answer the client: what was said, a day with the product, the mechanism they worry about most, then how it is built, what the client decides and what stays open. The ids of the internal documents are dropped; the figures are declared as placeholders.'
 tools: Read, Write, Edit
 omitClaudeMd: true
 skills:

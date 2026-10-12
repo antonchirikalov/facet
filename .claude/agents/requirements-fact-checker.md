@@ -1,6 +1,6 @@
 ---
 name: requirements-fact-checker
-description: 'Corrects a requirements draft against the source extracts and returns the corrected document. A middle element of a refine loop''s body chain (SPEC §10.3): it runs between the writer and the critic, so a figure that drifted from its source is fixed before the critic ever judges the draft.'
+description: Corrects a requirements draft against the source extracts and returns the corrected document. Runs in each requirements round between the writer and the critic, so a figure that drifted from its source is fixed before the critic ever judges the draft.
 tools: Read, Write, Edit
 omitClaudeMd: true
 skills:

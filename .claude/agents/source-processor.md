@@ -1,6 +1,6 @@
 ---
 name: source-processor
-description: 'Processes one source document (transcript, RFP, PDF, notes, spreadsheet) into a structured extract@v1. The per-item worker of the Extract pipeline: the engine fans it out over the scanned source collection via a map node (§10.3).'
+description: 'Processes one source document (transcript, RFP, PDF, notes, spreadsheet) into a structured extract@v1. The per-document worker of requirements.js: the script runs one per input document, in parallel.'
 tools: Read, Write, Edit, mcp__pdf-reader
 mcpServers:
 - pdf-reader

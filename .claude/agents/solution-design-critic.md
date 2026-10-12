@@ -1,6 +1,6 @@
 ---
 name: solution-design-critic
-description: 'Reviews a solution design draft and emits a verdict@v1. The critic of the Solution Design pipeline''s refine loop: it judges whether the design satisfies its requirements and is technically sound, and returns approved or revise.'
+description: 'Reviews a solution design draft and emits a verdict@v1. The critic of the rounds in design.js: it judges whether the design satisfies its requirements and is technically sound against the profile of its type, and returns approved or revise.'
 tools: Read
 omitClaudeMd: true
 skills:

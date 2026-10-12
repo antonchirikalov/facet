@@ -1,9 +1,9 @@
 name: requirements_critic
 version: 1
 description: >
-  Reviews a requirements draft and emits a verdict@v1. The critic of the Extract
-  pipeline's refine loop: it judges the draft against the source extracts' intent
-  and returns approved or revise with actionable feedback.
+  Reviews a requirements draft and emits a verdict@v1. The critic of the requirements
+  rounds in requirements.js: it judges the draft against the intent of the source extracts and
+  returns approved or revise with numbered, actionable remarks.
 consumes:
   - { port: draft, type: requirements@v1, about: "the requirements draft to judge; you never edit it" }
   - { port: extracts, type: collection<extract@v1>, untrusted: true, about: "one extract per input document, made by the source processor; each row carries its Source cell (document, locator, short quote), which is what you check claims and quotes against" }

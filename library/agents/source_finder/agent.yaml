@@ -1,11 +1,9 @@
 name: source_finder
 version: 1
 description: >
-  Finds and captures source material for a research brief: searches the web,
-  reads what it finds, and saves each worthwhile source as its own file. The
-  agent of a `discover` node (SPEC §20) — it writes ONE directory and the engine
-  turns that directory into the source collection, so the agent never produces a
-  collection itself (I6).
+  Finds and captures source material for a research brief: searches the web, reads what it
+  finds, and saves each worthwhile source as its own file. It writes one directory per aspect;
+  the script lists that directory, so the agent never produces a collection itself.
 consumes:
   - { port: brief, type: brief@v1, about: "the assignment: subject, reader, language, length, what must be covered and what must stay out; the task names the one aspect you search for" }
 produces:

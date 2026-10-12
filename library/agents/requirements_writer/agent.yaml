@@ -1,10 +1,9 @@
 name: requirements_writer
 version: 1
 description: >
-  Synthesizes a single requirements document from the collection of per-source
-  extracts. The body agent of the Extract pipeline's refine loop: it drafts the
-  document, a critic reviews it, and on 'revise' it drafts again (loop is Phase
-  1; the contract is stable now).
+  Synthesizes a single requirements document from the collection of per-source extracts.
+  The writer of the requirements rounds in requirements.js: it drafts the document, and on each
+  revise it answers every numbered remark fixed, declined or needs_context.
 consumes:
   - { port: extracts, type: collection<extract@v1>, untrusted: true, about: "one extract per input document, made by the source processor; each row carries its Source cell (document, locator, short quote), which is what you check claims and quotes against" }
   # the client's words, ranked concerns, weights and vocabulary (client-voice); present once written

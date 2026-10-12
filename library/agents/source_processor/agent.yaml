@@ -1,9 +1,9 @@
 name: source_processor
 version: 1
 description: >
-  Processes one source document (transcript, RFP, PDF, notes, spreadsheet) into
-  a structured extract@v1. The per-item worker of the Extract pipeline: the
-  engine fans it out over the scanned source collection via a map node (§10.3).
+  Processes one source document (transcript, RFP, PDF, notes, spreadsheet) into a
+  structured extract@v1. The per-document worker of requirements.js: the script runs one per
+  input document, in parallel.
 consumes:
   - { port: source, type: source@v1, untrusted: true, about: "the one input document you turn into an extract" }
   - { port: images, type: "collection<image@v1>", optional: true, untrusted: true, about: "a folder of images that belong to this document, such as screen frames of a recorded call; read every image and record what it shows that the text does not" }

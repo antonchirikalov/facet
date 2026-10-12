@@ -1,6 +1,6 @@
 ---
 name: solution-designer
-description: 'Produces a solution design from a requirements document. Serves two roles in the Solution Design pipeline: a map_over candidate generator (one design per model) and the body of a refine loop (improving the selected design). The optional draft input is the prior design to improve; when absent, it designs from scratch.'
+description: 'Produces a technical design from a requirements document to the profile of its type (solution-design or ai-solution). The writer of the rounds in design.js: the optional draft input is the prior design to improve; when absent, it designs from scratch.'
 tools: Read, Write, Edit, mcp__tavily-remote
 mcpServers:
 - tavily-remote
