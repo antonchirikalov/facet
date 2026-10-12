@@ -499,7 +499,16 @@ const skipped = []
     log(`[intake/skip] ${rel}: ${why}`)
   }
   const listed = new Set(files.map((f) => f.path))
-  const kindOf = new Map(files.map((f) => [f.path, f.kind]))
+  // The kind is guessed from the name; on one live run a client's "Technical Market Summary" was
+  // called ours for the word "summary", and every row resting on it became our assumption.
+  // config.kinds is the person's word on it: { "<path under inputs/>": "client" | "ours" }.
+  const KINDS = cfg.kinds || {}
+  for (const [rel, kind] of Object.entries(KINDS)) {
+    if (!['client', 'ours'].includes(kind)) throw new Error(`config.kinds[${rel}] is "client" or "ours"; got ${kind}`)
+    if (!files.some((f) => f.path === rel)) throw new Error(`config.kinds names ${rel}, which is not in ${INPUTS_DIR}`)
+  }
+  const kindOf = new Map(files.map((f) => [f.path, KINDS[f.path] || f.kind]))
+  for (const rel of Object.keys(KINDS)) log(`[intake/kind] ${rel}: ${KINDS[rel]} (config.kinds)`)
 
   // A byte-identical copy names another file of the inventory; it is read once.
   const unique = files.filter((f) => {
@@ -1454,7 +1463,9 @@ const records = [
   ...(writeOpen ? [UNRESOLVED_PATH] : []),
   ...(missingInput.length ? [MISSING_INPUT_PATH] : []),
 ]
-const recordList = records.map((r) => `${tool('gate')} --file "${r}" --min-length 50 ${noted('record on disk')}`)
+// The last commands of the stage: each releases the directory, so the audit's release is not
+// followed by a working line and the next stage, launched at once, does not find the run busy.
+const recordList = records.map((r) => `${tool('gate')} --file "${r}" --min-length 50 --log-release ${noted('record on disk')}`)
 const recorded = await call(commands(recordList), {
   agentType: 'gate-runner',
   model: MODELS.gate,

@@ -60,3 +60,16 @@ def test_missing_and_late_pains_are_named() -> None:
 def test_a_pain_map_without_rows_is_a_problem() -> None:
     problems, _ = pain_coverage.check("## 1. Pains\nnothing\n", "## 1. x\n", 3, r"^##\s+5\.")
     assert any("declares no" in p for p in problems)
+
+
+def test_straight_quotes_with_attribution_are_traced() -> None:
+    """One live pain map quoted every row in straight quotes; none was traced and all 12 failed."""
+    pains = (
+        "## 1. Pains, most important first\n"
+        "| ID | The pain in their words | Who feels it |\n| --- | --- | --- |\n"
+        '| P-01 | "the front desk retypes every visit" (owner, call 00:07:42) | front desk |\n'
+    )
+    doc = proposal("The front desk retypes every visit, and that stops here.", "")
+    problems, measures = pain_coverage.check(pains, doc, 3, r"^##\s+5\.")
+    assert problems == []
+    assert measures["answered"] == 1

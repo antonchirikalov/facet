@@ -28,7 +28,7 @@ import sys
 from pathlib import Path
 
 import toollog
-from check_quotes import QUOTE, SPLIT, normalise
+from check_quotes import ATTRIBUTED_STRAIGHT, QUOTE, SPLIT, normalise
 
 ROW_ID = re.compile(r"^(P|WR)-\d{2}\b")
 MIN_QUOTE = 15
@@ -47,7 +47,10 @@ def pain_rows(pains: str) -> list[tuple[str, list[str]]]:
         if not m or m.group(0) in seen:
             continue
         seen.add(m.group(0))
-        rows.append((m.group(0), QUOTE.findall(line)))
+        # A pain map that quotes with straight quotes and an attribution is read as check_quotes
+        # reads it; on one live run every row was so quoted and none was traced.
+        quotes = QUOTE.findall(line) + [q for q, _ in ATTRIBUTED_STRAIGHT.findall(line)]
+        rows.append((m.group(0), quotes))
     return rows
 
 

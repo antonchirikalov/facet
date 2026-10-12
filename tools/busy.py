@@ -47,6 +47,10 @@ from pathlib import Path
 import toollog
 
 OWN_TOOL = "busy"
+# The start checks of a launch ask what is on disk; they do no work in the directory. A launch
+# refused as busy had already written them, and each retry kept the directory busy ten more
+# minutes on one live run.
+START_NOTE = "start:"
 
 
 def last_activity(log: Path) -> tuple[datetime | None, bool, list[str]]:
@@ -58,7 +62,8 @@ def last_activity(log: Path) -> tuple[datetime | None, bool, list[str]]:
     is exactly what a half-written log looks like.
 
     Returns the time, whether that line released the directory, and any problems reading. The
-    check's own receipts are skipped: a question about the directory is not work in it.
+    check's own receipts and the start checks of a launch are skipped: a question about the
+    directory is not work in it.
     """
     if not log.is_file():
         return None, False, []
@@ -72,6 +77,8 @@ def last_activity(log: Path) -> tuple[datetime | None, bool, list[str]]:
         except json.JSONDecodeError:
             continue
         if not isinstance(record, dict) or record.get("tool") == OWN_TOOL:
+            continue
+        if str(record.get("note") or "").startswith(START_NOTE):
             continue
         at = record.get("at")
         if not isinstance(at, str):

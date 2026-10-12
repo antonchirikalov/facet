@@ -17,20 +17,20 @@
    "slug": "revision-round",
    "caption": "One revision round",
    "file": "revision-round.png",
-   "run_dir": "docs-runs/readme-figures-20261004-151203/figures-work/run_20261004_151229_4e6172",
-   "chosen": "candidates/cand_1/final_output.png",
-   "command": "\"$PAPERBANANA_BIN\" generate --input docs-runs/readme-figures-20261004-151203/figures-work/brief-revision-round.txt --caption \"One revision round\" --output-dir $W --auto --max-iterations 3 --num-candidates 3 --vlm-provider claude_code --vlm-model sonnet --critic-vlm-provider kimi --critic-vlm-model k3 --image-provider ss_gateway --aspect-ratio 16:9 --save-prompts > $W/logs/revision-round.log 2>&1",
-   "judged_by": "kimi/k3 for the first iterations, claude_code/sonnet after Kimi PermissionDenied",
+   "run_dir": "docs-runs/readme-figures-20261012-155423/figures-work/run_20261012_155458_1464cd",
+   "chosen": "candidates/cand_2/final_output.png",
+   "command": "\"$PAPERBANANA_BIN\" generate --input docs-runs/readme-figures-20261012-155423/figures-work/brief-revision-round.txt --caption \"One revision round\" --output-dir $W --auto --max-iterations 3 --num-candidates 3 --vlm-provider claude_code --vlm-model sonnet --critic-vlm-provider kimi --critic-vlm-model k3 --image-provider ss_gateway --aspect-ratio 16:9 --save-prompts > $W/logs/revision-round.log 2>&1",
+   "judged_by": "claude_code/sonnet (Kimi quota exhausted); chosen by hand: cand_1 tied the outputs to the critic, cand_3 printed layout coordinates",
    "status": "ok"
   },
   {
    "slug": "pipeline-requirements",
    "caption": "requirements.js: nothing lost on the way",
    "file": "pipeline-requirements.png",
-   "run_dir": "docs-runs/readme-figures-20261004-151203/figures-work/run_20261004_151229_0a397b",
-   "chosen": "candidates/cand_2/final_output.png",
-   "command": "\"$PAPERBANANA_BIN\" generate --input docs-runs/readme-figures-20261004-151203/figures-work/brief-pipeline-requirements.txt --caption \"requirements.js: nothing lost on the way\" --output-dir $W --auto --max-iterations 3 --num-candidates 3 --vlm-provider claude_code --vlm-model sonnet --critic-vlm-provider kimi --critic-vlm-model k3 --image-provider ss_gateway --aspect-ratio 16:9 --save-prompts > $W/logs/pipeline-requirements.log 2>&1",
-   "judged_by": "kimi/k3 for the first iterations, claude_code/sonnet after Kimi PermissionDenied; cand_1 and cand_3 rejected by hand: the outcome.md arrow leaves the fact-checker",
+   "run_dir": "docs-runs/readme-figures-20261012-155423/figures-work/run_20261012_162238_c2bdf1",
+   "chosen": "candidates/cand_1/final_output.png",
+   "command": "\"$PAPERBANANA_BIN\" generate --input docs-runs/readme-figures-20261012-155423/figures-work/brief-pipeline-requirements.txt --caption \"requirements.js: nothing lost on the way\" --output-dir $W --auto --max-iterations 3 --num-candidates 3 --vlm-provider claude_code --vlm-model sonnet --critic-vlm-provider kimi --critic-vlm-model k3 --image-provider ss_gateway --aspect-ratio 16:9 --save-prompts > $W/logs/pipeline-requirements.log 2>&1",
+   "judged_by": "claude_code/sonnet (Kimi quota exhausted); chosen by hand on the third brief: earlier candidates merged the extracts and client-voice arrows into the writer or started 'accepted' at the gate. The unlabelled critic -> writer arrow is kept: MAJOR remarks reach the writer without a vote",
    "status": "ok"
   }
  ],

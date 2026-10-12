@@ -234,3 +234,29 @@ def test_receipt_goes_to_its_own_log(
     )
     line = json.loads(receipt.read_text(encoding="utf-8").splitlines()[0])
     assert line["tool"] == "busy"
+
+
+def test_final_record_checks_release_the_run() -> None:
+    """The record checks run after the releasing audit; a plain line there left the run busy.
+
+    On one live run the proposal, launched right after its requirements, was refused for ten
+    minutes: the last lines of the requirements log were the record checks, not the release.
+    """
+    root = Path(__file__).resolve().parent.parent / ".claude" / "workflows"
+    for script in sorted(root.glob("*.js")):
+        for line in script.read_text(encoding="utf-8").splitlines():
+            if "record on disk" in line:
+                assert "--log-release" in line, f"{script.name}: {line.strip()}"
+
+
+def test_start_checks_are_not_work(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A launch refused as busy wrote its start checks; they must not make the next retry busy."""
+    log = log_of(
+        tmp_path,
+        {"at": "2026-08-16T15:00:00+03:00", "tool": "listing", "release": True},
+        {"at": "2026-08-16T15:29:00+03:00", "tool": "gate", "note": "start: requirements"},
+    )
+    report, _ = run(capsys, monkeypatch, "--file", str(log), "--now", NOW)
+    assert report["busy"] is False

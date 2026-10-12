@@ -990,7 +990,9 @@ const records = [
   ...(writeOpen ? [UNRESOLVED_PATH] : []),
   ...(missingInput.length ? [MISSING_INPUT_PATH] : []),
 ]
-const recordList = records.map((r) => `${tool('gate')} --file "${r}" --min-length 50 ${noted('record on disk')}`)
+// The last commands of the stage: each releases the directory, so the audit's release is not
+// followed by a working line and the next stage, launched at once, does not find the run busy.
+const recordList = records.map((r) => `${tool('gate')} --file "${r}" --min-length 50 --log-release ${noted('record on disk')}`)
 const recorded = await call(commands(recordList), { agentType: 'gate-runner', model: MODELS.gate, label: 'records', phase: 'Report', schema: CHECKS })
 const recordChecks = (recorded && recorded.checks) || []
 const missingRecords = recordChecks.length === records.length ? records.filter((r, i) => !recordChecks[i].ok) : records
