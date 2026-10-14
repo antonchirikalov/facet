@@ -77,6 +77,11 @@ let CRITIC_NAME = critic === 'none' ? 'claude_code sonnet (no separate critic)' 
 // because continuing regenerates the whole picture from text and breaks what was already right.
 // Fresh runs with three candidates were what converged.
 const CANDIDATES = (args && args.candidates) || 3
+// The ss_gateway image backend: "openai" is gpt-image-2, "google" is Gemini 3 Pro Image.
+const IMAGE_BACKEND = (args && args.imageBackend) || 'openai'
+if (!['openai', 'google'].includes(IMAGE_BACKEND)) {
+  throw new Error(`args.imageBackend is "openai" or "google"; got: ${IMAGE_BACKEND}`)
+}
 // One look for every figure of a document. Passed into every brief, so figures drawn in
 // different runs still look like one set.
 const STYLE =
@@ -281,6 +286,10 @@ const ENV_BLOCK =
   `export TEMP="$TMPDIR"\n` +
   `export TMP="$TMPDIR"\n` +
   `export KIMI_BASE_URL="\${KIMI_BASE_URL:-https://api.kimi.com/coding/v1}"\n` +
+  // The gateway's image backend is set here, not inherited: the session settings carried
+  // SS_GATEWAY_BACKEND=google, and one live run drew every figure with Gemini while gpt-image-2
+  // was the one wanted. args.imageBackend picks it; "openai" means gpt-image-2.
+  `export SS_GATEWAY_BACKEND="${IMAGE_BACKEND}"\n` +
   // The key from the user environment, not the session's copy: a session keeps the environment it
   // started with, and on 28.09 it still carried a replaced key that answered 401 while the one in
   // the registry worked. Never printed.
