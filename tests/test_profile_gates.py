@@ -46,3 +46,15 @@ def test_every_profile_a_script_names_has_a_gate_block() -> None:
         flags, problems = gate.profile_flags(profile)
         assert not problems, problems
         assert flags, f"{doc_type}-profile has an empty gate block"
+
+
+# Profiles whose stage is not built yet: no script names them, so the test above cannot see them.
+AHEAD_OF_SCRIPTS = ["value-map"]
+
+
+def test_profiles_ahead_of_their_scripts_have_a_gate_block() -> None:
+    for doc_type in AHEAD_OF_SCRIPTS:
+        profile = ROOT / ".claude" / "skills" / f"{doc_type}-profile" / "SKILL.md"
+        flags, problems = gate.profile_flags(profile)
+        assert not problems, problems
+        assert flags, f"{doc_type}-profile has an empty gate block"

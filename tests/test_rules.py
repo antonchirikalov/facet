@@ -43,7 +43,7 @@ def test_a_sentence_starting_with_a_severity_word_is_not_a_tier() -> None:
 
 
 def test_real_profiles_have_top_rules() -> None:
-    for name in ("requirements", "solution-design", "proposal"):
+    for name in ("requirements", "solution-design", "proposal", "value-map"):
         text = (ROOT / ".claude" / "skills" / f"{name}-profile" / "SKILL.md").read_text(
             encoding="utf-8"
         )
