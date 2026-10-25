@@ -2,16 +2,20 @@
 # line, "#" starts a comment. Matched outside code, case-insensitive, by tools/value_model.py.
 #
 # The value map gives the build budget that would pay back, never what the build costs: a price
-# depends on a team, rates and a contract this pipeline does not know. The client's loaded cost
-# of an hour ($40/h) is a value input and is not matched: every pattern needs our work, a team or
-# a project next to the number.
+# depends on a team, rates and a contract this pipeline does not know. The client's own figures
+# are value inputs and must not match: the loaded cost of an hour ($28/h, "loaded hourly rate"),
+# a top-down baseline from their staff ("a front desk team of 6", "600 person-hours a month at
+# reception"). So every pattern needs our work next to the number: our, we, a vendor, or the
+# project, the build, development or implementation.
 
 \b(?:project|build|development|implementation)\s+(?:cost|price|estimate|fee)s?\b\s*(?:is|of|:|=|at|—|-)?\s*(?:about\s+|roughly\s+|~\s*)?[$€£₽]?\s*\d
-\b\d[\d,.\s]*\s*(?:person|man|engineer|developer)[- ]?(?:hours?|days?|weeks?|months?)\b
-\b(?:our|hourly|daily|day|blended)\s+rates?\b
-\bteam\s+of\s+\d+
-\b\d+\s+(?:engineers|developers)\b
+\b(?:our|we|vendor|project|build|development|implementation)\b[^.|\n]{0,40}?\b\d[\d,.]*\s*(?:person|man|engineer|developer)[- ]?(?:hours?|days?|weeks?|months?)\b
+\b\d[\d,.]*\s*(?:person|man|engineer|developer)[- ]?(?:hours?|days?|weeks?|months?)\s+(?:of|for|to)\s+(?:development|build|building|implementation|the\s+project|our\s+work)
+\b(?:our|vendor|developer|engineering|blended)\s+(?:hourly\s+|daily\s+|day\s+)?rates?\b
+\b(?:our|delivery|development|project|vendor)\s+team\s+of\s+\d+
+\b(?:we|our)\b[^.|\n]{0,30}?\b\d+\s+(?:engineers|developers)\b
 стоимост\w*\s+(?:проекта|разработки|внедрения)\s*[:—=-]?\s*\d
-человеко[- ]?(?:час|дн|ден|недел|месяц)\w*
-ставк\w*\s+(?:разработчик|команд|инженер)\w*
-команд\w*\s+из\s+\d+
+(?:наш\w*|разработк\w*|внедрени\w*|проект\w*)[^.|\n]{0,40}?\d[\d\s,.]*\s*человеко[- ]?(?:час|дн|ден|недел|месяц)\w*
+\d[\d\s,.]*\s*человеко[- ]?(?:час|дн|ден|недел|месяц)\w*\s+(?:на\s+)?(?:разработк|внедрени|проект)\w*
+ставк\w*\s+(?:наш|разработчик|подрядчик)\w*
+наш\w*\s+команд\w*\s+из\s+\d+

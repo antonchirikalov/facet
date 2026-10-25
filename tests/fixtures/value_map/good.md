@@ -53,8 +53,8 @@ The assistant books, moves and cancels appointments for the three Acme Clinics s
 
 | Case | What changes | Net (formula) | Budget 12 (formula) | Budget 24 (formula) |
 |---|---|---|---|---|
-| Volume halved | calls and no-shows halve; tokens halve | ($20,250/month + $3,360/month) × 50% − $992/month = $10,813/month | $10,813/month × 12 month = $129,756 | $10,813/month × 24 month = $259,512 |
-| Review share doubled | front desk review doubles | $20,250/month + $3,360/month − $1,344/month = $22,266/month | $22,266/month × 12 month = $267,192 | $22,266/month × 24 month = $534,384 |
+| Volume halved | calls and no-shows halve; tokens halve | ($20,250/month + $3,360/month) × 50% − ($144/month × 50% + $400/month + $280/month + $240/month) = $10,813/month | $10,813/month × 12 month = $129,756 | $10,813/month × 24 month = $259,512 |
+| Review share doubled | front desk review doubles | $20,250/month + $3,360/month − ($144/month + $400/month + $280/month × 2 + $240/month) = $22,266/month | $22,266/month × 12 month = $267,192 | $22,266/month × 24 month = $534,384 |
 | Accuracy SLA missed | 5% of online bookings need 10 minutes of rework | $22,546/month − 6,000 calls/month × 60%* × 5%* × 10* min × $28/h = $21,706/month | $21,706/month × 12 month = $260,472 | $21,706/month × 24 month = $520,944 |
 
 ## 8. Verdict

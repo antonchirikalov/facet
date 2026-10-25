@@ -18,7 +18,8 @@ What it reads, by section number and by column position (headers may be translat
 - section 5, Run cost: each driver against its monthly cost;
 - section 6, Net value: the keys hard, soft, run, net, budget-12 and budget-24 against what
   sections 4 and 5 add up to;
-- section 7, Sensitivity: each case's formulas, its budgets against its net, at least three cases;
+- section 7, Sensitivity: each case's formulas, its net built from traced numbers (50% and 2
+  halve and double), its budgets against its net, at least three cases;
 - section 9, Assumption map: a range wider than --max-ratio is a warning, for the critic to judge
   against its plan to narrow it.
 
@@ -523,7 +524,8 @@ def measure(text: str, max_ratio: float = 3.0, pain_ids: set[str] | None = None)
     assumed: set[float] = set()
     for row in s9:
         assumed |= written_numbers(cell(row, 2))
-    sourced: set[float] = set(assumed) | {1.0, 100.0}
+    # 1 and 100% are the whole; 50% and 2 are the halving and doubling of the sensitivity cases.
+    sourced: set[float] = set(assumed) | {1.0, 100.0, 50.0, 2.0}
     for row in s2:
         sourced |= written_numbers(cell(row, 3))
     for row in s3:
@@ -580,8 +582,8 @@ def measure(text: str, max_ratio: float = 3.0, pain_ids: set[str] | None = None)
         now = r.check(f"{vid} now", cell(row, 3)) if "=" in cell(row, 3) else None
         with_ = r.check(f"{vid} with the solution", cell(row, 4)) if "=" in cell(row, 4) else None
         gain_cell = cell(row, 5)
-        if not re.search(r"\d", gain_cell):
-            continue  # "not valued", with its reason
+        if "=" not in gain_cell and not any(n.currency for n in numbers_of_safe(gain_cell)):
+            continue  # "not valued", with its reason, which may hold a number of its own
         gain = r.check(f"{vid} monthly gain", gain_cell) if "=" in gain_cell else None
         for f, name in ((now, "now"), (with_, "with the solution"), (gain, "monthly gain")):
             if f is not None:
@@ -704,6 +706,8 @@ def measure(text: str, max_ratio: float = 3.0, pain_ids: set[str] | None = None)
             continue
         cases += 1
         net7 = r.check(f"case {name!r} net", cell(row, 2))
+        if net7 is not None:
+            traced.append((f"case {name!r} net", net7.numbers))
         b12 = r.check(f"case {name!r} budget 12", cell(row, 3))
         b24 = r.check(f"case {name!r} budget 24", cell(row, 4))
         if net7 is None:

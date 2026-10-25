@@ -191,7 +191,7 @@ FAILURES = [
     ),
     pytest.param(
         "## 8. Verdict\n",
-        "## 8. Verdict\n\nA team of 4 builds it in 1,200 person-hours.\n",
+        "## 8. Verdict\n\nWe build it with a team of 4 in 1,200 person-hours.\n",
         "a project price, a rate or hours of our work",
         id="hours-of-our-work",
     ),
@@ -276,3 +276,63 @@ def test_cli_writes_the_report_and_names_a_missing_file(tmp_path: Path) -> None:
         check=True,
     )
     assert json.loads(missing.stdout)["problems"][0].startswith("file missing")
+
+
+CLIENT_BASELINE_ROWS = (
+    "| Front desk staff time | hours a month | 960 h/month | staffing table | a front desk team of 6"
+    " × 160 h; 600 person-hours a month at reception; loaded hourly rate $28 | medium |\n"
+    "| Время ресепшена | часы в месяц | 960 ч/мес | штатное расписание | команда ресепшена из 6"
+    " человек, 600 человеко-часов в месяц | medium |\n"
+)
+
+
+def test_the_clients_own_staff_figures_are_not_our_price() -> None:
+    """A top-down baseline speaks of the client's team and hours; only our work is a price."""
+    anchor = "| Average visit price |"
+    doc = changed(anchor, CLIENT_BASELINE_ROWS.rstrip("\n") + "\n" + anchor)
+    problems = value_model.measure(doc)["problems"]
+    assert not any("project price" in p for p in problems), problems
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "Our team of 4 builds it.",
+        "It takes 1,200 person-hours of development.",
+        "We would staff 3 developers.",
+        "Our blended rate applies.",
+        "Наша команда из 4 человек.",
+        "Это 1 200 человеко-часов на разработку.",
+    ],
+)
+def test_our_team_hours_and_rates_are_a_price(sentence: str) -> None:
+    doc = changed("## 8. Verdict\n", f"## 8. Verdict\n\n{sentence}\n")
+    assert any("project price" in p for p in value_model.measure(doc)["problems"]), sentence
+
+
+def test_a_not_valued_reason_may_hold_a_number() -> None:
+    doc = changed(
+        "not valued: the material gives no figure for a patient lost to a late answer",
+        "not valued: the material gives no figure for the 3 sites",
+    )
+    assert value_model.measure(doc)["problems"] == []
+
+
+def test_a_plain_money_gain_is_not_a_formula() -> None:
+    doc = changed(
+        "| $16,800/month − $8,400/month = $8,400/month |",
+        "| $8,400/month |",
+    )
+    assert (
+        "V-01: the monthly gain is not a formula: $8,400/month"
+        in (value_model.measure(doc)["problems"])
+    )
+
+
+def test_a_sensitivity_case_starts_from_traced_numbers() -> None:
+    doc = changed(
+        "− ($144/month + $400/month + $280/month × 2 + $240/month) = $22,266/month",
+        "− $1,344/month = $22,266/month",
+    )
+    problems = value_model.measure(doc)["problems"]
+    assert "case 'Review share doubled' net: 1344 has no source and no star" in problems
