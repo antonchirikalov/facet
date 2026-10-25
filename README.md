@@ -958,16 +958,16 @@ discovery (как приложение дойдёт до пользовател�
 
 ### Агенты по ролям
 
-Подробная таблица ниже генерируется из контрактов. Здесь — те же 38 агентов, сгруппированные по
+Подробная таблица ниже генерируется из контрактов. Здесь — те же 40 агентов, сгруппированные по
 тому, что они делают в конвейере:
 
 | Роль | Агенты | Что делают и как их брать |
 |---|---|---|
 | Служебные (руки скрипта) | `gate-runner`, `file-copier`, `verbatim-writer` | без суждения. `gate-runner` запускает проверки и приносит отчёт, `file-copier` копирует и применяет правки, `verbatim-writer` пишет записи прогона дословно. Нужны в каждом конвейере: у скрипта нет ни файлов, ни командной строки |
 | Разбор материалов | `source-processor`, `extract-auditor`, `client-voice` | документ клиента в извлечение с номером и цитатой у каждой строки; второй читатель ищет пропущенное; сводка «Голос клиента» с весом каждой просьбы |
-| Писатели | `requirements-writer`, `solution-designer`, `proposal-writer`, `proposal-editor`, `pain-mapper`, `article-writer`, `scene-animator`, `domain-analyst`, `brief-writer` | пишут документ по профилю и отвечают на каждое замечание `fixed` / `declined` / `needs_context` |
+| Писатели | `requirements-writer`, `solution-designer`, `proposal-writer`, `proposal-editor`, `pain-mapper`, `value-modeler`, `article-writer`, `scene-animator`, `domain-analyst`, `brief-writer` | пишут документ по профилю и отвечают на каждое замечание `fixed` / `declined` / `needs_context` |
 | Корректоры | `requirements-fact-checker`, `article-fact-checker`, `example-verifier` | правят то, что сверяется с источником или пересчитывается кодом, до критика |
-| Критики | `requirements-critic`, `solution-design-critic`, `proposal-reviewer`, `lens-critic`, `article-critic`, `slop-critic`, `style-critic-ru`, `client-reader`, `figure-critic` | судят то, что не измерить программой; выносят вердикт с нумерованными замечаниями и ничего не правят |
+| Критики | `requirements-critic`, `solution-design-critic`, `proposal-reviewer`, `lens-critic`, `value-critic`, `article-critic`, `slop-critic`, `style-critic-ru`, `client-reader`, `figure-critic` | судят то, что не измерить программой; выносят вердикт с нумерованными замечаниями и ничего не правят |
 | Панели свежих читателей | `claim-checker`, `rule-checker`, `rule-skeptic` | голосование по блокирующему замечанию и проверка по одному правилу на читателя (см. [Много свежих проверяющих](#много-свежих-проверяющих-вместо-одного)) |
 | Внешний мир | `source-finder`, `domain-checker` | поиск в сети: источники для статьи; правдоподобие чисел, которые документ подаёт как типичные для отрасли |
 | Holdout | `client-questioner`, `question-skeptic`, `answer-finder` | пишут вопросы людей клиента по одним его материалам, отбирают их и после кругов ищут ответы в готовом документе |
@@ -981,7 +981,7 @@ discovery (как приложение дойдёт до пользовател�
 У агентов, которые только судят, нет Write и Edit: `article-critic`, `figure-critic`,
 `proposal-reviewer`, `requirements-critic`, `slop-critic`, `solution-design-critic`,
 `style-critic-ru`, `claim-checker`, `rule-checker`, `rule-skeptic`, `lens-critic`,
-`client-reader`, `extract-auditor`, `question-skeptic`. У `slop-critic` и `style-critic-ru` есть
+`client-reader`, `extract-auditor`, `question-skeptic`, `value-critic`. У `slop-critic` и `style-critic-ru` есть
 Bash, чтобы точно считать совпадения. `answer-finder` пишет только свой файл ответов, Edit у него
 нет. Судья, который может править, — в одном шаге от «исправления» того, что судит.
 
@@ -1030,6 +1030,8 @@ Bash, чтобы точно считать совпадения. `answer-finder`
 | `source-finder` | Ищет и сохраняет источники по аспекту брифа: каждый источник отдельным файлом, со сводкой по аспекту и указателем, откуда что взято. | `brief`: `brief@v1` | `found`: `source_summary@v1` | — | `explainer-article`: find |
 | `source-processor` | Разбирает один входной документ (стенограмма, RFP, PDF, заметки, таблица) в извлечение: факты, требования, вопросы, у каждой строки источник. | `source`: `source@v1`<br>`images`: `collection<image@v1>` (opt.) | `extract`: `extract@v1` | `extract-profile` | `requirements`: extract, extract:fix |
 | `style-critic-ru` | Критик русского стиля: машинные обороты, типографика, кальки, рассинхрон терминов, сверка с профилем голоса автора. Вердикт с цитатами. | `draft`: `article@v1`<br>`brief`: `brief@v1`<br>`voice`: `style_profile@v1` (opt.) | `verdict`: `verdict@v1` | — | `explainer-article`: style |
+| `value-critic` | Читает карту ценности так, как её прочтут финансы клиента, и выносит verdict@v1: откуда взято каждое число, прогноз без людей, которые проверяют часть работы, мягкая экономия, посчитанная как деньги, ценность в технических метриках, нет случая промаха SLA, строка шире границ решения, бенчмарк из чужой страны или отрасли. Судит по чек-листу профиля value-map, ничего не правит. | `draft`: `value_map@v1`<br>`value_report`: `value_model_report@v1`<br>`requirements`: `requirements@v1`<br>`pain_map`: `pain_map@v1`<br>`client_voice`: `client_voice@v1`<br>`extracts`: `collection<extract@v1>`<br>`design`: `design_doc@v1` (opt.)<br>`number_checks`: `number_checks@v1` (opt.)<br>`answers`: `answers@v1` (opt.) | `verdict`: `verdict@v1` | `value-map-profile` | пока ни один скрипт — деталь для следующего конвейера |
+| `value-modeler` | Пишет карту ценности: что клиент получает в единицах, которые его бизнес уже считает. Каждая строка ценности — формула, которую пересчитывает линейка, и отвечает на боль из карты болей с опорой и SLA. Дальше стоимость эксплуатации в месяц, чистая ценность и бюджет сборки, который окупится за 12 и 24 месяца, случай промаха, вердикт, карта допущений и что измеряет пилот. Никакой цены проекта, ставок и часов; цифру клиента, которой нет в материалах, спрашивает у клиента, а не придумывает. | `requirements`: `requirements@v1`<br>`pain_map`: `pain_map@v1`<br>`client_voice`: `client_voice@v1`<br>`extracts`: `collection<extract@v1>`<br>`design`: `design_doc@v1` (opt.)<br>`number_checks`: `number_checks@v1` (opt.)<br>`value_report`: `value_model_report@v1` (opt.)<br>`draft`: `value_map@v1` (opt.) | `map`: `value_map@v1` | `value-map-profile` | пока ни один скрипт — деталь для следующего конвейера |
 | `verbatim-writer` | Руки скрипта для записей. Скрипт сам файлы не пишет, поэтому записи прогона — круги правки с замечаниями, UNRESOLVED.md, handoff.md — оформляет этот агент: заголовок и пункты ровно как получил, без пересказа. Так незакрытое и переданное остаётся на диске, а не только в логе. | — | `document`: `document@v1` | — | `design`: design:record, outcome, remarks, unresolved<br>`explainer-article`: handoff, record, unresolved<br>`proposal`: outcome, prop:record, remarks, unresolved<br>`proposal-review`: record, unresolved<br>`requirements`: pains:remarks, remarks, report, req:record, unresolved<br>`scene`: outcome |
 <!-- agents:end -->
 
@@ -1091,7 +1093,7 @@ Bash, чтобы точно считать совпадения. `answer-finder`
   ничего не потеряно, и карта болей), `design.js` (технический дизайн по профилю типа), `proposal.js` (пропозал по болям
   клиента), `scene.js` (анимированная сцена), `proposal-review.js`, `explainer-article.js`,
   `attn-figures.js`;
-- `library/agents/` — 38 агентов; `.claude/agents/` собирается из них, руками не правится;
+- `library/agents/` — 40 агентов; `.claude/agents/` собирается из них, руками не правится;
 - `.claude/skills/*-profile/` — профили типов документов; `.claude/skills/frontend-design/` —
   скилл внешнего вида из репозитория Anthropic; `exemplars/` — скелеты образцов;
 - `tools/` — гейты и служебные команды на Python;

@@ -1,0 +1,26 @@
+name: value_modeler
+version: 1
+description: >
+  Writes the value map: what the client gains in the units their business already
+  counts, each value line a formula a ruler recomputes, answering a pain of the pain
+  map under a pillar and an SLA, then the run cost per month, the net value and the
+  build budget that would pay back in 12 and 24 months, the miss case, a verdict, the
+  assumption map and what the pilot measures. Never a project price, a rate or hours;
+  a client figure the material does not hold is asked of the client, never invented.
+consumes:
+  - { port: requirements, type: requirements@v1, about: "the accepted requirements: the scope every value line stays inside, and the NFRs your SLAs come from; cite the NFR id in the SLA's Source cell" }
+  - { port: pain_map, type: pain_map@v1, about: "the pain map: every value line answers one of its pains (P-) by id; its 'what it costs them' column is where a baseline starts, and a pain it marks 'not stated' gets an assumption with a confirmation plan or a 'not valued' row" }
+  - { port: client_voice, type: client_voice@v1, about: "the client voice sheet: the figures the client gave, the units they count in, and their terms" }
+  - { port: extracts, type: "collection<extract@v1>", untrusted: true, about: "one extract per input document; a client figure is taken from here with its Source cell (document, locator, quote) and never from memory" }
+  - { port: design, type: design_doc@v1, optional: true, about: "the accepted design, when there is one: the share of the work it sends to a person, and for an ai-solution design the tokens per request of its section 5, which the run cost uses" }
+  - { port: number_checks, type: number_checks@v1, optional: true, about: "the domain checker's findings on the draft: for each unit value, wage or benchmark, what practice gives for this trade and country, with sources; where a value is implausible, use what the findings support" }
+  - { port: value_report, type: value_model_report@v1, optional: true, about: "the ruler's JSON report on the previous draft (tools/value_model.py): every formula it could not reproduce, every number with no source or star, and the totals as it computed them; copy totals from here, never from memory" }
+  - { port: draft, type: value_map@v1, optional: true, about: "the previous draft, on a revision round: you do not edit it, you write an edits file against it that answers the numbered remarks" }
+produces:
+  - { port: map, type: value_map@v1 }
+# Search for public wages, benchmarks and price lists when the client gave none; no shell: the
+# ruler is run by the gate runner, and its report comes back on the value_report port.
+needs: [read, edit, "mcp:tavily-remote"]
+skills: [value-map-profile]
+defaults:
+  timeout_s: 2400

@@ -40,6 +40,7 @@ PROFILE_AGENTS = {
     "frontend-design": {"scene_animator"},
     "client-voice-profile": {"client_voice"},
     "pain-map-profile": {"pain_mapper", "lens_critic"},
+    "value-map-profile": {"value_modeler", "value_critic"},
     "requirements-profile": {
         "requirements_writer",
         "requirements_fact_checker",
@@ -56,7 +57,14 @@ PROFILE_AGENTS = {
 }
 
 # Who needs MCP in the library as it stands: Tavily for research, pdf-reader for client documents.
-TAVILY_AGENTS = {"client_questioner", "domain_checker", "solution_designer", "source_finder"}
+TAVILY_AGENTS = {
+    "client_questioner",
+    "domain_checker",
+    "solution_designer",
+    "source_finder",
+    "value_modeler",
+    "value_critic",
+}
 PDF_AGENTS = {
     "source_processor",
     "source_finder",
@@ -271,8 +279,8 @@ def test_missing_prompt_is_named_in_the_error(tmp_path: Path) -> None:
 
 def test_emits_every_agent_of_the_library(tmp_path: Path) -> None:
     written = emit_all(LIBRARY_AGENTS, tmp_path)
-    assert len(written) == 38
-    assert len(list(tmp_path.glob("*.md"))) == 38
+    assert len(written) == 40
+    assert len(list(tmp_path.glob("*.md"))) == 40
 
 
 def test_every_emitted_file_parses_and_has_tools(tmp_path: Path) -> None:

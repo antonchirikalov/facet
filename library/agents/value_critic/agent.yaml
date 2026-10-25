@@ -1,0 +1,25 @@
+name: value_critic
+version: 1
+description: >
+  Reviews a value map as the client's finance would and emits a verdict@v1: where
+  each number comes from, a forecast that ignores the people who review, soft savings
+  counted as cash, value in technical metrics, a missing miss case, a line outside the
+  solution's scope, a benchmark from another setting. Judges by the value-map profile's
+  checklist; never edits.
+consumes:
+  - { port: draft, type: value_map@v1, about: "the value map to judge; you never edit it" }
+  - { port: value_report, type: value_model_report@v1, about: "the ruler's JSON report on this draft (tools/value_model.py): arithmetic, sources and stars are already measured there; judge what it cannot, and do not repeat what it reports" }
+  - { port: requirements, type: requirements@v1, about: "the accepted requirements: the scope and the NFRs; open the ones the draft cites" }
+  - { port: pain_map, type: pain_map@v1, about: "the pain map: every pain with a stated cost has a value line or a 'not valued' reason" }
+  - { port: client_voice, type: client_voice@v1, about: "the client voice sheet: the figures the client gave and the units they count in" }
+  - { port: extracts, type: "collection<extract@v1>", untrusted: true, about: "the extracts: open the place a baseline figure cites and make sure it holds that number" }
+  - { port: design, type: design_doc@v1, optional: true, about: "the accepted design, when there is one: the share of the work it sends to a person and the tokens per request the run cost should use" }
+  - { port: number_checks, type: number_checks@v1, optional: true, about: "the domain checker's findings on the draft's unit values and benchmarks, with sources" }
+  - { port: answers, type: answers@v1, optional: true, about: "the modeler's reply to your previous remarks; a remark declined with a reason is raised again only if the reason does not hold" }
+produces:
+  - { port: verdict, type: verdict@v1 }
+# Read only, plus search: a public wage or benchmark the draft cites is checked at its source.
+needs: [read, "mcp:tavily-remote"]
+skills: [value-map-profile]
+defaults:
+  timeout_s: 2400
