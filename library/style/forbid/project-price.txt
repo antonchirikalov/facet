@@ -1,0 +1,17 @@
+# A project price, a rate or hours of our work, in a value map or a proposal. One regex per
+# line, "#" starts a comment. Matched outside code, case-insensitive, by tools/value_model.py.
+#
+# The value map gives the build budget that would pay back, never what the build costs: a price
+# depends on a team, rates and a contract this pipeline does not know. The client's loaded cost
+# of an hour ($40/h) is a value input and is not matched: every pattern needs our work, a team or
+# a project next to the number.
+
+\b(?:project|build|development|implementation)\s+(?:cost|price|estimate|fee)s?\b\s*(?:is|of|:|=|at|—|-)?\s*(?:about\s+|roughly\s+|~\s*)?[$€£₽]?\s*\d
+\b\d[\d,.\s]*\s*(?:person|man|engineer|developer)[- ]?(?:hours?|days?|weeks?|months?)\b
+\b(?:our|hourly|daily|day|blended)\s+rates?\b
+\bteam\s+of\s+\d+
+\b\d+\s+(?:engineers|developers)\b
+стоимост\w*\s+(?:проекта|разработки|внедрения)\s*[:—=-]?\s*\d
+человеко[- ]?(?:час|дн|ден|недел|месяц)\w*
+ставк\w*\s+(?:разработчик|команд|инженер)\w*
+команд\w*\s+из\s+\d+

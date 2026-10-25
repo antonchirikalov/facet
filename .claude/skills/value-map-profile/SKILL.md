@@ -220,7 +220,12 @@ exemplars/value-map/ and this note names it.
 - headings ## 1. to ## 10. present, none empty;
 - every row of a table with a Source column has a source (sections 2, 3, 5 and 9);
 - V-, A- and SLA- ids unique and without gaps;
-- no bold, no backticks.
+- no bold, no backticks;
+- every formula, total, budget and sensitivity case reproduced within 1%, every number of a value
+  line sourced or starred, every value line with its pain, pillar and SLA, every soft line with
+  its condition and write-off, at least three sensitivity cases, one currency, and no project
+  price, rate or hours of our work (tools/value_model.py --file <doc> --pains <pain map>; an
+  assumption range wider than --max-ratio, 3 by default, is a warning for the critic).
 
 ## Critic checklist
 
