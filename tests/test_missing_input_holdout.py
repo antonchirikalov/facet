@@ -69,6 +69,7 @@ PROP = {
     "client": "Acme Clinics",
     "config": {"fresh": True, "mediumLimit": 1},
 }
+VALUE = {**PROP, "config": {"stages": ["value"], "fresh": True, "mediumLimit": 1}}
 ANSWER_ALL = {"DRY_ANSWER_ALL": "1", "DRY_ENUM": "needs_context"}
 
 
@@ -81,6 +82,7 @@ ANSWER_ALL = {"DRY_ANSWER_ALL": "1", "DRY_ENUM": "needs_context"}
         ("design.js", "bad", DESIGN, {"DRY_EXISTS_OK": "1"}),
         ("proposal.js", "ok", PROP, {}),
         ("proposal.js", "ok", {**PROP, "config": {"stages": ["text"]}}, {}),
+        ("proposal.js", "ok", VALUE, {}),
     ],
 )
 def test_no_writer_or_critic_is_handed_the_holdout(
@@ -161,6 +163,34 @@ def test_design_records_a_clients_fact_and_tells_the_rule_skeptic(tmp_path: Path
 def test_proposal_records_what_the_inputs_did_not_hold(tmp_path: Path) -> None:
     items, _ = dry(tmp_path, "proposal.js", "ok", PROP, **ANSWER_ALL)
     assert "FILE\ndry/r/prop-content-missing-input.md" in prompt(items, "missing-input")
+
+
+def test_the_value_stage_records_the_client_figures_it_lacks(tmp_path: Path) -> None:
+    # From the first draft on: on the one live probe the first draft alone needed seventeen.
+    items, _ = dry(tmp_path, "proposal.js", "ok", VALUE, **ANSWER_ALL)
+    assert "MISSING CLIENT FIGURES" in prompt(items, "value:write:1")
+    record = prompt(items, "missing-input")
+    assert "FILE\ndry/r/value-missing-input.md" in record
+    assert "a client figure the value map needs — missing:" in record
+
+
+def test_the_value_critic_judges_with_this_rounds_ruler_report(tmp_path: Path) -> None:
+    items, _ = dry(tmp_path, "proposal.js", "ok", VALUE)
+    assert "--json dry/r/rounds/value/ruler-1.json" in prompt(items, "value:ruler:1")
+    assert "value_report: dry/r/rounds/value/ruler-1.json" in prompt(items, "value:critic:1")
+    assert "value_report: dry/r/rounds/value/ruler-1.json" in prompt(items, "value:write:2")
+    assert "value_report: dry/r/rounds/value/ruler-2.json" in prompt(items, "value:critic:2")
+    labels = [p["label"] for p in items]
+    assert labels.index("value:numbers:1") < labels.index("value:critic:1")
+
+
+def test_the_proposal_takes_the_value_map_when_there_is_one(tmp_path: Path) -> None:
+    items, out = dry(tmp_path, "proposal.js", "ok", PROP)
+    assert "value_map: dry/r/value.md" in prompt(items, "prop:write:1")
+    assert "no value map" not in out
+    items, out = dry(tmp_path, "proposal.js", "ok", PROP, DRY_ABSENT="value.md")
+    assert "value_map:" not in prompt(items, "prop:write:1")
+    assert "no value map: the proposal carries no business value section" in out
 
 
 def functions(script: str, names: tuple[str, ...]) -> str:

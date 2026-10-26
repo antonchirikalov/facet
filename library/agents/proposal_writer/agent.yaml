@@ -12,6 +12,7 @@ consumes:
   - { port: design, type: design_doc@v1, optional: true, about: "the accepted design, when there is one: how it is built, the decisions, the open questions" }
   - { port: client_voice, type: client_voice@v1, about: "the client voice sheet: their ranking, their words and vocabulary, who wants what, the proposal order it suggests" }
   - { port: pain_map, type: pain_map@v1, about: "the pain map: every pain (P-) and worry (WR-) gets its answer in the client's own words; a tool checks that each one's quote reaches the proposal and that the top three come before section 5" }
+  - { port: value_map, type: value_map@v1, optional: true, about: "the value map, when one was written: what the client gains, the run cost and the break-even budget; every figure about value comes from here, never a new one, and its absence means the proposal states no money figure of value" }
   - { port: number_checks, type: number_checks@v1, optional: true, about: "the domain checker's findings: for each typical or illustrative number of the draft, what practice gives, with sources; where a number is implausible, use what the findings support" }
   - { port: draft, type: proposal@v1, optional: true, about: "the previous draft, on a revision round: you do not edit it, you write an edits file against it that answers the numbered remarks" }
   - { port: extracts, type: "collection<extract@v1>", untrusted: true, about: "the extracts; quotes in section 2 are copied from here, verbatim" }

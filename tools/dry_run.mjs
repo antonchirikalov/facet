@@ -160,11 +160,17 @@ function fill(schema, prompt) {
           out[key] = pathsFromPrompt(prompt).map(() => ({ ...fill(item, prompt), ok: true, problems: [] }))
           continue
         }
+        // DRY_ABSENT="value.md,x.md" makes the check of a file whose path ends so fail on the happy
+        // path: an optional input that is not there (a proposal without a value map) is a branch
+        // of its own, and "bad" never reaches it because it fails the required inputs first.
         if (key === 'checks' && sub && sub.type === 'array') {
           const item = sub.items ?? {}
           const paths = pathsFromPrompt(prompt)
+          const absent = (process.env.DRY_ABSENT || '').split(',').filter(Boolean)
           out[key] = paths.map((p) => {
-            const entry = { ...fill(item, prompt), problems: happy ? [] : [`output missing: ${p}`] }
+            const gone = absent.some((a) => p.replace(/"/g, '').endsWith(a))
+            const entry = { ...fill(item, prompt), problems: happy && !gone ? [] : [`output missing: ${p}`] }
+            if (gone) entry.ok = false
             // Echo the path only when the schema asks for one, so a stub never invents a field
             // the real agent was not told to return.
             if ((item.properties ?? {}).path) entry.path = p

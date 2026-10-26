@@ -4,14 +4,22 @@
 //
 //   Start    the requirements are accepted, the pain map and the client voice sheet pass their
 //            gates; without them the run refuses and names what to run first
-//   content  proposal-writer -> gate (profile rules, quotes, client vocabulary, every pain and
-//            worry answered in the client's words, the top pains early) -> proposal-reviewer,
-//            each HIGH put to a vote of three checkers; only a confirmed HIGH sends it back
+//   value    value-modeler -> gate (profile rules) and value_model.py (every formula, total and
+//            budget recomputed, every number traced) -> domain-checker -> value-critic, each HIGH
+//            put to a vote of three checkers. value.md: what the client gains, never our price;
+//            a client figure the material lacks goes to value-missing-input.md, never invented
+//   content  proposal-writer (with value.md when there is one) -> gate (profile rules, quotes,
+//            client vocabulary, every pain and worry answered in the client's words, the top pains
+//            early) -> proposal-reviewer, each HIGH put to a vote of three checkers; only a
+//            confirmed HIGH sends it back
 //   text     slop-critic -> the writer edits -> the same gate, so a wording fix cannot drop a pain
-//   Report   remarks, unresolved items, the outcome of the stage
+//   Holdout  the client's questions put to the stage's document by a reader with nothing else
+//   Report   remarks, unresolved items, missing input, the outcome of the stage
 //
-// One launch is one stage: content first, then a person reads the proposal, then text. The
-// figures are the next launch: attn-figures.js on the accepted proposal.
+// One launch is one stage: value, then a person reads value.md, then content, then a person reads
+// the proposal, then text. The value stage is optional; content without it warns that the proposal
+// carries no business value section. The figures are the next launch: attn-figures.js on the
+// accepted proposal.
 //
 // The script has no filesystem and no shell: agents read and write, python tools measure through
 // the gate-runner agent, results are matched to commands by index. Runtime rules: meta is a pure
@@ -19,9 +27,10 @@
 
 export const meta = {
   name: 'proposal',
-  description: 'Client proposal from accepted requirements and the pain map: content under a reviewer, then wording under the slop critic',
+  description: 'Client proposal from accepted requirements and the pain map: the value map under a finance critic, content under a reviewer, then wording under the slop critic',
   phases: [
     { title: 'Start', detail: 'accepted requirements, pain map and client voice on disk' },
+    { title: 'Value', detail: 'value modeler, gate and ruler, domain checker, value critic with a vote on every HIGH, in rounds' },
     { title: 'Content', detail: 'writer, gate, reviewer with a vote on every HIGH, in rounds' },
     { title: 'Text', detail: 'slop critic, writer edits, gate, in rounds' },
     { title: 'Holdout', detail: 'the questions the client will ask, put to the proposal by a reader with nothing else' },
@@ -51,10 +60,13 @@ const CLIENT_BLOCK = client
     `are still named by role only.`
   : ''
 const STAGES = cfg.stages || ['content']
-if (STAGES.length !== 1 || !['content', 'text'].includes(STAGES[0])) {
-  throw new Error(`config.stages is one stage, "content" or "text"; got: ${JSON.stringify(STAGES)}`)
+if (STAGES.length !== 1 || !['value', 'content', 'text'].includes(STAGES[0])) {
+  throw new Error(`config.stages is one stage, "value", "content" or "text"; got: ${JSON.stringify(STAGES)}`)
 }
 const STAGE = STAGES[0]
+const VALUE = STAGE === 'value'
+// The prefix of the stage's labels and log lines.
+const TAG = VALUE ? 'value' : 'prop'
 if (cfg.continue && cfg.fresh) throw new Error('config.continue and config.fresh exclude each other')
 
 // --- Paths ------------------------------------------------------------------------------------
@@ -66,15 +78,24 @@ const REQ_OUTCOME = `${run}/outcome.md`
 const PAINS_PATH = `${run}/pains.md`
 const VOICE_PATH = `${run}/client-voice.md`
 const PROP_PATH = `${run}/prop.md`
+const VALUE_PATH = `${run}/value.md`
+const VALUE_OUTCOME = `${run}/value-outcome.md`
+// The document this stage writes: the value map, or the proposal.
+const DOC_PATH = VALUE ? VALUE_PATH : PROP_PATH
 const TOOLS_LOG = `${run}/tools.jsonl`
-const ROUNDS_DIR = `${run}/rounds/prop-${STAGE}`
+const ROUNDS_DIR = VALUE ? `${run}/rounds/value` : `${run}/rounds/prop-${STAGE}`
+// Every record of the stage starts so: value-outcome.md, prop-content-outcome.md.
+const PREFIX = VALUE ? `${run}/value-` : `${run}/prop-${STAGE}-`
 // Not "report": the harness refuses a subagent a file of that name.
-const OUTCOME_PATH = `${run}/prop-${STAGE}-outcome.md`
-const REMARKS_PATH = `${run}/prop-${STAGE}-remarks.md`
-const UNRESOLVED_PATH = `${run}/prop-${STAGE}-unresolved.md`
+const OUTCOME_PATH = `${PREFIX}outcome.md`
+const REMARKS_PATH = `${PREFIX}remarks.md`
+const UNRESOLVED_PATH = `${PREFIX}unresolved.md`
 const CONTENT_OUTCOME = `${run}/prop-content-outcome.md`
-const NUMBER_CHECKS = `${run}/number-checks.md`
+// Each stage's domain checker has its own file: the value stage's must not overwrite the proposal's.
+const NUMBER_CHECKS = VALUE ? `${run}/value-number-checks.md` : `${run}/number-checks.md`
 const roundPathOf = (n) => `${ROUNDS_DIR}/round-${n}.md`
+// The ruler's report on the value map of round n: the critic judges with it, the modeler fixes by it.
+const rulerPathOf = (n) => `${ROUNDS_DIR}/ruler-${n}.json`
 // The text stage's starting point: a wording pass is measured against it.
 const BEFORE_TEXT = `${run}/rounds/prop-text/before.md`
 const draftPathOf = (n) => `${ROUNDS_DIR}/draft-${n}.md`
@@ -82,7 +103,8 @@ const editsPathOf = (n) => `${ROUNDS_DIR}/edits-${n}.json`
 // The holdout questions requirements.js wrote before this proposal existed, and where this
 // stage's answers to them go. No writer or critic of the proposal is ever handed either.
 const HOLDOUT_QUESTIONS = `${run}/holdout/questions.md`
-const HOLDOUT_OUT = `${run}/holdout/prop-${STAGE}`
+const HOLDOUT_OUT = VALUE ? `${run}/holdout/value` : `${run}/holdout/prop-${STAGE}`
+const HOLDOUT_FOR = VALUE ? 'value' : 'proposal'
 // The text stage is scored against the content stage's score: a wording pass that loses an answer shows.
 const HOLDOUT_CONTENT_SCORE = `${run}/holdout/prop-content/score.json`
 const HOLDOUT_PROFILE = '.claude/skills/holdout-questions-profile/SKILL.md'
@@ -92,7 +114,9 @@ const HOLDOUT_READERS = 2
 
 // --- Configuration ----------------------------------------------------------------------------
 
-const MAX_ROUNDS = cfg.maxRounds || (STAGE === 'content' ? 3 : 2)
+const MAX_ROUNDS = cfg.maxRounds || (STAGE === 'text' ? 2 : 3)
+// A plateau: the blocking items not fewer than the best for this many rounds in a row.
+const PLATEAU_ROUNDS = cfg.plateauRounds || 2
 const MIN_ARTIFACT_CHARS = 200
 const VOTERS = cfg.voters ?? 3
 const MODELS = {
@@ -116,6 +140,7 @@ const tool = (name) => `python -X utf8 tools/${name}.py`
 const profileFlags = (type) => `--profile .claude/skills/${type}-profile/SKILL.md`
 const PROP_FLAGS = `${profileFlags('proposal')} --min-length ${MIN_ARTIFACT_CHARS}`
 const PAIN_FLAGS = profileFlags('pain-map')
+const VALUE_FLAGS = `${profileFlags('value-map')} --min-length ${MIN_ARTIFACT_CHARS}`
 
 // --- Records of the run -----------------------------------------------------------------------
 
@@ -287,6 +312,46 @@ const DRAFT = {
   },
 }
 
+// The value modeler answers like any writer, and also names every client figure the inputs do not
+// hold, from the first draft on: on the one live probe the first draft alone needed seventeen.
+const VALUE_DRAFT = {
+  ...DRAFT,
+  required: [...DRAFT.required, 'missing'],
+  properties: {
+    ...DRAFT.properties,
+    missing: {
+      type: 'array',
+      description: 'every client figure a value line needed and the inputs do not hold; empty when none',
+      items: {
+        type: 'object',
+        required: ['question', 'searched'],
+        properties: {
+          question: { type: 'string', description: 'the figure, as a question the client can answer' },
+          searched: { type: 'string', description: 'which inputs and which public sources you looked in' },
+        },
+      },
+    },
+  },
+}
+// value_model.py writes its report to a file, so the file-copier carries it; its totals and
+// warnings travel beside the problems, for the outcome.
+const RULED = {
+  type: 'object',
+  required: ['report', 'stdout'],
+  properties: {
+    report: {
+      type: 'object',
+      required: ['ok', 'problems', 'measures'],
+      properties: {
+        ...REPORT.properties,
+        warnings: { type: 'array', items: { type: 'string' }, description: 'the warnings of the report, verbatim' },
+        totals: { type: 'object', description: 'the totals object of the report, verbatim' },
+      },
+    },
+    stdout: { type: 'string' },
+  },
+}
+
 // --- Missing input ----------------------------------------------------------------------------
 //
 // A remark the inputs hold no data for has a third answer besides fixed and declined. Without it
@@ -296,9 +361,15 @@ const DRAFT = {
 // show where the inputs do hold it; the remark then comes back and cannot be answered so again.
 const MISSING_ITEMS_RULE =
   `needs_context when the inputs hold no data to act on the remark: name in missing the fact that is ` +
-  `absent and in searched which inputs you looked in, and say in the proposal that it is still open ` +
-  `where the profile keeps decisions to take together or assumptions. It is not an answer to a remark ` +
-  `that is hard, or one you disagree with.`
+  `absent and in searched which inputs you looked in, and say in the ${VALUE ? 'value map' : 'proposal'} ` +
+  `that it is still open where the profile keeps ${VALUE ? 'assumptions' : 'decisions to take together or assumptions'}. ` +
+  `It is not an answer to a remark that is hard, or one you disagree with.`
+// What the value modeler is told about a client figure it cannot find, every round.
+const MISSING_FIGURES_RULE =
+  `MISSING CLIENT FIGURES. Every client figure a value line needs and the inputs do not hold goes into ` +
+  `missing, as a question the client can answer, with what you searched: the inputs and the public ` +
+  `sources. Where the map goes on without it, it uses a starred assumption with its row in section 9; ` +
+  `it never invents the figure. Return the whole list each round, not only what is new.`
 function refusalOf(item, answer) {
   if (item.measured || item.kind === 'GATE') return 'a measurement is answered by a fix, not by missing input'
   if (item.contested) return 'the critic named where the inputs hold it'
@@ -364,7 +435,10 @@ const CHECKED = {
 // =============================================================================================
 
 phase('Start')
+// Whether this stage's document is on disk already: value.md in the value stage, prop.md otherwise.
 let propPresent = false
+// The content stage only: whether a value map passes its gate.
+let valuePresent = false
 let sourcePorts = []
 let extractPorts = []
 {
@@ -392,10 +466,19 @@ let extractPorts = []
         ]
       : []),
   ]
+  // The content stage takes the value map when there is one; it is not required.
+  const optional =
+    STAGE === 'content'
+      ? [
+          `${tool('gate')} --file "${VALUE_PATH}" ${VALUE_FLAGS} ${noted('start: value map')}`,
+          `${tool('gate')} --file "${VALUE_OUTCOME}" --require-line "^\\s*1\\. Value accepted: yes" ${noted('start: value map accepted')}`,
+        ]
+      : []
   const list = [
     ...(now ? [`${tool('busy')} --file ${TOOLS_LOG} --now ${now} --idle-seconds ${cfg.idleSeconds || 600} ${noted('is another run working here')}`] : []),
-    `${tool('gate')} --file "${PROP_PATH}" --min-length ${MIN_ARTIFACT_CHARS} ${noted('start: proposal already on disk')}`,
+    `${tool('gate')} --file "${DOC_PATH}" --min-length ${MIN_ARTIFACT_CHARS} ${noted(`start: ${VALUE ? 'value map' : 'proposal'} already on disk`)}`,
     ...required.map((r) => r.cmd),
+    ...optional,
   ]
   const started = await call(commands(list), { agentType: 'gate-runner', model: MODELS.gate, label: 'start', phase: 'Start', schema: CHECKS })
   const checks = (started && started.checks) || []
@@ -420,14 +503,25 @@ let extractPorts = []
   if (cfg.accepted) warnings.push('accepted by the person who launched the run (config.accepted), not by an outcome on disk')
   for (const p of [REQ_PATH, REQ_OUTCOME, PAINS_PATH, VOICE_PATH, CONTENT_OUTCOME]) touched.add(p)
   if (designPath) touched.add(designPath)
+  if (STAGE === 'content') {
+    const at = offset + 1 + required.length
+    valuePresent = checks[at].ok
+    touched.add(VALUE_PATH)
+    touched.add(VALUE_OUTCOME)
+    if (!valuePresent) {
+      warnings.push('no value map: the proposal carries no business value section')
+    } else if (!checks[at + 1].ok) {
+      warnings.push(`the value map was not accepted (${VALUE_OUTCOME}): the proposal quotes a map a person has not read`)
+    }
+  }
 
-  if (STAGE === 'content' && propPresent && !cfg.continue && !cfg.fresh) {
+  if (STAGE !== 'text' && propPresent && !cfg.continue && !cfg.fresh) {
     throw new Error(
-      `${PROP_PATH} already exists. To continue an interrupted run, config.continue=true; to write it again, config.fresh=true.`,
+      `${DOC_PATH} already exists. To continue an interrupted run, config.continue=true; to write it again, config.fresh=true.`,
     )
   }
   if (STAGE === 'text' && !propPresent) throw new Error(`${PROP_PATH} is missing: the text stage edits an accepted proposal`)
-  if (cfg.fresh && STAGE === 'content') propPresent = false
+  if (cfg.fresh && STAGE !== 'text') propPresent = false
 
   // What the reviewer and the writer read: the extracts and the client's own text documents.
   const listed = await call(
@@ -445,7 +539,10 @@ let extractPorts = []
   sourcePorts = inputs.filter((f) => /\.(md|txt)$/i.test(f)).map((f) => ({ port: `source:${stemOf(f)}`, path: f }))
   if (!extractPorts.length) throw new Error(`no extracts in ${EXTRACTS_DIR}: the proposal's quotes are copied from them`)
   if (!sourcePorts.length) warnings.push(`no text documents in ${INPUTS_DIR}: the reviewer checks quotes against the extracts only`)
-  log(`[start] stage=${STAGE} proposal on disk=${propPresent} extracts=${extractPorts.length} client documents=${sourcePorts.length}`)
+  log(
+    `[start] stage=${STAGE} ${VALUE ? 'value map' : 'proposal'} on disk=${propPresent} extracts=${extractPorts.length} ` +
+      `client documents=${sourcePorts.length}` + (STAGE === 'content' ? ` value map=${valuePresent}` : ''),
+  )
 }
 
 const basePorts = [
@@ -453,17 +550,27 @@ const basePorts = [
   { port: 'pain_map', path: PAINS_PATH },
   { port: 'client_voice', path: VOICE_PATH },
   ...(designPath ? [{ port: 'design', path: designPath }] : []),
+  ...(valuePresent ? [{ port: 'value_map', path: VALUE_PATH }] : []),
   ...extractPorts,
 ]
-const checksOf = (round) => [
-  `${tool('gate')} --file "${PROP_PATH}" ${PROP_FLAGS} ${noted(`proposal ${STAGE} round ${round}`)}`,
-  `${tool('check_quotes')} --file "${PROP_PATH}" --source ${INPUTS_DIR} --source ${EXTRACTS_DIR} ${noted(`proposal quotes round ${round}`)}`,
-  `${tool('vocab')} --file "${PROP_PATH}" --voice "${VOICE_PATH}" ${noted(`client vocabulary round ${round}`)}`,
-  `${tool('pain_coverage')} --pains "${PAINS_PATH}" --file "${PROP_PATH}" ${noted(`pains answered round ${round}`)}`,
-  ...(STAGE === 'text'
-    ? [`${tool('structure_kept')} --before "${BEFORE_TEXT}" --file "${PROP_PATH}" ${noted(`structure kept round ${round}`)}`]
-    : []),
-]
+// The value map's gate is its profile; its arithmetic is the ruler's, run after it (rulerOf).
+const checksOf = (round) =>
+  VALUE
+    ? [`${tool('gate')} --file "${VALUE_PATH}" ${VALUE_FLAGS} ${noted(`value map round ${round}`)}`]
+    : [
+        `${tool('gate')} --file "${PROP_PATH}" ${PROP_FLAGS} ${noted(`proposal ${STAGE} round ${round}`)}`,
+        `${tool('check_quotes')} --file "${PROP_PATH}" --source ${INPUTS_DIR} --source ${EXTRACTS_DIR} ${noted(`proposal quotes round ${round}`)}`,
+        `${tool('vocab')} --file "${PROP_PATH}" --voice "${VOICE_PATH}" ${noted(`client vocabulary round ${round}`)}`,
+        `${tool('pain_coverage')} --pains "${PAINS_PATH}" --file "${PROP_PATH}" ${noted(`pains answered round ${round}`)}`,
+        ...(STAGE === 'text'
+          ? [`${tool('structure_kept')} --before "${BEFORE_TEXT}" --file "${PROP_PATH}" ${noted(`structure kept round ${round}`)}`]
+          : []),
+      ]
+// The ruler writes its report to a file, so the file-copier runs it, never the gate-runner.
+const rulerOf = (round) =>
+  `${tool('value_model')} --file "${VALUE_PATH}" --pains "${PAINS_PATH}" --json ${rulerPathOf(round)} ${noted(`value map recomputed round ${round}`)}`
+// The ruler's report of the last round that ran it: the modeler's value_report on the next one.
+let lastRuler = null
 
 // A HIGH remark sends the proposal back, so before it does, independent checkers vote on it; one
 // that a majority refutes is downgraded to MEDIUM with the reason. One the checkers could not
@@ -476,6 +583,15 @@ async function voteOnHigh(round, remarks) {
     { port: 'evidence:pains', path: PAINS_PATH },
     { port: 'evidence:requirements', path: REQ_PATH },
     { port: 'evidence:client-voice', path: VOICE_PATH },
+    // A value HIGH ("an unsourced baseline", "a forecast that ignores the reviewers") is judged
+    // against the extracts the baseline cites, the design and the ruler's report.
+    ...(VALUE
+      ? [
+          ...extractPorts.map((e) => ({ port: e.port.replace(/^extract:/, 'evidence:extract-'), path: e.path })),
+          ...(designPath ? [{ port: 'evidence:design', path: designPath }] : []),
+          { port: 'evidence:value-report', path: rulerPathOf(round) },
+        ]
+      : []),
   ]
   const claims =
     `CLAIMS TO CHECK\nEach claim is a reviewer's remark about the draft. It holds when the draft really ` +
@@ -483,11 +599,11 @@ async function voteOnHigh(round, remarks) {
     high.map((r, i) => `V${i + 1}: "${r.text}"`).join('\n')
   const ballots = await parallel(
     Array.from({ length: VOTERS }, (_, k) => () =>
-      call(task({ inputs: [{ port: 'draft', path: PROP_PATH }, ...evidence], noFile: true, extra: claims }), {
+      call(task({ inputs: [{ port: 'draft', path: DOC_PATH }, ...evidence], noFile: true, extra: claims }), {
         agentType: 'claim-checker',
         model: MODELS.vote,
-        label: `prop:vote:${round}:${k + 1}`,
-        phase: 'Content',
+        label: `${TAG}:vote:${round}:${k + 1}`,
+        phase: PHASE,
         schema: CHECKED,
       }),
     ),
@@ -497,7 +613,7 @@ async function voteOnHigh(round, remarks) {
   high.forEach((r, i) => {
     const said = ballots.map((b) => b && (b.results || []).find((x) => x.id === `V${i + 1}`)).filter(Boolean)
     const against = said.filter((x) => !x.holds)
-    log(`[prop/${round}/vote] V${i + 1}: holds ${said.length - against.length}, refuted ${against.length}, not judged ${VOTERS - said.length}`)
+    log(`[${TAG}/${round}/vote] V${i + 1}: holds ${said.length - against.length}, refuted ${against.length}, not judged ${VOTERS - said.length}`)
     if (against.length >= majority) {
       r.severity = 'MEDIUM'
       r.text = `${r.text} [not confirmed by ${against.length} of ${VOTERS} checkers: ${against[0].problem || 'no reason given'}]`
@@ -511,13 +627,38 @@ const severityOf = (text) => {
   const m = /^\s*(?:\d{1,2}[.)]\s+)?\[(HIGH|MEDIUM|LOW)\]/.exec(text)
   return m ? m[1] : 'MEDIUM'
 }
-// Each stage has its critics, run in parallel and read into one numbered list.
+// Each stage has its critics, read into one numbered list. Inputs may be a function of the round.
+//   value:   in order, not in parallel: the domain checker looks the map's wages, unit values and
+//            benchmarks up in open sources, then the value critic reads the map as the client's
+//            finance would, with this round's ruler report and the domain checker's file
 //   content: the reviewer judges coverage and truth; the domain checker looks the document's
 //            typical and illustrative numbers up in open sources, because a writer told "this load
 //            is implausible" three rounds running did not fix it without knowing what is plausible
 //   text:    the slop critic judges the tells of generated text; the client reader reads as the
 //            client's decision-maker and says where they stop
 const critics = {
+  value: () => [
+    {
+      tag: 'NUMBERS',
+      agentType: 'domain-checker',
+      model: MODELS.numbers,
+      inputs: [{ port: 'draft', path: VALUE_PATH }, { port: 'client_voice', path: VOICE_PATH }],
+      output: NUMBER_CHECKS,
+      schema: FOUND,
+    },
+    {
+      tag: 'CRITIC',
+      agentType: 'value-critic',
+      model: MODELS.review,
+      inputs: (round) => [
+        { port: 'draft', path: VALUE_PATH },
+        { port: 'value_report', path: rulerPathOf(round) },
+        ...basePorts,
+        ...(numbersChecked ? [{ port: 'number_checks', path: NUMBER_CHECKS }] : []),
+      ],
+      vote: true,
+    },
+  ],
   content: () => [
     {
       tag: 'REVIEW',
@@ -552,10 +693,10 @@ const critics = {
 }
 
 // =============================================================================================
-// The rounds: one loop for both stages, only the critic differs
+// The rounds: one loop for every stage; the writer, the gate and the critics differ
 // =============================================================================================
 
-const PHASE = STAGE === 'content' ? 'Content' : 'Text'
+const PHASE = { value: 'Value', content: 'Content', text: 'Text' }[STAGE]
 phase(PHASE)
 // A wording pass changes words, not structure: the proposal as the text stage found it is kept,
 // once, and every round's gate compares against it. A continued text stage keeps the first one.
@@ -569,6 +710,15 @@ if (STAGE === 'text') {
   }
 }
 const stageCritics = critics[STAGE]()
+const WRITER = VALUE ? 'value-modeler' : 'proposal-writer'
+const WRITER_SCHEMA = VALUE ? VALUE_DRAFT : DRAFT
+// The client figures the modeler could not find: its last list stands, with the round it came from.
+function figuresOf(round, drafted) {
+  figuresMissing = (drafted.missing || [])
+    .filter((m) => String(m.question || '').trim())
+    .map((m) => ({ round, question: m.question, searched: m.searched || 'not named' }))
+  log(`[${TAG}/${round}] client figures missing: ${figuresMissing.length}`)
+}
 // The domain checker's file, once written, goes to the writer with the remarks it backs.
 let numbersChecked = false
 const ledger = []
@@ -580,8 +730,14 @@ let contextNotes = []
 let accepted = false
 let rounds = 0
 let previousSignature = null
+let best = Infinity
+let sinceBest = 0
 let lastCoverage = {}
-// Whether the last round found a proposal on disk: the holdout reader needs one to read.
+// The value stage: the ruler's last report, and the client figures the modeler's last answer
+// named as missing (it returns the whole list each round, so the last list stands).
+let lastRuled = null
+let figuresMissing = []
+// Whether the last round found the stage's document on disk: the holdout reader needs one to read.
 let propOnDisk = false
 const perRound = []
 // The proposal profile's verdict rule: any HIGH, or three MEDIUM, send the draft back. A client
@@ -599,7 +755,7 @@ let startRound = 1
 if (cfg.continue) {
   const recorded = await call(
     commands([`${tool('rounds')} --dir ${ROUNDS_DIR} --last-only ${noted('continue: rounds already judged')}`]),
-    { agentType: 'gate-runner', model: MODELS.gate, label: 'prop:continue', phase: PHASE, schema: ROUNDS },
+    { agentType: 'gate-runner', model: MODELS.gate, label: `${TAG}:continue`, phase: PHASE, schema: ROUNDS },
   )
   const shaped =
     recorded && recorded.report && recorded.report.measures && Array.isArray(recorded.rounds) &&
@@ -608,15 +764,19 @@ if (cfg.continue) {
     const last = recorded.rounds[0]
     startRound = last.round + 1
     for (let n = 1; n < startRound; n++) [roundPathOf(n), draftPathOf(n), editsPathOf(n)].forEach((x) => touched.add(x))
+    if (VALUE) {
+      for (let n = 1; n < startRound; n++) touched.add(rulerPathOf(n))
+      lastRuler = rulerPathOf(startRound - 1)
+    }
     pending = [
       ...(last.gate || []).map((text) => ({ kind: 'GATE', text })),
       ...(last.remarks || [])
         .filter((r) => (SEND_LOW || !/^\[LOW\]/.test(r)) && !/^Gate: /.test(r))
         .map((r) => ({ kind: /^\[(HIGH|MEDIUM|LOW)\]/.test(r) ? r.slice(1, r.indexOf(']')) : 'CARRIED', text: r.replace(/^\[(HIGH|MEDIUM|LOW)\]\s*/, '').replace(/^Carried: /, '') })),
     ]
-    log(`[prop/continue] rounds judged ${recorded.report.measures.rounds}, continuing from ${startRound} with ${pending.length} items`)
+    log(`[${TAG}/continue] rounds judged ${recorded.report.measures.rounds}, continuing from ${startRound} with ${pending.length} items`)
   } else {
-    log('[prop/continue] no usable round records: the proposal on disk is judged as round 1')
+    log(`[${TAG}/continue] no usable round records: the document on disk is judged as round 1`)
   }
 }
 
@@ -626,16 +786,17 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
 
   // --- The writer: the first draft, or one edits file that answers the numbered items
   if (!propPresent) {
-    must(
-      await call(task({ inputs: basePorts, output: PROP_PATH, brief: ORDER_BLOCK || undefined }), {
-        agentType: 'proposal-writer',
+    const drafted = must(
+      await call(task({ inputs: basePorts, output: DOC_PATH, brief: ORDER_BLOCK || undefined, extra: VALUE ? MISSING_FIGURES_RULE : undefined }), {
+        agentType: WRITER,
         model: MODELS.write,
-        label: `prop:write:${round}`,
+        label: `${TAG}:write:${round}`,
         phase: PHASE,
-        schema: DRAFT,
+        schema: WRITER_SCHEMA,
       }),
-      `prop:write:${round}`,
+      `${TAG}:write:${round}`,
     )
+    if (VALUE) figuresOf(round, drafted)
     propPresent = true
   } else if (pending.length) {
     const editsPath = editsPathOf(round)
@@ -645,29 +806,32 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
       pending.map((it, i) => `${i + 1}. [${it.kind}] ${it.text}`).join('\n') +
       `\n\nHOW TO ANSWER. One entry per number from 1 to ${pending.length}: fixed when the draft now satisfies ` +
       `it, declined with the reason in one sentence when you deliberately did not act, ${MISSING_ITEMS_RULE}` +
-      `\n\nHOW TO DELIVER THIS ROUND. Do not edit ${PROP_PATH} yourself. Write your changes as a JSON array to ` +
+      `\n\nHOW TO DELIVER THIS ROUND. Do not edit ${DOC_PATH} yourself. Write your changes as a JSON array to ` +
       `${editsPath}: [{"old": "<text copied verbatim from the draft, occurring exactly once>", "new": "<the ` +
       `replacement>"}]. To delete, new is empty. A tool applies the list and reports every pair whose old text ` +
-      `was not found once.`
+      `was not found once.` +
+      (VALUE ? `\n\n${MISSING_FIGURES_RULE}` : '')
     const drafted = must(
       await call(
         task({
           inputs: [
-            { port: 'draft', path: PROP_PATH },
+            { port: 'draft', path: DOC_PATH },
             ...basePorts,
             ...(numbersChecked ? [{ port: 'number_checks', path: NUMBER_CHECKS }] : []),
+            ...(VALUE && lastRuler ? [{ port: 'value_report', path: lastRuler }] : []),
           ],
           output: editsPath,
           extra: remarks,
           brief: ORDER_BLOCK || undefined,
         }),
-        { agentType: 'proposal-writer', model: MODELS.write, label: `prop:write:${round}`, phase: PHASE, schema: DRAFT },
+        { agentType: WRITER, model: MODELS.write, label: `${TAG}:write:${round}`, phase: PHASE, schema: WRITER_SCHEMA },
       ),
-      `prop:write:${round}`,
+      `${TAG}:write:${round}`,
     )
+    if (VALUE) figuresOf(round, drafted)
     const applied = await call(
-      commands([`${tool('apply_edits')} --file ${PROP_PATH} --edits ${editsPath} ${noted(`apply round ${round} edits`)}`]),
-      { agentType: 'file-copier', model: MODELS.copy, label: `prop:apply:${round}`, phase: PHASE, schema: GATE },
+      commands([`${tool('apply_edits')} --file ${DOC_PATH} --edits ${editsPath} ${noted(`apply round ${round} edits`)}`]),
+      { agentType: 'file-copier', model: MODELS.copy, label: `${TAG}:apply:${round}`, phase: PHASE, schema: GATE },
     )
     const report = (applied && applied.report) || { ok: false, problems: ['the edits were not applied: no report'], measures: {} }
     const answers = new Map()
@@ -684,7 +848,7 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
         const refused = refusalOf(it, a)
         if (it.entry) it.entry.answer += refused ? ` [needs_context refused: ${refused}]` : ` [missing: ${a.missing}; searched: ${a.searched}]`
         if (refused) {
-          log(`[prop/${round}/needs_context] refused for ${i + 1}: ${refused}`)
+          log(`[${TAG}/${round}/needs_context] refused for ${i + 1}: ${refused}`)
           carried.push({ ...it, text: `${it.text} [answered needs_context, refused: ${refused}]` })
         } else {
           const note = { round, text: it.text, missing: a.missing, searched: a.searched }
@@ -695,7 +859,7 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
     })
     const unapplied = (report.problems || []).map((p) => `EDIT NOT APPLIED, quote the draft exactly: ${p}`)
     log(
-      `[prop/${round}] answered ${answers.size} of ${pending.length}; no data in the inputs ${contextNotes.length}; ` +
+      `[${TAG}/${round}] answered ${answers.size} of ${pending.length}; no data in the inputs ${contextNotes.length}; ` +
         `edits not applied ${unapplied.length}`,
     )
     pending = [
@@ -703,12 +867,12 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
       ...unapplied.map((text) => ({ kind: 'CARRIED', text, measured: true })),
     ]
   } else {
-    log(`[prop/${round}] the proposal on disk has not been judged in this stage: straight to the checks`)
+    log(`[${TAG}/${round}] the document on disk has not been judged in this stage: straight to the checks`)
   }
 
   // --- The gate: the profile's rules, the quotes, the client's words, every pain answered early
   const list = checksOf(round)
-  const gated = await call(commands(list), { agentType: 'gate-runner', model: MODELS.gate, label: `prop:gate:${round}`, phase: PHASE, schema: CHECKS })
+  const gated = await call(commands(list), { agentType: 'gate-runner', model: MODELS.gate, label: `${TAG}:gate:${round}`, phase: PHASE, schema: CHECKS })
   const checks = (gated && gated.checks) || []
   const gateProblems =
     checks.length === list.length
@@ -716,16 +880,39 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
       : ['the gate did not return one report per command: the draft was not measured']
   const sized = (checks[0] && checks[0].measures) || {}
   const exists = typeof sized.chars === 'number' && sized.chars >= MIN_ARTIFACT_CHARS
-  lastCoverage = (checks[3] && checks[3].measures) || {}
+  if (!VALUE) lastCoverage = (checks[3] && checks[3].measures) || {}
   propOnDisk = exists
-  log(`[prop/${round}/gate] problems ${gateProblems.length}${gateProblems.length ? ': ' + gateProblems.join('; ') : ''}`)
+  // The value map's arithmetic: every formula, total and budget recomputed, every number traced.
+  // Its problems are measurements, sent back like the gate's.
+  if (VALUE && exists) {
+    touched.add(rulerPathOf(round))
+    const ruled = await call(commands([rulerOf(round)]), {
+      agentType: 'file-copier',
+      model: MODELS.copy,
+      label: `value:ruler:${round}`,
+      phase: PHASE,
+      schema: RULED,
+    })
+    const report = ruled && ruled.report
+    if (!report) {
+      gateProblems.push('the ruler did not return its report: the value map was not recomputed')
+    } else {
+      lastRuled = report
+      lastRuler = rulerPathOf(round)
+      gateProblems.push(...(report.problems || []))
+      for (const w of report.warnings || []) log(`[value/${round}/ruler] warning: ${w}`)
+    }
+  }
+  log(`[${TAG}/${round}/gate] problems ${gateProblems.length}${gateProblems.length ? ': ' + gateProblems.join('; ') : ''}`)
 
   // --- The critics of the stage, in parallel
   const criticExtra = [
     // The figures are drawn after the text is accepted; their absence now is the plan, and a
     // note about it scored as a MEDIUM once kept an otherwise finished draft from passing.
-    `THE FIGURES are drawn after this stage, from the placeholders. Do not report that their ` +
-      `files are missing; judge only what the placeholders and captions say.`,
+    VALUE
+      ? ''
+      : `THE FIGURES are drawn after this stage, from the placeholders. Do not report that their ` +
+        `files are missing; judge only what the placeholders and captions say.`,
     // A note that coverage is complete, returned as a remark, once counted as a MEDIUM.
     `THE REMARKS are defects only. What you checked and found right is not a remark: leave it ` +
       `out, or every confirmation is read as a defect and sends the draft back.`,
@@ -737,16 +924,22 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
   ]
     .filter(Boolean)
     .join('\n\n')
-  const said = await parallel(
-    stageCritics.map((c) => () =>
-      call(
-        c.output
-          ? task({ inputs: c.inputs, output: c.output, brief: ORDER_BLOCK || undefined })
-          : task({ inputs: c.inputs, noFile: true, brief: ORDER_BLOCK || undefined, extra: criticExtra }),
-        { agentType: c.agentType, model: c.model, label: `prop:${STAGE}:${c.tag.toLowerCase()}:${round}`, phase: PHASE, schema: c.schema || VERDICT },
-      ),
-    ),
-  )
+  const judge = async (c) => {
+    const inputs = typeof c.inputs === 'function' ? c.inputs(round) : c.inputs
+    const label = VALUE ? `value:${c.tag.toLowerCase()}:${round}` : `prop:${STAGE}:${c.tag.toLowerCase()}:${round}`
+    const got = await call(
+      c.output
+        ? task({ inputs, output: c.output, brief: ORDER_BLOCK || undefined })
+        : task({ inputs, noFile: true, brief: ORDER_BLOCK || undefined, extra: criticExtra }),
+      { agentType: c.agentType, model: c.model, label, phase: PHASE, schema: c.schema || VERDICT },
+    )
+    // The domain checker's file, once written, is read by the critic that follows it.
+    if (got && c.output) numbersChecked = true
+    return got
+  }
+  const said = []
+  if (VALUE) for (const c of stageCritics) said.push(await judge(c))
+  else said.push(...(await parallel(stageCritics.map((c) => () => judge(c)))))
   const remarks = []
   let refuted = 0
   for (const [k, c] of stageCritics.entries()) {
@@ -756,7 +949,6 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
       continue
     }
     if (c.output) {
-      numbersChecked = true
       for (const x of got.implausible || []) {
         remarks.push({ severity: 'MEDIUM', text: `[${c.tag}] ${x} (what practice gives, with sources: ${c.output})` })
       }
@@ -771,7 +963,7 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
       const note = k && contextNotes[k.n - 1]
       if (!note) return { severity: severityOf(r), text: `[${c.tag}] ${bare}` }
       if (missingInput.includes(note)) missingInput.splice(missingInput.indexOf(note), 1)
-      log(`[prop/${round}/critic] contested ${k.n}: ${note.text}`)
+      log(`[${TAG}/${round}/critic] contested ${k.n}: ${note.text}`)
       return { severity: severityOf(r), text: `[${c.tag}] ${k.text} [contested: the critic says the inputs hold it]`, contested: true }
     })
     if (c.vote) refuted += await voteOnHigh(round, mine)
@@ -782,8 +974,8 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
     `Round ${round}: HIGH ${count('HIGH')}, MEDIUM ${count('MEDIUM')}, LOW ${count('LOW')}, ` +
       `HIGH refuted by the vote ${refuted}, gate problems ${gateProblems.length}`,
   )
-  log(`[prop/${round}/critic] ${perRound[perRound.length - 1]}`)
-  for (const r of remarks) log(`[prop/${round}/critic] ${r.text}`)
+  log(`[${TAG}/${round}/critic] ${perRound[perRound.length - 1]}`)
+  for (const r of remarks) log(`[${TAG}/${round}/critic] ${r.text}`)
 
   // --- On the record; what goes back: gate, HIGH and MEDIUM; LOW is only recorded
   const sendBack = []
@@ -811,32 +1003,43 @@ for (let round = startRound; round < startRound + MAX_ROUNDS; round++) {
       ...gateProblems.map((p) => `Gate: ${p}`),
       ...pending.map((it) => `Carried: ${it.text}`),
     ]),
-    { agentType: 'verbatim-writer', model: MODELS.record, label: `prop:record:${round}`, phase: PHASE, schema: WROTE },
+    { agentType: 'verbatim-writer', model: MODELS.record, label: `${TAG}:record:${round}`, phase: PHASE, schema: WROTE },
   )
   if (!(wrote && wrote.written)) warnings.push(`round ${round} was not recorded`)
   touched.add(draftPathOf(round))
   await call(
-    commands([`${tool('snapshot')} --file ${PROP_PATH} --to ${draftPathOf(round)} ${noted(`proposal snapshot round ${round}`)}`]),
-    { agentType: 'file-copier', model: MODELS.copy, label: `prop:snapshot:${round}`, phase: PHASE, schema: GATE },
+    commands([`${tool('snapshot')} --file ${DOC_PATH} --to ${draftPathOf(round)} ${noted(`${VALUE ? 'value map' : 'proposal'} snapshot round ${round}`)}`]),
+    { agentType: 'file-copier', model: MODELS.copy, label: `${TAG}:snapshot:${round}`, phase: PHASE, schema: GATE },
   )
   pending = [...pending, ...sendBack]
 
-  if (!exists) warnings.push(`round ${round}: the proposal did not reach the disk`)
+  if (!exists) warnings.push(`round ${round}: ${DOC_PATH} did not reach the disk`)
   if (passed) {
     accepted = true
-    log(`[prop/${round}] ACCEPTED: the gate is clean, no HIGH remark and fewer than ${MEDIUM_LIMIT} MEDIUM`)
+    log(`[${TAG}/${round}] ACCEPTED: the gate is clean, no HIGH remark and fewer than ${MEDIUM_LIMIT} MEDIUM`)
     break
   }
   const signature = JSON.stringify(blocking.slice().sort())
   if (signature === previousSignature) {
-    log(`[prop/${round}] STUCK: the same blocking items as the previous round; more rounds will not help`)
+    log(`[${TAG}/${round}] STUCK: the same blocking items as the previous round; more rounds will not help`)
     break
   }
   previousSignature = signature
+  // A plateau: the critics keep finding about as much as they did; more rounds buy text, not quality.
+  if (blocking.length < best) {
+    best = blocking.length
+    sinceBest = 0
+  } else {
+    sinceBest += 1
+    if (sinceBest >= PLATEAU_ROUNDS) {
+      log(`[${TAG}/${round}] PLATEAU: ${sinceBest} rounds without fewer blocking items than ${best}; the rest is for a person`)
+      break
+    }
+  }
 }
 
 // =============================================================================================
-// Holdout: the client's questions put to the proposal by a reader holding nothing else
+// Holdout: the client's questions put to the stage's document by a reader holding nothing else
 // =============================================================================================
 
 // After the rounds and outside them: the score goes to the outcome for a person, never to the
@@ -848,11 +1051,11 @@ let holdoutScore = null
 if (cfg.holdout === false) {
   holdoutOutcome.push('Holdout: not scored (config.holdout=false)')
 } else if (!propOnDisk) {
-  holdoutOutcome.push('Holdout: not scored, the proposal is not on disk')
+  holdoutOutcome.push(`Holdout: not scored, ${DOC_PATH} is not on disk`)
 } else {
   phase('Holdout')
   const checked = await call(
-    commands([`${tool('holdout')} --check --final --file "${HOLDOUT_QUESTIONS}" --profile ${HOLDOUT_PROFILE} ${noted('holdout questions for the proposal')}`]),
+    commands([`${tool('holdout')} --check --final --file "${HOLDOUT_QUESTIONS}" --profile ${HOLDOUT_PROFILE} ${noted(`holdout questions for the ${HOLDOUT_FOR}`)}`]),
     { agentType: 'gate-runner', model: MODELS.gate, label: 'holdout:questions', phase: 'Holdout', schema: CHECKS },
   )
   const ready = checked && checked.checks && checked.checks.length === 1 && checked.checks[0].ok
@@ -861,16 +1064,18 @@ if (cfg.holdout === false) {
   } else {
     touched.add(HOLDOUT_QUESTIONS)
     const blinded = await call(
-      commands([`${tool('holdout')} --blind --file "${HOLDOUT_QUESTIONS}" --for proposal --out-dir "${HOLDOUT_OUT}" --profile ${HOLDOUT_PROFILE} ${noted('holdout batches for the proposal')}`]),
+      commands([`${tool('holdout')} --blind --file "${HOLDOUT_QUESTIONS}" --for ${HOLDOUT_FOR} --out-dir "${HOLDOUT_OUT}" --profile ${HOLDOUT_PROFILE} ${noted(`holdout batches for the ${HOLDOUT_FOR}`)}`]),
       { agentType: 'file-copier', model: MODELS.copy, label: 'holdout:blind', phase: 'Holdout', schema: GATE },
     )
     const batches = Number((blinded && blinded.report && blinded.report.measures && blinded.report.measures.batches) || 0)
-    const answers = await parallel(
+    // Questions written before the value map had a line of its own expect nothing of it.
+    if (!batches) holdoutOutcome.push(`Holdout: no question expects the ${VALUE ? 'value map' : 'proposal'}; nothing to score`)
+    const answers = !batches ? [] : await parallel(
       Array.from({ length: Math.min(batches, 10) * HOLDOUT_READERS }, (_, i) => () => {
         const batch = Math.floor(i / HOLDOUT_READERS) + 1
         const out = `${HOLDOUT_OUT}/answers-${batch}-${(i % HOLDOUT_READERS) + 1}.json`
         holdoutAnswers.push(out)
-        return call(task({ inputs: [{ port: 'draft', path: PROP_PATH }, { port: 'questions', path: `${HOLDOUT_OUT}/blind-${batch}.md` }], output: out }), {
+        return call(task({ inputs: [{ port: 'draft', path: DOC_PATH }, { port: 'questions', path: `${HOLDOUT_OUT}/blind-${batch}.md` }], output: out }), {
           agentType: 'answer-finder',
           model: MODELS.finder,
           label: `holdout:find:${batch}:${(i % HOLDOUT_READERS) + 1}`,
@@ -884,21 +1089,27 @@ if (cfg.holdout === false) {
     const SCORE = `${HOLDOUT_OUT}/score.md`
     const compare = STAGE === 'text' ? ` --compare "${HOLDOUT_CONTENT_SCORE}"` : ''
     if (compare) touched.add(HOLDOUT_CONTENT_SCORE)
-    const scored = await call(
-      commands([
-        `${tool('holdout')} --score --file "${HOLDOUT_QUESTIONS}" --for proposal --document "${PROP_PATH}" --answers-dir "${HOLDOUT_OUT}" --out "${SCORE}"${compare} ${noted(`holdout score of the proposal, ${STAGE}`)}`,
-      ]),
-      { agentType: 'file-copier', model: MODELS.copy, label: 'holdout:score', phase: 'Holdout', schema: GATE },
-    )
+    const scored = !batches
+      ? null
+      : await call(
+          commands([
+            `${tool('holdout')} --score --file "${HOLDOUT_QUESTIONS}" --for ${HOLDOUT_FOR} --document "${DOC_PATH}" --answers-dir "${HOLDOUT_OUT}" --out "${SCORE}"${compare} ${noted(`holdout score of the ${HOLDOUT_FOR}, ${STAGE}`)}`,
+          ]),
+          { agentType: 'file-copier', model: MODELS.copy, label: 'holdout:score', phase: 'Holdout', schema: GATE },
+        )
     const m = (scored && scored.report && scored.report.measures) || {}
-    touched.add(SCORE)
-    touched.add(SCORE.replace(/\.md$/, '.json'))
-    if (typeof m.score === 'number') {
+    if (batches) {
+      touched.add(SCORE)
+      touched.add(SCORE.replace(/\.md$/, '.json'))
+    }
+    if (!batches) {
+      // nothing was asked of this document: the line above says so
+    } else if (typeof m.score === 'number') {
       holdoutScore = m.score
       const list = (x) => (Array.isArray(x) && x.length ? x.join(', ') : 'none')
       holdoutOutcome.push(
         `Holdout: score ${m.score}; met ${m.met} of ${m.expected}; blocking not met: ${list(m.absent_blocking)}; ` +
-          `answers whose quote is not in the proposal: ${list(m.downgraded_quote_not_found)}; readers disagreed, the lower stands: ${list(m.readers_disagreed)}` +
+          `answers whose quote is not in the document: ${list(m.downgraded_quote_not_found)}; readers disagreed, the lower stands: ${list(m.readers_disagreed)}` +
           (STAGE === 'text' ? `; answered after the content stage and not now: ${list(m.lost_since_compared)}` : '') +
           ` (${SCORE})`,
       )
@@ -928,16 +1139,16 @@ if (writeOpen) {
 }
 // What the inputs did not hold, on its own record: it is for the client, not for another round. A
 // continued launch names its own file, so the record of an earlier launch is never written over.
-const MISSING_INPUT_PATH =
-  startRound > 1 ? `${run}/prop-${STAGE}-missing-input-from-round-${startRound}.md` : `${run}/prop-${STAGE}-missing-input.md`
-if (startRound > 1) touched.add(`${run}/prop-${STAGE}-missing-input.md`)
-if (missingInput.length) {
+// The value stage adds the client figures the modeler could not find, from its last answer.
+const MISSING_INPUT_PATH = startRound > 1 ? `${PREFIX}missing-input-from-round-${startRound}.md` : `${PREFIX}missing-input.md`
+if (startRound > 1) touched.add(`${PREFIX}missing-input.md`)
+const missingItems = [
+  ...figuresMissing.map((f) => `Round ${f.round}: a client figure the value map needs — missing: ${f.question} — searched: ${f.searched}`),
+  ...missingInput.map((d) => `Round ${d.round}: ${d.text} — missing: ${d.missing} — searched: ${d.searched}`),
+]
+if (missingItems.length) {
   await call(
-    record(
-      MISSING_INPUT_PATH,
-      'Remarks the inputs hold no data for: what to ask the client',
-      missingInput.map((d) => `Round ${d.round}: ${d.text} — missing: ${d.missing} — searched: ${d.searched}`),
-    ),
+    record(MISSING_INPUT_PATH, 'What the inputs do not hold: what to ask the client', missingItems),
     { agentType: 'verbatim-writer', model: MODELS.record, label: 'missing-input', phase: 'Report', schema: WROTE },
   )
 }
@@ -954,30 +1165,42 @@ const audit = await call(
   { agentType: 'gate-runner', model: MODELS.gate, label: 'audit', phase: 'Report', schema: LISTING },
 )
 const onDisk = (audit && audit.files) || []
-const mine = (f) =>
-  f === PROP_PATH || f.startsWith(`${ROUNDS_DIR}/`) || f.startsWith(`${run}/prop-${STAGE}-`) || f.startsWith(`${HOLDOUT_OUT}/`)
+const mine = (f) => f === DOC_PATH || f.startsWith(`${ROUNDS_DIR}/`) || f.startsWith(PREFIX) || f.startsWith(`${HOLDOUT_OUT}/`)
 const orphans = onDisk.filter((f) => mine(f) && !touched.has(f) && f !== OUTCOME_PATH)
 for (const f of orphans) log(`[audit/orphan] ${f}`)
 if (!onDisk.length) warnings.push('the directory audit was not done: the listing did not come back')
 
 const missing = Array.isArray(lastCoverage.missing) ? lastCoverage.missing : []
 const late = Array.isArray(lastCoverage.late) ? lastCoverage.late : []
+const totals = (lastRuled && lastRuled.totals) || {}
+const ruledMeasures = (lastRuled && lastRuled.measures) || {}
+const rulerWarnings = (lastRuled && lastRuled.warnings) || []
+const valueLine = lastRuled
+  ? `Value map: value lines ${ruledMeasures.value_lines ?? '?'}, formulas ${ruledMeasures.formulas ?? '?'}; ` +
+    `hard ${totals.hard ?? '?'}, soft ${totals.soft ?? '?'}, run ${totals.run ?? '?'}, net ${totals.net ?? '?'} a month; ` +
+    `break-even budget ${totals['budget-12'] ?? '?'} at 12 months, ${totals['budget-24'] ?? '?'} at 24 (${lastRuler})` +
+    (rulerWarnings.length ? `; ruler warnings: ${rulerWarnings.join('; ')}` : '')
+  : 'Value map: not recomputed, the ruler never ran on it'
 const outcome = [
-  `${STAGE === 'content' ? 'Content' : 'Text'} accepted: ${accepted ? 'yes' : 'no'}; rounds: ${rounds} (this launch at most ${MAX_ROUNDS})`,
-  `Pains answered in the client's words: ${lastCoverage.answered ?? '?'} of ${(lastCoverage.pains ?? 0) + (lastCoverage.worries ?? 0) || '?'}` +
-    (missing.length ? `; not answered: ${missing.join(', ')}` : '') +
-    (late.length ? `; top pains answered late: ${late.join(', ')}` : ''),
+  `${PHASE} accepted: ${accepted ? 'yes' : 'no'}; rounds: ${rounds} (this launch at most ${MAX_ROUNDS})`,
+  VALUE
+    ? valueLine
+    : `Pains answered in the client's words: ${lastCoverage.answered ?? '?'} of ${(lastCoverage.pains ?? 0) + (lastCoverage.worries ?? 0) || '?'}` +
+      (missing.length ? `; not answered: ${missing.join(', ')}` : '') +
+      (late.length ? `; top pains answered late: ${late.join(', ')}` : ''),
   `Design: ${designPath || 'none; how it is built rests on the requirements alone'}`,
   ...facts,
   ...perRound,
   ...holdoutOutcome,
   `Open items: ${open.length}${open.length ? ` (${UNRESOLVED_PATH})` : ''}; all remarks: ${REMARKS_PATH}`,
-  `No data in the inputs: ${missingInput.length}${missingInput.length ? ` (${MISSING_INPUT_PATH})` : ''}`,
+  `No data in the inputs: ${missingItems.length}` +
+    (VALUE ? ` (client figures ${figuresMissing.length}, remarks ${missingInput.length})` : '') +
+    (missingItems.length ? ` (${MISSING_INPUT_PATH})` : ''),
   `Audit of this stage: read by nobody ${orphans.length}` + (orphans.length ? ` (${orphans.join(', ')})` : ''),
   ...warnings.map((w) => `WARNING: ${w}`),
   ...handoff.map((h) => `Call: ${h}`),
 ]
-await call(record(OUTCOME_PATH, `Proposal ${STAGE}: ${run}`, outcome), {
+await call(record(OUTCOME_PATH, `${VALUE ? 'Value map' : `Proposal ${STAGE}`}: ${run}`, outcome), {
   agentType: 'verbatim-writer',
   model: MODELS.record,
   label: 'outcome',
@@ -988,7 +1211,7 @@ const records = [
   OUTCOME_PATH,
   ...(ledger.length ? [REMARKS_PATH] : []),
   ...(writeOpen ? [UNRESOLVED_PATH] : []),
-  ...(missingInput.length ? [MISSING_INPUT_PATH] : []),
+  ...(missingItems.length ? [MISSING_INPUT_PATH] : []),
 ]
 // The last commands of the stage: each releases the directory, so the audit's release is not
 // followed by a working line and the next stage, launched at once, does not find the run busy.
@@ -1000,19 +1223,27 @@ for (const r of missingRecords) log(`[report] RECORD NOT ON DISK: ${r}`)
 
 return {
   stage: STAGE,
+  document: DOC_PATH,
   proposal: PROP_PATH,
   accepted,
   rounds,
   pains_not_answered: missing,
   top_pains_late: late,
+  value_totals: VALUE ? totals : null,
   open_items: open.length,
   unresolved: open.length ? UNRESOLVED_PATH : null,
-  missing_input: missingInput.length ? MISSING_INPUT_PATH : null,
+  missing_input: missingItems.length ? MISSING_INPUT_PATH : null,
   remarks: ledger.length ? REMARKS_PATH : null,
   holdout: { score: holdoutScore, answers: holdoutAnswers },
   outcome: OUTCOME_PATH,
   records_missing: missingRecords,
   orphans,
   warnings,
-  next: accepted && STAGE === 'content' ? 'read prop.md, then config.stages=["text"]' : accepted ? 'figures: attn-figures.js on prop.md' : 'read the open items',
+  next: !accepted
+    ? 'read the open items'
+    : VALUE
+      ? 'read value.md, then config.stages=["content"]'
+      : STAGE === 'content'
+        ? 'read prop.md, then config.stages=["text"]'
+        : 'figures: attn-figures.js on prop.md',
 }

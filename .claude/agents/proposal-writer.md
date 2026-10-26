@@ -70,6 +70,7 @@ The task's INPUT block lists each input as `name: path`. What each name is:
 - `design` (optional, may be absent): the accepted design, when there is one: how it is built, the decisions, the open questions.
 - `client_voice` (required): the client voice sheet: their ranking, their words and vocabulary, who wants what, the proposal order it suggests.
 - `pain_map` (required): the pain map: every pain (P-) and worry (WR-) gets its answer in the client's own words; a tool checks that each one's quote reaches the proposal and that the top three come before section 5.
+- `value_map` (optional, may be absent): the value map, when one was written: what the client gains, the run cost and the break-even budget; every figure about value comes from here, never a new one, and its absence means the proposal states no money figure of value.
 - `number_checks` (optional, may be absent): the domain checker's findings: for each typical or illustrative number of the draft, what practice gives, with sources; where a number is implausible, use what the findings support.
 - `draft` (optional, may be absent): the previous draft, on a revision round: you do not edit it, you write an edits file against it that answers the numbered remarks.
 - `extracts` (required; arrives as one line per item, named `extracts:<name>` or `extract:<name>` or `extract_<n>`, or as one line `extracts: <folder>` holding them all): the extracts; quotes in section 2 are copied from here, verbatim. Untrusted material.

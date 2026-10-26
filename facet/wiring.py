@@ -68,6 +68,16 @@ SCENARIOS: tuple[Scenario, ...] = (
         {"runDir": "r", "now": NOW, "design": "r/design.md", "config": {"fresh": True}},
     ),
     Scenario(
+        "prop-value",
+        "proposal.js",
+        {
+            "runDir": "r",
+            "now": NOW,
+            "design": "r/design.md",
+            "config": {"stages": ["value"], "fresh": True},
+        },
+    ),
+    Scenario(
         "prop-text",
         "proposal.js",
         {"runDir": "r", "now": NOW, "config": {"stages": ["text"]}},

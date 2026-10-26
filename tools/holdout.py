@@ -47,7 +47,8 @@ KEYS = (
 LAYERS = ("asked", "implied", "role", "situation", "domain")
 WEIGHTS = {"blocking": 2, "important": 1}
 EXPECTATIONS = ("answer", "acknowledge", "none")
-DOCUMENTS = {"design": "Design", "proposal": "Proposal"}
+# Value is optional: questions written before the value map had a line of their own lack it.
+DOCUMENTS = {"design": "Design", "proposal": "Proposal", "value": "Value"}
 OUTCOMES = ("answered", "acknowledged", "absent")
 
 BLOCK = re.compile(r"^###\s+(Q-\d{2})\s*$", re.MULTILINE)
@@ -116,7 +117,7 @@ def fields_of(block: str) -> dict[str, str]:
     found: dict[str, str] = {}
     for line in block.splitlines()[1:]:
         m = KEY_LINE.match(line)
-        if m and m.group(1) in KEYS and m.group(1) not in found:
+        if m and m.group(1) in (*KEYS, *DOCUMENTS.values()) and m.group(1) not in found:
             found[m.group(1)] = m.group(2)
     return found
 
@@ -145,7 +146,7 @@ def parse(text: str) -> tuple[str, list[dict[str, str]], list[str]]:
             value = f.get(key, "")
             if value and value not in EXPECTATIONS:
                 problems.append(f"{qid}: {key} must be answer, acknowledge or none, got {value}")
-        if all(f.get(k) == "none" for k in DOCUMENTS.values()):
+        if all(f.get(k, "none") == "none" for k in DOCUMENTS.values()):
             problems.append(f"{qid}: no document is expected to answer it")
         problems.extend(ground_shape(qid, layer, f.get("Ground", "")))
         questions.append({"id": qid, "block": block, **f})

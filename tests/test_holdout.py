@@ -354,3 +354,50 @@ def test_two_readers_who_disagree_leave_the_lower_outcome(tmp_path: Path) -> Non
     assert m["acknowledged_instead_of_answered"] == ["Q-01"]
     table = (tmp_path / "design" / "score.md").read_text(encoding="utf-8")
     assert "the lower outcome stands: Q-01." in table
+
+
+def test_the_value_map_is_an_optional_document(tmp_path: Path) -> None:
+    # Questions written before the value map had a line of their own carry no Value line: they
+    # still pass, and expect nothing of the value map.
+    old = HEAD + "".join(block(f"Q-{n:02d}", "implied", QUOTE) for n in range(1, 4))
+    _, _, problems = holdout.parse(old)
+    assert problems == []
+    out = tmp_path / "value"
+    report = run(
+        "--blind",
+        "--file",
+        str(write(tmp_path, "old.md", old)),
+        "--for",
+        "value",
+        "--out-dir",
+        str(out),
+        "--profile",
+        str(PROFILE),
+    )
+    assert report["measures"] == {"batches": 0, "questions": 0, "removed": 0}
+
+    new = old.replace("- Proposal: answer\n\n", "- Proposal: answer\n- Value: answer\n\n", 1)
+    report = run(
+        "--blind",
+        "--file",
+        str(write(tmp_path, "new.md", new)),
+        "--for",
+        "value",
+        "--out-dir",
+        str(out),
+        "--profile",
+        str(PROFILE),
+    )
+    assert report["measures"] == {"batches": 1, "questions": 1, "removed": 0}
+    first = (out / "blind-1.md").read_text(encoding="utf-8")
+    assert "### Q-01" in first and "Value" not in first
+
+
+def test_a_question_expected_of_no_document_is_named_with_value_absent() -> None:
+    text = HEAD + block("Q-01", "implied", QUOTE, design="none", proposal="none")
+    _, _, problems = holdout.parse(text)
+    assert problems == ["Q-01: no document is expected to answer it"]
+    _, _, problems = holdout.parse(
+        text.replace("- Proposal: none\n", "- Proposal: none\n- Value: answer\n")
+    )
+    assert problems == []
