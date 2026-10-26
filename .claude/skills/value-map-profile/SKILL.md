@@ -169,7 +169,10 @@ reproduces, never a number typed from memory.
   for thousands and millions written onto the number (6k tokens, $3/1M tokens).
 - A number that is ours carries a star directly after it (21* day/month) and has its row in
   the assumption map. Every other number in a value line is a value of section 3, section 5 or
-  section 9, or the result of another formula.
+  section 9, or the result of another formula; a share is matched only by a share. An SLA
+  threshold of section 2 is what the client wants, not what will happen: a line that expects
+  it to be met stars the number and gives the forecast its row in section 9, with its range and
+  basis. A sensitivity case may also halve, double and take the end of a range.
 - Units: min, h, day, week, month, year and %, or their usual abbreviations in the document's
   language; "/" before a unit makes a rate ($40/h, 4,000 claims/month). Minutes and hours
   convert, and so do months and years; nothing else does: days to months is a starred factor

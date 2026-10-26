@@ -336,3 +336,21 @@ def test_a_sensitivity_case_starts_from_traced_numbers() -> None:
     )
     problems = value_model.measure(doc)["problems"]
     assert "case 'Review share doubled' net: 1344 has no source and no star" in problems
+
+
+def test_an_sla_threshold_is_a_target_and_sources_no_forecast() -> None:
+    # On one live run a line forecast the client's pilot target as met, unstarred, and the
+    # ruler passed it because the target was written in section 2.
+    doc = changed("at least 98%", "at least 25%")
+    doc = doc.replace("(1 − 25%*)", "(1 − 25%)", 1).replace("| 25% (15–35) |", "| 30% (15–35) |", 1)
+    problems = value_model.measure(doc)["problems"]
+    assert any("V-02 with the solution: 25 is an SLA threshold" in p for p in problems), problems
+
+
+def test_a_share_is_not_sourced_by_a_plain_number_nor_by_the_end_of_a_range() -> None:
+    plain, shares = value_model.sources_of("€70/h (55–90)")
+    assert 70.0 in plain and 70.0 not in shares
+    plain, shares = value_model.sources_of("60% (50–67), 10 min (5–15)")
+    assert {60.0, 50.0, 67.0} <= shares and {10.0, 5.0, 15.0} <= plain
+    plain, shares = value_model.sources_of("60% (50–67), 10 min (5–15)", main_only=True)
+    assert shares == {60.0} and plain == {10.0}

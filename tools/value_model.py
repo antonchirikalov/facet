@@ -14,12 +14,12 @@ What it reads, by section number and by column position (headers may be translat
 - section 4, Value lines: the formulas, gain = now - with, the pain id, the pillar, the SLA id,
   hard or soft, a soft line's condition and its counted amount after the write-off, and where
   every number comes from: a star and a row in section 9, or a value of section 3, 5 or 9, or
-  the result of another formula;
+  the result of another formula; an SLA threshold of section 2 is a target and sources nothing;
 - section 5, Run cost: each driver against its monthly cost;
 - section 6, Net value: the keys hard, soft, run, net, budget-12 and budget-24 against what
   sections 4 and 5 add up to;
-- section 7, Sensitivity: each case's formulas, its net built from traced numbers (50% and 2
-  halve and double), its budgets against its net, at least three cases;
+- section 7, Sensitivity: each case's formulas, its net built from traced numbers (50%, 2 and
+  the ends of an assumption's range), its budgets against its net, at least three cases;
 - section 9, Assumption map: a range wider than --max-ratio is a warning, for the critic to judge
   against its plan to narrow it.
 
@@ -149,6 +149,7 @@ class Number:
     written: float
     star: bool
     currency: str | None
+    percent: bool = False
 
 
 @dataclass
@@ -248,6 +249,7 @@ class Scanner:
             written *= 1_000_000
             self.pos += 1
         star = False
+        percent = False
         quantity = Quantity(written)
         for _ in range(2):
             if self.peek() == "*":
@@ -255,11 +257,12 @@ class Scanner:
                 self.pos += 1
             elif self.peek() == "%":
                 quantity = Quantity(quantity.value / 100)
+                percent = True
                 self.pos += 1
         currency = self.tail(quantity, currency)
         if currency:
             quantity.dims["money"] = quantity.dims.get("money", 0) + 1
-        return Number(quantity, written, star, currency)
+        return Number(quantity, written, star, currency, percent)
 
     def tail(self, quantity: Quantity, currency: str | None) -> str | None:
         """Units written after a number: words, "/word" rates, a currency sign or code."""
@@ -462,6 +465,39 @@ def written_numbers(text: str) -> set[float]:
     return found
 
 
+def sources_of(text: str, main_only: bool = False) -> tuple[set[float], set[float]]:
+    """The magnitudes a cell can source, split into plain numbers and shares.
+
+    A number is a share when "%" follows it; a range in parentheses takes the kind of the value
+    before it, so the ends of "60% (50-67)" are shares and those of "10 min (5-15)" are not.
+    With main_only, the values alone and not the ends of their ranges: an assumption's value.
+    """
+    plain: set[float] = set()
+    shares: set[float] = set()
+    last_share = False
+    for m in re.finditer(r"\d[\d,.   ]*", text):
+        chunk = m.group(0).rstrip()
+        g = GROUPED.match(chunk) or PLAIN.match(chunk)
+        if g is None:
+            continue
+        inside = text[: m.start()].count("(") > text[: m.start()].count(")")
+        if inside and main_only:
+            continue
+        values = {to_float(g.group(1), g.group(2))}
+        tail = text[m.start() + g.end() :]
+        if tail[:1] in ("k", "K"):
+            values |= {v * 1_000 for v in values}
+        elif tail[:1] == "M":
+            values |= {v * 1_000_000 for v in values}
+        share = tail.lstrip(" *").startswith("%")
+        if inside:
+            share = share or last_share
+        else:
+            last_share = share
+        (shares if share else plain).update(values)
+    return plain, shares
+
+
 @dataclass
 class Report:
     problems: list[str] = field(default_factory=list)
@@ -520,18 +556,39 @@ def measure(text: str, max_ratio: float = 3.0, pain_ids: set[str] | None = None)
                 f"{cell(row, 0) or 'section 2'}: pillar {cell(row, 1)!r} is none of {sorted(PILLARS)}"
             )
 
-    # Where a number of a value line may come from.
+    # Where a number of a value line may come from, plain numbers and shares apart: 70% is not
+    # sourced by EUR 70/h. A star needs the assumption's value, a star in a sensitivity case may
+    # also take an end of its range.
     assumed: set[float] = set()
     for row in s9:
         assumed |= written_numbers(cell(row, 2))
-    # 1 and 100% are the whole; 50% and 2 are the halving and doubling of the sensitivity cases.
-    sourced: set[float] = set(assumed) | {1.0, 100.0, 50.0, 2.0}
-    for row in s2:
-        sourced |= written_numbers(cell(row, 3))
+    plain: set[float] = {1.0, 100.0}
+    shares: set[float] = {100.0}
+    for row in s9:
+        p9, s9_ = sources_of(cell(row, 2), main_only=True)
+        plain |= p9
+        shares |= s9_
     for row in s3:
-        sourced |= written_numbers(cell(row, 2))
+        p3, s3_ = sources_of(cell(row, 2))
+        plain |= p3
+        shares |= s3_
     for row in s5:
-        sourced |= written_numbers(cell(row, 1)) | written_numbers(cell(row, 2))
+        for c in (cell(row, 1), cell(row, 2)):
+            p5, s5_ = sources_of(c)
+            plain |= p5
+            shares |= s5_
+    # A sensitivity case may also halve and double, and take the end of an assumption's range.
+    case_plain = plain | {2.0}
+    case_shares = shares | {50.0}
+    for row in s9:
+        p9, s9_ = sources_of(cell(row, 2))
+        case_plain |= p9
+        case_shares |= s9_
+    # An SLA threshold is a target, not a source: a line that forecasts the target is met stars
+    # it and gives the forecast its own row in section 9.
+    thresholds: set[float] = set()
+    for row in s2:
+        thresholds |= written_numbers(cell(row, 3))
 
     # Section 3: two estimates of one measure agree within 1.5 times.
     for row in s3:
@@ -727,6 +784,11 @@ def measure(text: str, max_ratio: float = 3.0, pain_ids: set[str] | None = None)
         )
 
     # Where each number of a value line comes from.
+    def sources_for(case: bool, percent: bool) -> set[float]:
+        if case:
+            return case_shares if percent else case_plain
+        return shares if percent else plain
+
     unsourced = 0
     for place, numbers in traced:
         for num in numbers:
@@ -734,9 +796,18 @@ def measure(text: str, max_ratio: float = 3.0, pain_ids: set[str] | None = None)
                 if not any(close(num.written, a) for a in assumed):
                     unsourced += 1
                     r.problems.append(f"{place}: {num.written:g}* is not in the assumption map")
-            elif not any(close(num.written, s) for s in sourced | r.results):
+            elif not any(
+                close(num.written, s)
+                for s in sources_for(place.startswith("case "), num.percent) | r.results
+            ):
                 unsourced += 1
-                r.problems.append(f"{place}: {num.written:g} has no source and no star")
+                if any(close(num.written, t) for t in thresholds):
+                    r.problems.append(
+                        f"{place}: {num.written:g} is an SLA threshold, a target and not a forecast; "
+                        "star it and give it a row in section 9"
+                    )
+                else:
+                    r.problems.append(f"{place}: {num.written:g} has no source and no star")
 
     # Section 9: ranges wider than the ratio, for the critic to weigh against its plan.
     for row in s9:
