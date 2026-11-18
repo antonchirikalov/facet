@@ -14,3 +14,7 @@ __pycache__/
 # full exemplars are client documents; the repository holds skeletons only (SPEC R8)
 exemplars.local.yaml
 logs/
+
+# the author's working notes and the IDE: local, not for a public repository
+notes/
+.idea/
