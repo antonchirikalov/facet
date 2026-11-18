@@ -46,6 +46,14 @@ def test_readme_registry_is_current(runs: list[wiring.Run]) -> None:
     assert wiring.splice(readme, table) == readme, "run: uv run python -m facet.wiring"
 
 
+@needs_node
+def test_english_readme_registry_is_current(runs: list[wiring.Run]) -> None:
+    """README.en.md carries the same table, its descriptions from the English contracts."""
+    readme = (ROOT / "README.en.md").read_bytes().decode("utf-8")
+    table = wiring.render_registry(wiring.registry(ROOT, runs), None, "en")
+    assert wiring.splice(readme, table) == readme, "run: uv run python -m facet.wiring"
+
+
 def test_every_library_agent_is_in_the_registry() -> None:
     readme = (ROOT / "README.md").read_bytes().decode("utf-8")
     for slug in wiring.load_specs(ROOT / "library" / "agents"):

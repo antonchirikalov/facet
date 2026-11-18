@@ -387,13 +387,26 @@ def registry(root: Path, runs: Iterable[Run]) -> list[AgentEntry]:
     return sorted(entries.values(), key=lambda e: e.slug)
 
 
-def used_by(entry: AgentEntry) -> str:
+# The README is Russian, its copy README.en.md English: one table, two headers. The Russian
+# "what it does" cell is written by hand; the English one is the first sentence of the contract.
+HEADERS = {
+    "ru": "| Агент | Что делает | Берёт | Отдаёт | Профиль | Кто вызывает (скрипт: шаги) |",
+    "en": "| Agent | What it does | Takes | Gives | Profile | Called by (script: steps) |",
+}
+UNUSED = {
+    "ru": "пока ни один скрипт — деталь для следующего конвейера",
+    "en": "no script yet: a part for the next pipeline",
+}
+READMES = {"ru": "README.md", "en": "README.en.md"}
+
+
+def used_by(entry: AgentEntry, lang: str = "ru") -> str:
     by_script: dict[str, list[str]] = {}
     for item in sorted(entry.used_by):
         script, step = item.split(" | ")
         by_script.setdefault(script, []).append(step)
     lines = [f"`{script}`: {', '.join(steps)}" for script, steps in sorted(by_script.items())]
-    return "<br>".join(lines) or "пока ни один скрипт — деталь для следующего конвейера"
+    return "<br>".join(lines) or UNUSED[lang]
 
 
 def descriptions_of(readme: str) -> dict[str, str]:
@@ -415,18 +428,17 @@ def descriptions_of(readme: str) -> dict[str, str]:
 
 
 def render_registry(
-    entries: Iterable[AgentEntry], descriptions: dict[str, str] | None = None
+    entries: Iterable[AgentEntry],
+    descriptions: dict[str, str] | None = None,
+    lang: str = "ru",
 ) -> str:
-    rows = [
-        "| Агент | Что делает | Берёт | Отдаёт | Профиль | Кто вызывает (скрипт: шаги) |",
-        "|---|---|---|---|---|---|",
-    ]
+    rows = [HEADERS[lang], "|---|---|---|---|---|---|"]
     for e in entries:
         what = (descriptions or {}).get(e.slug) or first_sentence(e.spec.description)
         profile = ", ".join(f"`{s}`" for s in e.spec.skills) or "—"
         rows.append(
             f"| `{e.slug}` | {what} | {ports_of(e.spec.consumes)} | {ports_of(e.spec.produces)} | "
-            f"{profile} | {used_by(e)} |"
+            f"{profile} | {used_by(e, lang)} |"
         )
     return "\n".join(rows)
 
@@ -443,12 +455,15 @@ def main() -> int:
     root = Path(__file__).resolve().parent.parent
     runs = all_runs(root)
     problems = check(root, runs)
-    readme = root / "README.md"
-    text = readme.read_bytes().decode("utf-8")
-    new = splice(text, render_registry(registry(root, runs), descriptions_of(text)))
-    if new != text:
-        readme.write_bytes(new.encode("utf-8"))
-        print("README: agent registry updated")
+    entries = registry(root, runs)
+    for lang, name in READMES.items():
+        readme = root / name
+        text = readme.read_bytes().decode("utf-8")
+        described = descriptions_of(text) if lang == "ru" else None
+        new = splice(text, render_registry(entries, described, lang))
+        if new != text:
+            readme.write_bytes(new.encode("utf-8"))
+            print(f"{name}: agent registry updated")
     for p in problems:
         print(p)
     print(f"wiring problems: {len(problems)}")

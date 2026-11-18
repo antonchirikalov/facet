@@ -38,7 +38,8 @@ python -X utf8 tools/holdout.py --score --file <run>/holdout/questions.md --for 
 
 Done means: pytest green, mypy green, ruff clean, generated files rebuilt and committed,
 `dry_run.mjs` in every mode of any script that was touched, and `facet.wiring` at zero
-problems with the README registry regenerated. A port a script hands an agent is declared in
+problems with the agent registry regenerated in README.md and README.en.md. README.en.md is the
+English copy of README.md: a change to one is made in the other. A port a script hands an agent is declared in
 that agent's `agent.yaml`; a new collection is handed as `<singular>:<stem>` or `<singular>_<n>`.
 
 ## Rules that break a run when broken
