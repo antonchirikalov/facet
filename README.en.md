@@ -546,6 +546,46 @@ one sentence on a topic ── explainer-article: research → draft ── arti
 - **`attn-figures` and `scene`** come last, on accepted text: a figure must match
   the final document.
 
+### How we usually combine them
+
+Combinations that took shape on live presales. The run directory lives in the client's working
+folder, outside the repository (`tools/newrun.py --base <client working folder> --label <what>`).
+Between launches a person reads `outcome.md`, `UNRESOLVED.md` and `missing-input.md`; the last is
+a ready list of questions for the client.
+
+1. **Full presale: requirements, design, proposal.** The most common combination.
+   ```
+   requirements - read - design (type) - read - proposal value - proposal content - proposal text
+     - attn-figures on design.md and prop.md - publish to Confluence
+   ```
+   The `value` stage is skipped when the client does not expect a conversation about money; the
+   proposal then has no business value section, and the outcome warns about it.
+2. **A proposal without a design.** A short request or an offer for a discovery phase: there is
+   no design yet, and the proposal rests on the requirements and the pain map.
+   ```
+   requirements - proposal content - proposal text - proposal-review - attn-figures
+   ```
+   `proposal-review` at the end gives the coverage map: every ask of the client from the
+   transcript and the place in the proposal that answers it.
+3. **A pain map and a design written by hand.** When a person writes the architecture, the
+   pipeline gives them the ground: `requirements` writes `pains.md`, `client-voice.md` and the
+   holdout questions, the person writes the design from them, and `attn-figures` draws its figures
+   (product screens from HTML mockups).
+4. **Reviewing someone else's document.** A proposal or an RFP answer written by a person or in
+   another tool: only `proposal-review`, on the draft, the transcript and the client's documents.
+5. **The client's answers arrived.** The answers go into `inputs/` as a new document next to the
+   earlier material, `requirements` runs in a new run directory, and the design and the proposal
+   are built again on the new requirements.
+6. **A scene for a call with the client.** On the accepted `prop.md`: `scene` writes the page, the
+   stills of its steps go into the document, the live page is sent as a link.
+7. **An article.** `explainer-article` with the `research` stage, a hand edit of `brief.md`, the
+   `draft` stage, then `attn-figures` on `article.md`.
+
+Publishing is the last step of any combination: `tools/confluence_publish.py --draft <file>
+--parent-id <id> --illustrations <folder>/figures --json <report>`. Publishing the same document
+again is `--update <page id>`, not a new page; check `attachments_count` in the report. The
+`confluence-publisher` agent does the same from a session.
+
 ### Launch options
 
 The same pipeline behaves differently depending on `config` in the arguments. Shared by

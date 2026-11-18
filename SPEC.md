@@ -1,6 +1,6 @@
 # facet — project specification
 
-Version 0.1 · 2026-09-17 · status: accepted for work
+Version 0.2 · 2026-11-18 · status: accepted for work; sections 4-10 brought up to the repository
 
 ## 1. What this is
 
@@ -68,44 +68,34 @@ script (2→3).
 
 ## 4. Level-3 pipelines
 
-The document scripts in `.claude/workflows/`:
+The document scripts in `.claude/workflows/`. The README holds how each is launched, its
+arguments and how they combine; this table is the decision record.
 
-| Script | Input | Output | State |
+| Script | Input | Output | Since |
 |---|---|---|---|
-| `requirements.js` | `inputs/` with the client's documents | `extracts/`, `client-voice.md`, `requirements.md`, `pains.md`, `holdout/questions.md`, `critic-remarks.md`, `UNRESOLVED.md`, `missing-input.md`, `outcome.md` | exists (since 2026-10-03; holdout and missing input since 2026-10-10) |
-| `design.js` | an accepted `requirements.md` and a design type (`solution-design`, `ai-solution`) | `design.md` with figure placeholders, `design-outcome.md`, `design-remarks.md`, `design-unresolved.md`, `design-missing-input.md`, `holdout/design/score.md` | exists (since 2026-10-05) |
-| `proposal.js` | accepted requirements, `pains.md`, `client-voice.md`, optionally `design.md` | `prop.md` in two stages, content and text, each with `holdout/prop-<stage>/score.md` | exists (since 2026-10-04) |
-| `explainer-article.js` | a one-sentence order | article, sources, round records | exists |
-| `attn-figures.js` | a document with placeholders | PNG + manifest | exists |
+| `requirements.js` | `inputs/` with the client's documents | `extracts/`, `client-voice.md`, `requirements.md`, `pains.md`, `holdout/questions.md`, `critic-remarks.md`, `UNRESOLVED.md`, `missing-input.md`, `outcome.md` | 2026-10-03; holdout and missing input 2026-10-10 |
+| `design.js` | an accepted `requirements.md` and a design type (`solution-design`, `ai-solution`) | `design.md` with figure placeholders, `design-outcome.md`, `design-remarks.md`, `design-unresolved.md`, `design-missing-input.md`, `holdout/design/score.md` | 2026-10-05 |
+| `proposal.js` | accepted requirements, `pains.md`, `client-voice.md`, optionally `design.md` | three stages, one per launch: `value` (optional) writes `value.md` under the value-map profile and the `value_model.py` ruler; `content` and `text` write `prop.md`; each stage has its outcome, remarks and `holdout/<stage>/score.md` | 2026-10-04; value stage 2026-10-26 |
+| `scene.js` | a scene brief with Facts, the accepted proposal | one HTML page and a still of every step | 2026-10-04 |
+| `proposal-review.js` | a proposal written elsewhere, the client's sources | the edited proposal, `coverage-map.md`, round records | 2026-09-29 |
+| `explainer-article.js` | a one-sentence order | article, sources, round records | 2026-08-14, from collimator |
+| `attn-figures.js` | a document with figure placeholders | PNG + manifest | 2026-08-14, from collimator |
 
-The shape of `requirements.js`: `extract` (one agent per document, in parallel, ceiling
-`cfg.maxSources`) → `write` (writer → corrector → critic, up to `cfg.maxRounds`, plateau) →
-output to `reqs/`. A human reads `reqs/` and launches `/doc-design`.
-
-The common header of every script:
-
-```javascript
-const cfg = {
-  maxSources: 8, extractWorkers: 4,
-  maxRounds: 3, correctors: true,
-  candidateModels: ['sonnet', 'opus'],
-  ...args.config,
-}
-```
-
-The common part (cfg, `task()`, verdict schemas, gate commands, audit) is copied
-between scripts — `import()` is forbidden; `tests/test_workflows.py` makes sure the copies do not
-drift apart.
+A script cannot `import()`, so the common part (cfg, `task()`, verdict schemas, gate commands,
+records, audit) is copied between scripts. `facet.wiring` runs every stage of every script on stubs
+and checks the ports, lost outputs and meta phases, so a copy that drifts from the contracts fails
+there.
 
 ## 5. Python is a ruler, not a foreman
 
-`tools/`: `gate.py` (schema, sections, prose length, clichés from a file, empty headings),
-`rounds.py` (round sheet, plateau, "what to continue with"), `listing.py` (what is actually there),
-`busy.py` (whether a directory is busy), `newrun.py` (run directory name), `snapshot.py`,
-`stop_audit.py` (the auditor hook), `confluence_publish.py`. Everything is called by an agent inside
-a workflow or by the session at levels 1–2. New tools are allowed if they measure rather than
-control. The first candidate: a gate rule "every row of the requirements table has a source
-reference" for the `requirements` profile.
+`tools/` holds the rulers: gates (`gate.py` and the checks it is paired with: `extract_trace.py`,
+`must_covered.py`, `pain_coverage.py`, `structure_kept.py`, `check_quotes.py`, `figure_facts.py`,
+`value_model.py`, `holdout.py`), the round sheet (`rounds.py`), listings, busyness and run names
+(`listing.py`, `busy.py`, `newrun.py`), file hands (`snapshot.py`, `apply_edits.py`, `to_text.py`,
+`intake.py`), the auditor hook (`stop_audit.py`), rendering (`render_html.py`, `shrink_png.py`) and
+Confluence (`confluence_publish.py`, `confluence_fetch.py`). Everything is called by an agent inside
+a workflow or by the session. New tools are allowed if they measure rather than control; each one
+records its own call in `<run>/tools.jsonl` through `toollog.py`.
 
 ## 6. Document-type profiles
 
@@ -122,9 +112,9 @@ mandatory, what is forbidden); critic checklist (what to check, in order of impo
 with thresholds; link to the exemplar skeleton; weight level; output language (the rule: the
 language of the sources, not of the prompt).
 
-The first three profiles: `requirements` (the contract is already written in the critic's prompt —
-move it out), `solution-design` (from the designer's prompt), `gap-analysis` (the first level-2
-profile).
+The profiles in the repository: `extract`, `requirements`, `client-voice`, `pain-map`,
+`holdout-questions`, `solution-design`, `ai-solution`, `value-map`, `proposal`, `animated-scene`.
+Level-2 profiles (`gap-analysis` and others) are not written yet.
 
 ## 7. Exemplars
 
@@ -135,55 +125,60 @@ path to the real document on disk; the agent reads the full exemplar if the path
 
 ## 8. Client folder standard
 
-As it has settled in real folders, to be recorded in `docs/run-layout.md`:
+A run directory is made by `tools/newrun.py --base <folder> --label <what>`: `docs-runs/` in the
+repository for trial runs, the client's own working folder for real ones (never the repository).
+Inside it every pipeline writes to fixed names:
 
 ```
-<client>/
-  input/                    the client's sources as they arrived
-  reqs/                     requirements: _requirements.md, _traceability.md, _open_questions.md
-  design_<date>/            design: _solution_design.md, illustrations/, logs/, prompts/
-  estimates/
-  illustrations/
-  <one-off documents>.md    levels 1–2, alongside
+<run>/
+  inputs/                   the client's sources as they arrived (requirements.js reads them)
+  extracts/                 one extract per source
+  requirements.md, client-voice.md, pains.md, outcome.md, missing-input.md
+  holdout/                  questions.md, the blind batches and the scores per stage
+  design.md, design-*.md    design.js
+  value.md, value-*.md      proposal.js, stage value
+  prop.md, prop-<stage>-*.md proposal.js, stages content and text
+  rounds/<stage>/           round records and the draft of every round
+  figures/, figures-work/   attn-figures.js
+  tools.jsonl               the receipt of every ruler call
 ```
 
 ## 9. Target repository layout
 
 ```
 facet/
-  README.md                 entry point: three levels, "I want a document of type X → document-types.md"
+  README.md, README.en.md   entry point (Russian) and its English copy
   SPEC.md                   this document
-  CLAUDE.md                 rules for Claude Code (inherits from collimator, being cut down)
+  CLAUDE.md                 rules for the developer session
   docs/
-    document-types.md       type catalogue: level, profile, exemplar, script
-    run-layout.md           client folder standard
-    workflow-conventions.md script rules (moved from collimator's CLAUDE.md) + cfg
-    decisions/              dated retrospectives and write-ups (moved from docs/)
-  library/agents/           source of truth for agents (28)
-  library/types/, library/templates/, library/style/
+    workflow-conventions.md script rules and the rakes paid for by live runs
+    decisions/              dated write-ups
+    figures/                the README's figures and their manifest
+    article-dynamic-workflows.md
+  library/agents/           source of truth for agents (40)
+  library/style/            voice profile, tells of generated text, forbidden patterns
   .claude/agents/           generated
-  .claude/workflows/        four scripts
-  .claude/skills/           profiles
-  .claude/settings.json     env + auditor hook
-  exemplars/
-  tools/
+  .claude/workflows/        seven scripts
+  .claude/skills/           profiles, and frontend-design from Anthropic
+  .claude/settings.json     the auditor hook
+  cases/                    invented cases for trial runs (Acme Clinics)
+  exemplars/                anonymised skeletons
+  tools/                    rulers
   tests/
-  facet/                    emit_agents.py + models (renamed from collimator 2026-09-20)
+  facet/                    emit_agents.py, wiring.py, models
 ```
 
 ## 10. Work plan
 
-| Step | What | Estimate | Done when |
+| Step | What | Done when | State |
 |---|---|---|---|
-| 0 | Copy of collimator with history into `facet`; renaming in `pyproject.toml`, README; refract marked frozen | 1 h | `uv run pytest` green in facet |
-| 1 | One home for agents: reconcile `library/agents` with the copies in refract, rebuild `.claude/agents`, add `skills:` to writers and critics | 0.5 d | `emit_agents` with no manual edits in `.claude/agents` |
-| 2 | Documentation: README, `workflow-conventions.md`, `decisions/` (done 2026-09-21); `document-types.md`, `run-layout.md` | 1 d | a new session finds from the README how to make any type |
-| 3 | Profiles `requirements` (2026-09-19), `solution-design` (2026-09-20), `discovery-questions` (2026-09-21, removed 2026-10-10 with `solution-design.js`), `gap-analysis` | 1 d | the critic and the writer of one type read one profile |
-| 4 | Exemplars for three types + `exemplars.local.yaml` (`requirements` 2026-09-19, `solution-design` skeleton 2026-09-20) | 0.5 d | no client data in the repository |
-| 5 | `requirements.js` modelled on `solution-design.js` (removed 2026-10-10); a run on the control input, comparison with three refract runs | 1–2 d | the document is no worse than refract's; carriers in the log — counted |
-| 6 | Skill `/doc` for levels 1–2; trial on a gap analysis or a memo | 0.5 d | the result compared with a hand-made document of the same type |
-
-The first visible result is step 5.
+| 0 | Copy of collimator with history into `facet`; renaming in `pyproject.toml`, README; refract marked frozen | `uv run pytest` green in facet | done |
+| 1 | One home for agents: `library/agents` reconciled, `.claude/agents` rebuilt, `skills:` on writers and critics | `emit_agents` with no manual edits in `.claude/agents` | done |
+| 2 | Documentation: README, `workflow-conventions.md`, `decisions/` | a new session finds from the README how to make any document | done 2026-09-21; README.en.md 2026-11-18; a separate type catalogue and run-layout file dropped: the README and section 8 carry them |
+| 3 | Profiles for every level-3 document | the critic and the writer of one type read one profile | done for level 3; `gap-analysis` not written |
+| 4 | Exemplars for three types + `exemplars.local.yaml` | no client data in the repository | done |
+| 5 | `requirements.js`; a run on the control input | the document is no worse than refract's | done 2026-10-03 |
+| 6 | Skill `/doc` for levels 1-2 | the result compared with a hand-made document of the same type | not started |
 
 ## 11. What the project does not have and will not have
 

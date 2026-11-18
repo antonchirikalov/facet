@@ -1,59 +1,34 @@
-# Script and tool rules carried over from collimator's CLAUDE.md
+# Script and tool rules
 
 This is a reference for a human and for edits to scripts: the rakes paid for by live runs, and the
-rules they grew out of. It was moved out of CLAUDE.md on 2026-09-20 because every subagent reads
-CLAUDE.md at startup: 70 KB of this text cost about 16 thousand tokens for each of the 27 agents
-of a run. The rules remain in force; a disagreement with SPEC.md is resolved in favour of SPEC.md.
+rules they grew out of. It began as collimator's CLAUDE.md and was moved out of CLAUDE.md on
+2026-09-20 because every subagent read CLAUDE.md at startup: 70 KB of this text cost about 16
+thousand tokens for each of the 27 agents of a run (agents now carry `omitClaudeMd: true`). The
+rules remain in force; a disagreement with SPEC.md is resolved in favour of SPEC.md.
 
-# collimator — a compiler of document pipelines into Dynamic Workflows
-
-A collimator turns scattered rays into one parallel beam. The input is a pipeline declaration
-(`pipeline.yaml`), the output is a Dynamic Workflow script and subagent definitions for
-Claude Code. The line of names: spectra → refract → collimator.
-
-**The main rule of the project: we generate, we do not execute.** Claude Code runs the agents with
-its own runtime. There is no scheduler, no ledger, no crash recovery and no runtime adapter here —
-all of that existed in refract and died on purpose, because the platform does it better and
-changes faster than we could keep up with it.
+**The main rule: we generate and run, we do not write orchestration.** The workflow scripts are
+written by hand and Claude Code runs the agents with its own runtime. There is no scheduler, no
+ledger, no crash recovery and no runtime adapter here: all of that existed in refract and died on
+purpose, because the platform does it better and changes faster than we could keep up with it.
+collimator was meant to compile `pipeline.yaml` into scripts; the compiler was never finished and
+was archived on 2026-09-20 (SPEC section 13).
 
 ## Commands
 
-```bash
-uv run python -c "from pathlib import Path; from collimator.emit_agents import emit_all; print([p.name for p in emit_all(Path('library/agents'), Path('.claude/agents'), Path('.claude/skills'))])"   # agents from the library; fails if a named profile is missing from .claude/skills
-uv run pytest                                          # tests, no network and no LLM
-uv run ruff check --fix . && uv run ruff format .
-uv run mypy collimator                                 # strict
-python -X utf8 tools/gate.py --file <file> --max-length 14000   # gate by hand
-python -X utf8 tools/gate.py --file <file> --forbid-file library/style/forbid/ru-slop.txt
-node tools/dry_run.mjs .claude/workflows/<script>.js ok        # run on stubs
-node tools/dry_run.mjs .claude/workflows/<script>.js bad       # the same, every failure branch
-node tools/dry_run.mjs .claude/workflows/explainer-article.js ok '{"runDir":"d/r","brief":"t","config":{"fresh":true}}'
-node tools/dry_run.mjs .claude/workflows/explainer-article.js ok '{"runDir":"d/r","brief":"t","config":{"stages":["research"]}}'
-DRY_ORDER_MISMATCH=1 node tools/dry_run.mjs .claude/workflows/explainer-article.js ok '{"runDir":"d/r","brief":"t","config":{"continue":true}}'
-python -X utf8 tools/rounds.py --dir <run>/rounds --last-only  # what to continue the loop with
-python -X utf8 tools/listing.py --dir <run>/sources            # what the finders actually found
-python -X utf8 tools/newrun.py --base docs-runs --label <what>  # directory name for a NEW run
-python -X utf8 tools/snapshot.py --file <file> --to <dest>       # snapshot, refuses on mismatch
-python -X utf8 tools/busy.py --file <run>/tools.jsonl --now "<ISO>"  # whether the directory is busy
-python -X utf8 tools/gate.py --file <file> --no-empty-sections   # headings with no work under them
-python -X utf8 tools/rounds.py --dir <run>/rounds            # which rounds are already done
-python -X utf8 tools/sweep_junk.py --dry-run                   # what junk is in the root
-python -X utf8 tools/confluence_publish.py --draft <file> --dry-run <dest.xml>  # conversion only
-python -X utf8 tools/confluence_publish.py --draft <file> --parent-id <id> --json <dest.json>  # publishing
-```
+The command list is in CLAUDE.md. Here is why the dry run matters.
 
 A workflow script is run through `dry_run.mjs` **before** a live launch, and not in two modes but in
 every branch it has. `explainer-article` has nine: `ok` with `config.fresh`, `ok` without it
 (continuation from disk), only `research`, `config.correctors:false`, `bad`, plus the switches
 `DRY_BUSY` (directory busy), `DRY_ORDER_MISMATCH` (wrong order), `DRY_CARRIER_DROPS` (a carrier
-truncated the list) and `DRY_PLATEAU` (the loop is already on a plateau). `solution-design` has its
-own, including `DRY_EXISTS_OK` (the disk is in place, everything else fails). It replaces `agent()` with a stub that answers according to the call's schema, and executes the real
+truncated the list) and `DRY_PLATEAU` (the loop is already on a plateau). It replaces `agent()` with a stub that answers according to the call's schema, and executes the real
 control flow. Otherwise an error in the last `return` line costs a full run:
 `SOURCE_PATHS is not defined` cost 468 thousand tokens and twenty minutes. `node --check` is
 useless here — it parses a `.js` with `export` as CommonJS and stays silent.
 
-The definition of done for any edit: pytest green + mypy green + ruff clean +
-generated files rebuilt and committed.
+The definition of done for any edit is in CLAUDE.md: pytest, mypy and ruff clean, generated files
+rebuilt and committed, `dry_run.mjs` in every mode of a touched script, `facet.wiring` at zero
+problems with the agent registry regenerated in README.md and README.en.md.
 
 `tests/test_workflows.py` holds the launch invariants, and each one was paid for by a run: the
 script has no control characters (CR and NUL — the runtime refuses), every `agentType` has a file in
@@ -64,17 +39,17 @@ the same day they were written.
 
 ## Layout
 
-**What the package does NOT contain, although this file used to say it did.** No `graph.py`, no
-`registry.py`, no `prompt.py`, no `emit_workflow.py`, no `collimate build` command. The package has
-144 lines of Python: the agent definition generator and the agent model. The pipeline scripts are
-written by hand, and that is the state of things, not a phase — the decision on the compiler is
-made by measurement in the second archetype (see `docs/decisions/2026-08-17-dynamic-workflows-retrospective.md`).
+The package `facet/` is the agent definition generator, its model and the wiring check; there is
+no graph, no registry of types, no prompt builder and no script compiler.
 
-- `collimator/emit_agents.py` — `agent.yaml` + `prompt.md` → `.claude/agents/<slug>.md`.
-  The only working half of the compiler. The input/output tail that refract's `prompt.py` built
-  from the port contract now lives as the `task()` function inside each pipeline script — one text
-  for all agents instead of nine diverging variants;
-- `library/` — data, not code: 28 agents (21 built), artifact types, seven pipeline templates;
+- `facet/emit_agents.py` — `agent.yaml` + `prompt.md` → `.claude/agents/<slug>.md`. The
+  input/output tail that refract's `prompt.py` built from the port contract lives as the `task()`
+  function inside each pipeline script: one text for all agents;
+- `facet/wiring.py` — runs every stage of every script on stubs, checks that every port a script
+  hands an agent is declared in its contract, that no output is lost and that every phase is in
+  `meta`, and regenerates the agent registry in README.md and README.en.md;
+- `library/agents/` — data, not code: 40 agents, each `agent.yaml` (contract, model, tools,
+  profile) and `prompt.md` (role);
 - `library/style/author-voice.md` — the author's style profile. Data, edited by hand.
   It goes through the `voice` port to both the writer and the style critic: one description of the
   voice, not two;
@@ -84,15 +59,14 @@ made by measurement in the second archetype (see `docs/decisions/2026-08-17-dyna
   **outside code**, the plain `--forbid` searches the whole file, because `d_k ** 0.5` is a power
   and `**important**` is bold, and only the caller knows which was
   meant. `--no-empty-sections` names the headings with nothing under them;
-- `.claude/agents/`, `.claude/workflows/` — **generated**, but committed: then the diff shows
-  exactly what changed in the orchestration after a YAML edit;
+- `.claude/agents/` — **generated**, but committed: the diff shows exactly what changed in an
+  agent after a YAML edit. `.claude/workflows/` — written by hand;
 - `.claude/skills/<type>-profile/SKILL.md` — document-type profiles (SPEC §6). Data, edited by
   hand; they reach an agent through the `skills:` field of `agent.yaml`. **The document contract
   lives in the profile, not in prompts**: the writer, the corrector and the critic read one text,
-  a prompt describes a role. The `requirements` profile is filled in (`docs/decisions/2026-09-19-requirements-profile.md`);
-  the script passes its gate rules to the loop through `gateFlags`. The runtime skips a non-existent
-  profile **silently**, so `emit_all` with a third argument checks each one on disk and fails.
-  An agent reads the profile — so it is in English.
+  a prompt describes a role. A profile's gate rules are its ```` ```gate ```` block, read by
+  `gate.py --profile`. The runtime skips a non-existent profile **silently**, so `emit_all` with a
+  third argument checks each one on disk and fails. An agent reads the profile, so it is in English.
 
 ## What carried over from refract's invariants
 
